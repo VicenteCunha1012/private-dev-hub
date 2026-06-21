@@ -80,7 +80,7 @@ services:
     environment:
       - JAVA_OPTS=-Xmx256m
     volumes:
-      - /home/vicente/.claude:/home/user/.claude:ro
+      - ${HOME}/.claude:/home/user/.claude:ro
 
   json-tools-frontend:
     build: ./json-tools/frontend
