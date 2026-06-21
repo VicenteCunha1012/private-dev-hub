@@ -1,0 +1,6 @@
+ktor:
+  deployment:
+    port: 10600
+  application:
+    modules:
+      - pt.cunha.ttydmanager.ApplicationKt.module

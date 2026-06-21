@@ -30,7 +30,9 @@ data class Entry(
     val url: String? = null,
     val type: String,
     val folderId: Int? = null,
-    val position: Int
+    val position: Int,
+    val workdir: String? = null,
+    val command: String? = null
 )
 
 @Serializable
@@ -39,7 +41,9 @@ data class CreateEntryRequest(
     val url: String? = null,
     val type: String,
     val folderId: Int? = null,
-    val position: Int = 0
+    val position: Int = 0,
+    val workdir: String? = null,
+    val command: String? = null
 )
 
 @Serializable
@@ -48,7 +52,9 @@ data class UpdateEntryRequest(
     val url: String? = null,
     val type: String? = null,
     val folderId: Int? = null,
-    val position: Int? = null
+    val position: Int? = null,
+    val workdir: String? = null,
+    val command: String? = null
 )
 
 @Serializable
@@ -71,11 +77,20 @@ data class KeybindsConfig(
 )
 
 @Serializable
+data class PaletteConfig(
+    val preset: String = "midnight",
+    val customAccent: String? = null,
+    val customAccent2: String? = null,
+    val customBg: String? = null
+)
+
+@Serializable
 data class HubConfig(
     val pgDumpPath: String,
     val psqlPath: String,
     val pgRestorePath: String,
-    val keybinds: KeybindsConfig = KeybindsConfig()
+    val keybinds: KeybindsConfig = KeybindsConfig(),
+    val palette: PaletteConfig = PaletteConfig()
 )
 
 @Serializable
@@ -83,7 +98,8 @@ data class UpdateConfigRequest(
     val pgDumpPath: String? = null,
     val psqlPath: String? = null,
     val pgRestorePath: String? = null,
-    val keybinds: KeybindsConfig? = null
+    val keybinds: KeybindsConfig? = null,
+    val palette: PaletteConfig? = null
 )
 
 @Serializable

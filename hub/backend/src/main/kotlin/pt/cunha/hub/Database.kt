@@ -38,6 +38,9 @@ class Database(private val config: ApplicationConfig) {
                     position INT NOT NULL DEFAULT 0
                 )
             """)
+            // Add workdir/command columns idempotently for existing deployments
+            stmt.executeUpdate("ALTER TABLE entries ADD COLUMN IF NOT EXISTS workdir TEXT")
+            stmt.executeUpdate("ALTER TABLE entries ADD COLUMN IF NOT EXISTS command TEXT")
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS entry_icons (
                     entry_id INT PRIMARY KEY REFERENCES entries(id) ON DELETE CASCADE,

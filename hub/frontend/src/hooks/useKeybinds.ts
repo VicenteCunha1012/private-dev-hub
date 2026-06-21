@@ -41,8 +41,9 @@ export function useKeybinds(
       if (key === config.navDown) { e.preventDefault(); handlers.navDown(); return }
       if (key === config.openSettings) { e.preventDefault(); handlers.openSettings(); return }
 
-      // Per-entry shortcuts from config
-      const custom = config.entryShortcuts.find(s => s.shortcut === key)
+      // Per-entry shortcuts — filter out invalid/incomplete entries first
+      const validShortcuts = config.entryShortcuts.filter(s => s.entryId > 0 && s.shortcut.length > 0)
+      const custom = validShortcuts.find(s => s.shortcut === key)
       if (custom) {
         const entry = allEntries.find(e => e.id === custom.entryId)
         if (entry) { e.preventDefault(); handlers.openEntry(entry) }

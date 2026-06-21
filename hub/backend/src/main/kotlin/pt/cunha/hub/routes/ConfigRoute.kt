@@ -19,7 +19,7 @@ fun Routing.configRoutes(configService: ConfigService, folderService: FolderServ
 
         post {
             val req = call.receive<UpdateConfigRequest>()
-            val updated = configService.updateConfig(req.pgDumpPath, req.psqlPath, req.pgRestorePath, req.keybinds)
+            val updated = configService.updateConfig(req.pgDumpPath, req.psqlPath, req.pgRestorePath, req.keybinds, req.palette)
             call.respond(updated)
         }
 
@@ -41,7 +41,8 @@ fun Routing.configRoutes(configService: ConfigService, folderService: FolderServ
                 imported.config.pgDumpPath,
                 imported.config.psqlPath,
                 imported.config.pgRestorePath,
-                imported.config.keybinds
+                imported.config.keybinds,
+                imported.config.palette
             )
             call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
         }

@@ -22,7 +22,7 @@ fun Routing.entriesRoutes(entryService: EntryService, faviconService: FaviconSer
 
         post {
             val req = call.receive<CreateEntryRequest>()
-            val entry = entryService.create(req.label, req.url, req.type, req.folderId, req.position)
+            val entry = entryService.create(req.label, req.url, req.type, req.folderId, req.position, req.workdir, req.command)
             if (req.url != null) {
                 val url = req.url
                 call.application.launch(Dispatchers.IO) { faviconService.fetchAndCacheFavicon(entry.id, url) }
@@ -33,7 +33,7 @@ fun Routing.entriesRoutes(entryService: EntryService, faviconService: FaviconSer
         put("/{id}") {
             val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid id")
             val req = call.receive<UpdateEntryRequest>()
-            val entry = entryService.update(id, req.label, req.url, req.type, req.folderId, req.position)
+            val entry = entryService.update(id, req.label, req.url, req.type, req.folderId, req.position, req.workdir, req.command)
             if (req.url != null) {
                 val url = req.url
                 call.application.launch(Dispatchers.IO) { faviconService.fetchAndCacheFavicon(entry.id, url) }

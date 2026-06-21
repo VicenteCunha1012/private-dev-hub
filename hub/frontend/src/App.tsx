@@ -5,14 +5,16 @@ import HomeScreen from './components/HomeScreen'
 import IframeArea from './components/IframeArea'
 import Sidebar from './components/Sidebar'
 import { useKeybinds } from './hooks/useKeybinds'
-import type { Entry, Folder, KeybindsConfig } from './types'
-import { DEFAULT_KEYBINDS } from './types'
+import { applyPalette } from './palettes'
+import type { Entry, Folder, KeybindsConfig, PaletteConfig } from './types'
+import { DEFAULT_KEYBINDS, DEFAULT_PALETTE } from './types'
 
 export default function App() {
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [showConfig, setShowConfig] = useState(false)
   const [keybinds, setKeybinds] = useState<KeybindsConfig>(DEFAULT_KEYBINDS)
+  const [palette, setPalette] = useState<PaletteConfig>(DEFAULT_PALETTE)
   const [error, setError] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
@@ -32,7 +34,12 @@ export default function App() {
   useEffect(() => {
     loadFolders()
     api.getConfig()
-      .then(c => setKeybinds(c.keybinds ?? DEFAULT_KEYBINDS))
+      .then(c => {
+        setKeybinds(c.keybinds ?? DEFAULT_KEYBINDS)
+        const p = c.palette ?? DEFAULT_PALETTE
+        setPalette(p)
+        applyPalette(p)
+      })
       .catch(() => {})
   }, [loadFolders])
 
@@ -131,6 +138,8 @@ export default function App() {
             folders={folders}
             keybinds={keybinds}
             onKeybindsChange={setKeybinds}
+            palette={palette}
+            onPaletteChange={p => { setPalette(p); applyPalette(p) }}
             onRefresh={loadFolders}
           />
         )}

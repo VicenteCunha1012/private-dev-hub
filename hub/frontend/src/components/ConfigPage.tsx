@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/hubApi'
-import type { Entry, ExportedConfig, Folder, HubConfig, KeybindsConfig } from '../types'
+import { api, ttydApi } from '../api/hubApi'
+import { applyPalette, PRESETS } from '../palettes'
+import type { Entry, ExportedConfig, Folder, HubConfig, KeybindsConfig, PaletteConfig } from '../types'
 import Modal from './Modal'
 
 interface ConfigPageProps {
   folders: Folder[]
   keybinds: KeybindsConfig
   onKeybindsChange: (k: KeybindsConfig) => void
+  palette: PaletteConfig
+  onPaletteChange: (p: PaletteConfig) => void
   onRefresh: () => void
 }
 
-export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefresh }: ConfigPageProps) {
+export default function ConfigPage({ folders, keybinds, onKeybindsChange, palette, onPaletteChange, onRefresh }: ConfigPageProps) {
   const [editConfig, setEditConfig] = useState<HubConfig | null>(null)
   const [showAddFolder, setShowAddFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
@@ -23,8 +26,10 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
   }, [])
 
   const [editKeybinds, setEditKeybinds] = useState<KeybindsConfig>(keybinds)
-  // keep local copy in sync when parent updates (e.g. on import)
   useEffect(() => { setEditKeybinds(keybinds) }, [keybinds])
+
+  const [editPalette, setEditPalette] = useState<PaletteConfig>(palette)
+  useEffect(() => { setEditPalette(palette) }, [palette])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -38,9 +43,24 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
   }
 
   const saveKeybinds = async () => {
-    const updated = await api.updateConfig({ keybinds: editKeybinds })
+    const cleaned: KeybindsConfig = {
+      ...editKeybinds,
+      entryShortcuts: editKeybinds.entryShortcuts.filter(s => s.entryId > 0 && s.shortcut.trim().length > 0),
+    }
+    const updated = await api.updateConfig({ keybinds: cleaned })
     onKeybindsChange(updated.keybinds)
     showToast('Keybinds saved')
+  }
+
+  const previewPalette = (p: PaletteConfig) => {
+    setEditPalette(p)
+    applyPalette(p)
+  }
+
+  const savePalette = async () => {
+    const updated = await api.updateConfig({ palette: editPalette })
+    onPaletteChange(updated.palette ?? editPalette)
+    showToast('Theme saved')
   }
 
   const addFolder = async () => {
@@ -78,6 +98,9 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
     const text = await file.text()
     const data: ExportedConfig = JSON.parse(text)
     await api.importConfig(data)
+    if (data.config.palette) {
+      onPaletteChange(data.config.palette)
+    }
     showToast('Config imported')
     onRefresh()
   }
@@ -86,7 +109,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
     <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
 
-        {/* Toast */}
         {toast && (
           <div style={{
             position: 'fixed', top: 20, right: 20, zIndex: 2000,
@@ -140,7 +162,11 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
                     }}>
                       <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{entry.label}</span>
                       <Badge>{entry.type}</Badge>
-                      {entry.url && (
+                      {entry.type === 'tui' ? (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {entry.command ?? ''}
+                        </span>
+                      ) : entry.url && (
                         <span style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {entry.url}
                         </span>
@@ -153,6 +179,91 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
               )}
             </div>
           ))}
+        </Section>
+
+        {/* Appearance / Palette */}
+        <Section title="Appearance">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <SectionLabel>Color theme</SectionLabel>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                {Object.entries(PRESETS).map(([key, preset]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => previewPalette({ preset: key })}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                      padding: '12px 16px',
+                      background: editPalette.preset === key ? 'var(--active-bg)' : 'rgba(255,255,255,0.03)',
+                      border: `2px solid ${editPalette.preset === key ? 'var(--accent)' : 'var(--border)'}`,
+                      borderRadius: 10, cursor: 'pointer',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                  >
+                    <div style={{
+                      width: 30, height: 30, borderRadius: '50%',
+                      background: preset.accent,
+                      boxShadow: editPalette.preset === key ? `0 0 14px ${preset.accent}99` : 'none',
+                      transition: 'box-shadow 0.15s',
+                    }} />
+                    <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500 }}>{preset.label}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => previewPalette({ ...editPalette, preset: 'custom' })}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                    padding: '12px 16px',
+                    background: editPalette.preset === 'custom' ? 'var(--active-bg)' : 'rgba(255,255,255,0.03)',
+                    border: `2px solid ${editPalette.preset === 'custom' ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 10, cursor: 'pointer',
+                    transition: 'border-color 0.15s, background 0.15s',
+                  }}
+                >
+                  <div style={{
+                    width: 30, height: 30, borderRadius: '50%',
+                    background: 'conic-gradient(from 0deg, #a78bfa, #38bdf8, #4ade80, #fb923c, #a3a3a3, #a78bfa)',
+                  }} />
+                  <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500 }}>Custom</span>
+                </button>
+              </div>
+            </div>
+
+            {editPalette.preset === 'custom' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <Field label="Primary accent">
+                  <input
+                    type="color"
+                    value={editPalette.customAccent ?? '#a78bfa'}
+                    onChange={e => previewPalette({ ...editPalette, customAccent: e.target.value })}
+                    style={{ height: 38, padding: '2px 4px', cursor: 'pointer' }}
+                  />
+                </Field>
+                <Field label="Secondary accent">
+                  <input
+                    type="color"
+                    value={editPalette.customAccent2 ?? '#818cf8'}
+                    onChange={e => previewPalette({ ...editPalette, customAccent2: e.target.value })}
+                    style={{ height: 38, padding: '2px 4px', cursor: 'pointer' }}
+                  />
+                </Field>
+                <Field label="Background">
+                  <input
+                    type="color"
+                    value={editPalette.customBg ?? '#0e0c15'}
+                    onChange={e => previewPalette({ ...editPalette, customBg: e.target.value })}
+                    style={{ height: 38, padding: '2px 4px', cursor: 'pointer' }}
+                  />
+                </Field>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <PrimaryBtn onClick={savePalette}>Save theme</PrimaryBtn>
+            </div>
+          </div>
         </Section>
 
         {/* PostgreSQL tools */}
@@ -179,7 +290,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
         <Section title="Keyboard Shortcuts">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            {/* Global actions */}
             <div>
               <SectionLabel>Global actions</SectionLabel>
               <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
@@ -204,7 +314,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
               </div>
             </div>
 
-            {/* Quick slots 1–9 */}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <SectionLabel>Quick slots 1–9</SectionLabel>
               <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
@@ -245,7 +354,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
               </div>
             </div>
 
-            {/* Custom shortcuts */}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <SectionLabel style={{ marginBottom: 0 }}>Custom shortcuts</SectionLabel>
@@ -274,6 +382,7 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
                     </select>
                     <KeyInput value={es.shortcut} onChange={v => setEditKeybinds(k => ({ ...k, entryShortcuts: k.entryShortcuts.map((s, j) => j === i ? { ...s, shortcut: v } : s) }))} />
                     <button
+                      type="button"
                       onClick={() => setEditKeybinds(k => ({ ...k, entryShortcuts: k.entryShortcuts.filter((_, j) => j !== i) }))}
                       style={{ color: 'var(--danger)', fontSize: 18, lineHeight: 1 }}
                     >×</button>
@@ -291,7 +400,7 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
         <Section title="Backup & Restore">
           <div style={{ display: 'flex', gap: 8 }}>
             <PrimaryBtn onClick={exportConfig}>Export config</PrimaryBtn>
-            <label>
+            <label style={{ display: 'inline-block' }}>
               <GhostBtn as="span">Import config</GhostBtn>
               <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) importConfig(f) }} />
             </label>
@@ -300,7 +409,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
 
       </div>
 
-      {/* Add folder modal */}
       {showAddFolder && (
         <Modal title="New folder" onClose={() => setShowAddFolder(false)}>
           <form onSubmit={e => { e.preventDefault(); addFolder() }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -312,7 +420,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, onRefr
         </Modal>
       )}
 
-      {/* Add / edit entry modal */}
       {(showAddEntry || editEntry) && (
         <EntryModal
           folders={folders}
@@ -380,10 +487,10 @@ function PrimaryBtn({ onClick, children, type = 'button' }: { onClick?: () => vo
   return (
     <button type={type} onClick={onClick} style={{
       padding: '7px 16px',
-      background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+      background: 'linear-gradient(135deg, var(--accent-solid), var(--accent-2))',
       border: 'none', borderRadius: 7,
       fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer',
-      boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
       transition: 'opacity 0.15s',
     }}
       onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
@@ -395,25 +502,26 @@ function PrimaryBtn({ onClick, children, type = 'button' }: { onClick?: () => vo
 }
 
 function GhostBtn({ onClick, children, as: Tag = 'button' }: { onClick?: () => void; children: React.ReactNode; as?: 'button' | 'span' }) {
-  return (
-    <Tag onClick={onClick} style={{
-      padding: '7px 16px',
-      background: 'rgba(255,255,255,0.05)',
-      border: '1px solid var(--border-light)', borderRadius: 7,
-      fontSize: 13, color: 'var(--text)', cursor: 'pointer', display: 'inline-block',
-      transition: 'background 0.15s',
-    }}
-      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.09)')}
-      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)')}
-    >
-      {children}
-    </Tag>
-  )
+  const style: React.CSSProperties = {
+    padding: '7px 16px',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid var(--border-light)', borderRadius: 7,
+    fontSize: 13, color: 'var(--text)', cursor: 'pointer', display: 'inline-block',
+    transition: 'background 0.15s',
+  }
+  const handlers = {
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.09)'),
+    onMouseLeave: (e: React.MouseEvent<HTMLElement>) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'),
+  }
+  if (Tag === 'span') {
+    return <span onClick={onClick} style={style} {...handlers}>{children}</span>
+  }
+  return <button type="button" onClick={onClick} style={style} {...handlers}>{children}</button>
 }
 
 function TextBtn({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
+    <button type="button" onClick={onClick} style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
       {children}
     </button>
   )
@@ -421,7 +529,7 @@ function TextBtn({ onClick, children }: { onClick?: () => void; children: React.
 
 function DangerBtn({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
+    <button type="button" onClick={onClick} style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
       {children}
     </button>
   )
@@ -436,7 +544,7 @@ function ModalFooter({ onCancel, submitLabel = 'Save' }: { onCancel: () => void;
   )
 }
 
-// ── KeyInput — captures a keypress as a shortcut string ──────────────────────
+// ── KeyInput ──────────────────────────────────────────────────────────────────
 
 function KeyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [capturing, setCapturing] = useState(false)
@@ -487,19 +595,36 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
   const [url, setUrl] = useState(entry?.url ?? '')
   const [type, setType] = useState<'redirect' | 'tui' | 'tool'>(entry?.type ?? 'redirect')
   const [folderId, setFolderId] = useState<number | undefined>(entry?.folderId)
+  const [workdir, setWorkdir] = useState(entry?.workdir ?? '')
+  const [command, setCommand] = useState(entry?.command ?? '')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const save = async () => {
     if (!label.trim()) return
+    setError(null)
     setSaving(true)
     try {
-      if (entry) {
-        await api.updateEntry(entry.id, { label, url: url || undefined, type, folderId })
+      if (type === 'tui' && !entry) {
+        // New TUI: spawn via ttyd-manager, get URL
+        const session = await ttydApi.create(label, workdir || '/root', command)
+        await api.createEntry({
+          label, url: session.url, type, folderId, position: 0,
+          workdir: workdir || '/root', command,
+        })
+      } else if (entry) {
+        await api.updateEntry(entry.id, {
+          label,
+          url: type === 'tui' ? entry.url : (url || undefined),
+          type, folderId,
+          ...(type === 'tui' ? { workdir: workdir || undefined, command: command || undefined } : {}),
+        })
       } else {
         await api.createEntry({ label, url: url || undefined, type, folderId, position: 0 })
       }
       await onSave()
-    } finally {
+    } catch (e) {
+      setError((e as Error).message)
       setSaving(false)
     }
   }
@@ -507,17 +632,49 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
   return (
     <Modal title={entry ? 'Edit entry' : 'New entry'} onClose={onClose}>
       <form onSubmit={e => { e.preventDefault(); save() }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {error && (
+          <div style={{ padding: '8px 12px', background: '#2a0f0f', border: '1px solid #5a2020', borderRadius: 6, color: '#f87171', fontSize: 12 }}>
+            {error}
+          </div>
+        )}
         <Field label="Label">
           <input value={label} onChange={e => setLabel(e.target.value)} placeholder="My Service" autoFocus required />
         </Field>
-        <Field label="URL">
-          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." />
-        </Field>
+
+        {type === 'tui' ? (
+          <>
+            <Field label="Working directory">
+              <input
+                value={workdir}
+                onChange={e => setWorkdir(e.target.value)}
+                placeholder="/root"
+              />
+            </Field>
+            <Field label="Command">
+              <input
+                value={command}
+                onChange={e => setCommand(e.target.value)}
+                placeholder="lazydocker"
+                required
+              />
+            </Field>
+            {entry?.url && (
+              <Field label="ttyd URL (auto-assigned)">
+                <input value={entry.url} readOnly style={{ opacity: 0.6 }} />
+              </Field>
+            )}
+          </>
+        ) : (
+          <Field label="URL">
+            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." />
+          </Field>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field label="Type">
             <select value={type} onChange={e => setType(e.target.value as typeof type)}>
               <option value="redirect">Redirect</option>
-              <option value="tui">TUI</option>
+              <option value="tui">TUI (terminal)</option>
             </select>
           </Field>
           <Field label="Folder">

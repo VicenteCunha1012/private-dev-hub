@@ -7,6 +7,8 @@ export interface Entry {
   type: EntryType
   folderId?: number
   position: number
+  workdir?: string
+  command?: string
 }
 
 export interface Folder {
@@ -39,11 +41,21 @@ export const DEFAULT_KEYBINDS: KeybindsConfig = {
   entryShortcuts: [],
 }
 
+export interface PaletteConfig {
+  preset: string
+  customAccent?: string
+  customAccent2?: string
+  customBg?: string
+}
+
+export const DEFAULT_PALETTE: PaletteConfig = { preset: 'midnight' }
+
 export interface HubConfig {
   pgDumpPath: string
   psqlPath: string
   pgRestorePath: string
   keybinds: KeybindsConfig
+  palette?: PaletteConfig
 }
 
 export interface ExportedConfig {

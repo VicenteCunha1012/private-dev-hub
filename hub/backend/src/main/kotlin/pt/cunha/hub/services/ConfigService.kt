@@ -6,6 +6,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import pt.cunha.hub.models.HubConfig
 import pt.cunha.hub.models.KeybindsConfig
+import pt.cunha.hub.models.PaletteConfig
 import java.sql.Connection
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -21,11 +22,16 @@ class ConfigService(private val conn: Connection) {
             runCatching { json.decodeFromString<KeybindsConfig>(it) }.getOrNull()
         } ?: KeybindsConfig()
 
+        val palette = map["palette"]?.let {
+            runCatching { json.decodeFromString<PaletteConfig>(it) }.getOrNull()
+        } ?: PaletteConfig()
+
         HubConfig(
             pgDumpPath = map["pg_dump_path"] ?: "/usr/bin/pg_dump",
             psqlPath = map["psql_path"] ?: "/usr/bin/psql",
             pgRestorePath = map["pg_restore_path"] ?: "/usr/bin/pg_restore",
-            keybinds = keybinds
+            keybinds = keybinds,
+            palette = palette
         )
     }
 
@@ -33,7 +39,8 @@ class ConfigService(private val conn: Connection) {
         pgDumpPath: String?,
         psqlPath: String?,
         pgRestorePath: String?,
-        keybinds: KeybindsConfig?
+        keybinds: KeybindsConfig?,
+        palette: PaletteConfig? = null
     ): HubConfig = withContext(Dispatchers.IO) {
         val stmt = conn.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
@@ -49,6 +56,7 @@ class ConfigService(private val conn: Connection) {
         set("psql_path", psqlPath)
         set("pg_restore_path", pgRestorePath)
         if (keybinds != null) set("keybinds", json.encodeToString(keybinds))
+        if (palette != null) set("palette", json.encodeToString(palette))
         getConfig()
     }
 }

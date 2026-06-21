@@ -51,3 +51,34 @@ export const api = {
   // Health
   health: (): Promise<{ status: string }> => req('/health'),
 }
+
+// ── ttyd-manager API ──────────────────────────────────────────────────────────
+
+const TTYD_BASE = 'http://localhost:10600'
+
+async function ttydReq<T>(path: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(`${TTYD_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...opts?.headers },
+    ...opts,
+  })
+  if (!res.ok) throw new Error(`ttyd-manager: ${res.status} ${res.statusText}`)
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
+export interface TuiSession {
+  id: string
+  name: string
+  workdir: string
+  command: string
+  port: number
+  url: string
+}
+
+export const ttydApi = {
+  list: (): Promise<TuiSession[]> => ttydReq('/tuis'),
+  create: (name: string, workdir: string, command: string): Promise<TuiSession> =>
+    ttydReq('/tuis', { method: 'POST', body: JSON.stringify({ name, workdir, command }) }),
+  delete: (id: string): Promise<void> =>
+    ttydReq(`/tuis/${id}`, { method: 'DELETE' }),
+}

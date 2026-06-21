@@ -10,3 +10,10 @@
 # Env files with secrets
 .env
 *.env.local
+
+# Build outputs
+**/build/
+**/.build/
+**/.gradle/
+**/node_modules/
+**/dist/
