@@ -61,6 +61,28 @@ export interface ProjectInfo {
   lastActivity: number
 }
 
+export interface TimelinePoint {
+  date: string
+  costUsd: number
+  inputTokens: number
+  outputTokens: number
+  sessions: number
+}
+
+export interface SpendingTimeline {
+  tool: string
+  period: string
+  points: TimelinePoint[]
+}
+
+export interface SpendingProjection {
+  tool: string
+  dailyAvgCostUsd: number
+  projectedMonthlyCostUsd: number
+  daysOfData: number
+  totalCostUsd: number
+}
+
 export const sessionsApi = {
   health: (): Promise<{ status: string }> => req('/health'),
   getSessions: (tool: string = 'claude-code'): Promise<SessionSummary[]> => req(`/sessions?tool=${tool}`),
@@ -68,4 +90,8 @@ export const sessionsApi = {
   getSpending: (tool: string = 'claude-code'): Promise<SpendingReport> => req(`/spending?tool=${tool}`),
   getProjects: (): Promise<ProjectInfo[]> => req('/projects'),
   getConfig: (): Promise<{ claudeDir: string }> => req('/config'),
+  getTimeline: (tool: string = 'claude-code', period: string = 'daily'): Promise<SpendingTimeline> =>
+    req(`/spending/timeline?tool=${tool}&period=${period}`),
+  getProjection: (tool: string = 'claude-code'): Promise<SpendingProjection> =>
+    req(`/spending/projection?tool=${tool}`),
 }

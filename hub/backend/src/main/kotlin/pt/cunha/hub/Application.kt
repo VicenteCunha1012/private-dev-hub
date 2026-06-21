@@ -10,10 +10,12 @@ import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
+import pt.cunha.hub.routes.backupRoutes
 import pt.cunha.hub.routes.configRoutes
 import pt.cunha.hub.routes.entriesRoutes
 import pt.cunha.hub.routes.foldersRoutes
 import pt.cunha.hub.routes.healthRoutes
+import pt.cunha.hub.services.BackupService
 import pt.cunha.hub.services.ConfigService
 import pt.cunha.hub.services.EntryService
 import pt.cunha.hub.services.FaviconService
@@ -27,6 +29,8 @@ fun Application.module() {
     val entryService = EntryService(db.connection)
     val configService = ConfigService(db.connection)
     val faviconService = FaviconService(db.connection)
+    val backupService = BackupService(configService)
+    backupService.startScheduler()
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false })
@@ -66,5 +70,6 @@ fun Application.module() {
         foldersRoutes(folderService)
         entriesRoutes(entryService, faviconService)
         configRoutes(configService, folderService, entryService)
+        backupRoutes(backupService)
     }
 }

@@ -63,6 +63,15 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   },
 
+  // Backups
+  getBackups: (): Promise<{ filename: string; timestamp: string; sizeBytes: number }[]> => req('/backups'),
+  runBackup: (): Promise<{ filename: string; timestamp: string; sizeBytes: number }> =>
+    req('/backups/run', { method: 'POST' }),
+  getBackupConfig: (): Promise<{ enabled: boolean; intervalMinutes: number; path: string; retention: number }> =>
+    req('/backups/config'),
+  updateBackupConfig: (data: { enabled?: boolean; intervalMinutes?: number; path?: string; retention?: number }): Promise<{ enabled: boolean; intervalMinutes: number; path: string; retention: number }> =>
+    req('/backups/config', { method: 'POST', body: JSON.stringify(data) }),
+
   // Health
   health: (): Promise<{ status: string }> => req('/health'),
 }

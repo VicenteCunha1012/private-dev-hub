@@ -85,5 +85,18 @@ fun Application.module() {
             val projects = sessionScanner.getProjects()
             call.respond(projects)
         }
+
+        get("/spending/timeline") {
+            val tool = call.request.queryParameters["tool"] ?: "claude-code"
+            val period = call.request.queryParameters["period"] ?: "daily"
+            val timeline = sessionScanner.getSpendingTimeline(tool, period)
+            call.respond(timeline)
+        }
+
+        get("/spending/projection") {
+            val tool = call.request.queryParameters["tool"] ?: "claude-code"
+            val projection = sessionScanner.getProjection(tool)
+            call.respond(projection)
+        }
     }
 }

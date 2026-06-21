@@ -452,6 +452,9 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
           </div>
         </Section>
 
+        {/* Backup Scheduler */}
+        <BackupSchedulerSection showToast={showToast} />
+
       </div>
 
       {showAddFolder && (
@@ -732,5 +735,86 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
         <ModalFooter onCancel={onClose} submitLabel={saving ? 'Saving…' : entry ? 'Save changes' : 'Add entry'} />
       </form>
     </Modal>
+  )
+}
+
+// ── Backup Scheduler ─────────────────────────────────────────────────────────
+
+function BackupSchedulerSection({ showToast }: { showToast: (msg: string) => void }) {
+  const [config, setConfig] = useState<{ enabled: boolean; intervalMinutes: number; path: string; retention: number } | null>(null)
+  const [backups, setBackups] = useState<{ filename: string; timestamp: string; sizeBytes: number }[]>([])
+  const [running, setRunning] = useState(false)
+
+  useEffect(() => {
+    api.getBackupConfig().then(setConfig).catch(() => {})
+    api.getBackups().then(setBackups).catch(() => {})
+  }, [])
+
+  const saveConfig = async () => {
+    if (!config) return
+    await api.updateBackupConfig(config)
+    showToast('Backup schedule saved')
+  }
+
+  const runNow = async () => {
+    setRunning(true)
+    try {
+      await api.runBackup()
+      showToast('Backup created')
+      const list = await api.getBackups()
+      setBackups(list)
+    } catch (e) {
+      showToast('Backup failed: ' + (e as Error).message)
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  if (!config) return null
+
+  return (
+    <Section title="Backup Scheduler">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Backup directory">
+            <input value={config.path} onChange={e => setConfig(c => c ? { ...c, path: e.target.value } : c)} />
+          </Field>
+          <Field label="Interval (minutes)">
+            <input type="number" min={5} value={config.intervalMinutes} onChange={e => setConfig(c => c ? { ...c, intervalMinutes: Number(e.target.value) } : c)} />
+          </Field>
+          <Field label="Keep last N backups">
+            <input type="number" min={1} value={config.retention} onChange={e => setConfig(c => c ? { ...c, retention: Number(e.target.value) } : c)} />
+          </Field>
+          <Field label="Auto-backup enabled">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <input type="checkbox" checked={config.enabled} onChange={e => setConfig(c => c ? { ...c, enabled: e.target.checked } : c)} style={{ width: 'auto' }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{config.enabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+          </Field>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <PrimaryBtn onClick={saveConfig}>Save schedule</PrimaryBtn>
+          <GhostBtn onClick={runNow}>{running ? 'Running...' : 'Run backup now'}</GhostBtn>
+        </div>
+        {backups.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <SectionLabel>Recent backups ({backups.length})</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {backups.slice(0, 10).map(b => (
+                <div key={b.filename} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 10px', background: 'rgba(255,255,255,0.02)',
+                  borderRadius: 6, fontSize: 12,
+                }}>
+                  <span style={{ fontFamily: 'monospace', flex: 1 }}>{b.filename}</span>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>{(b.sizeBytes / 1024).toFixed(1)} KB</span>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>{new Date(b.timestamp).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
   )
 }

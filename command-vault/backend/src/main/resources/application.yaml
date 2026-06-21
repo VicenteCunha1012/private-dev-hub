@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10409
+  application:
+    modules:
+      - pt.cunha.commandvault.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://command-vault-db:5432/commandvault"
+  user: "commandvault"
+  password: "commandvault"

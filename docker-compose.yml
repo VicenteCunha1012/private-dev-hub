@@ -129,7 +129,71 @@ services:
       timeout: 5s
       retries: 10
 
+  command-vault-frontend:
+    build: ./command-vault/frontend
+    ports:
+      - "127.0.0.1:10309:80"
+    depends_on:
+      - command-vault-backend
+
+  command-vault-backend:
+    build: ./command-vault/backend
+    ports:
+      - "127.0.0.1:10409:10409"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+    depends_on:
+      command-vault-db:
+        condition: service_healthy
+
+  command-vault-db:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:10509:5432"
+    environment:
+      POSTGRES_DB: commandvault
+      POSTGRES_USER: commandvault
+      POSTGRES_PASSWORD: commandvault
+    volumes:
+      - command-vault-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commandvault -d commandvault"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  port-radar-frontend:
+    build: ./port-radar/frontend
+    ports:
+      - "127.0.0.1:10310:80"
+    depends_on:
+      - port-radar-backend
+
+  port-radar-backend:
+    build: ./port-radar/backend
+    ports:
+      - "127.0.0.1:10410:10410"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+    volumes:
+      - /proc:/host/proc:ro
+
+  health-dashboard-frontend:
+    build: ./health-dashboard/frontend
+    ports:
+      - "127.0.0.1:10311:80"
+    depends_on:
+      - health-dashboard-backend
+
+  health-dashboard-backend:
+    build: ./health-dashboard/backend
+    ports:
+      - "127.0.0.1:10411:10411"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
   mock-data-generator-db-data:
+  command-vault-db-data:

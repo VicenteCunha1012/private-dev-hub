@@ -1,0 +1,427 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { vaultApi, type Snippet, type CreateSnippetRequest, type UpdateSnippetRequest } from './api/vaultApi'
+
+// ── Variable parsing ─────────────────────────────────────────────────────────
+
+function parseVariables(command: string): string[] {
+  const matches = command.match(/\{(\w+)\}/g)
+  if (!matches) return []
+  const unique = [...new Set(matches.map(m => m.slice(1, -1)))]
+  return unique
+}
+
+function substituteVariables(command: string, values: Record<string, string>): string {
+  let result = command
+  for (const [key, val] of Object.entries(values)) {
+    result = result.replaceAll(`{${key}}`, val)
+  }
+  return result
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--card-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)',
+        padding: 24, minWidth: 480, maxWidth: 600, maxHeight: '80vh', overflow: 'auto',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600 }}>{title}</h2>
+          <button onClick={onClose} style={{ fontSize: 18, color: 'var(--text-muted)' }}>x</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ── Tag Badge ────────────────────────────────────────────────────────────────
+
+function TagBadge({ tag }: { tag: string }) {
+  return (
+    <span style={{
+      display: 'inline-block', padding: '2px 8px', borderRadius: 12,
+      background: 'var(--accent-glow)', color: 'var(--accent-2)',
+      fontSize: 11, fontWeight: 500, marginRight: 4, marginBottom: 2,
+    }}>
+      {tag}
+    </span>
+  )
+}
+
+// ── Snippet Form ─────────────────────────────────────────────────────────────
+
+function SnippetForm({ initial, onSubmit, onCancel, submitLabel }: {
+  initial?: Snippet
+  onSubmit: (data: CreateSnippetRequest | UpdateSnippetRequest) => void
+  onCancel: () => void
+  submitLabel: string
+}) {
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [command, setCommand] = useState(initial?.command ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [tags, setTags] = useState(initial?.tags ?? '')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Title</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Docker restart" />
+      </div>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Command</label>
+        <textarea
+          value={command} onChange={e => setCommand(e.target.value)}
+          placeholder="e.g. docker restart {container}"
+          rows={4}
+          style={{ fontFamily: 'var(--mono)', fontSize: 13, resize: 'vertical' }}
+        />
+      </div>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Description</label>
+        <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" />
+      </div>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Tags (comma-separated)</label>
+        <input value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g. docker, devops" />
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+        <button onClick={onCancel} style={{
+          padding: '8px 16px', borderRadius: 'var(--radius)',
+          border: '1px solid var(--border)', color: 'var(--text-muted)',
+        }}>Cancel</button>
+        <button onClick={() => onSubmit({ title, command, description: description || undefined, tags: tags || undefined })} style={{
+          padding: '8px 16px', borderRadius: 'var(--radius)',
+          background: 'var(--accent-solid)', color: '#fff', fontWeight: 500,
+        }}>
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Main App ─────────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [snippets, setSnippets] = useState<Snippet[]>([])
+  const [allTags, setAllTags] = useState<string[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+  const [tagFilter, setTagFilter] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [varValues, setVarValues] = useState<Record<string, string>>({})
+  const [showVarForm, setShowVarForm] = useState(false)
+  const [copyFeedback, setCopyFeedback] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  const selected = useMemo(() => snippets.find(s => s.id === selectedId) ?? null, [snippets, selectedId])
+  const variables = useMemo(() => selected ? parseVariables(selected.command) : [], [selected])
+
+  const loadSnippets = useCallback(async () => {
+    try {
+      const data = await vaultApi.getSnippets(search || undefined, tagFilter || undefined)
+      setSnippets(data)
+      setError(null)
+    } catch {
+      setError('Backend unreachable -- make sure the command-vault backend is running on port 10409.')
+    }
+  }, [search, tagFilter])
+
+  const loadTags = useCallback(async () => {
+    try {
+      const tags = await vaultApi.getTags()
+      setAllTags(tags)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { loadSnippets() }, [loadSnippets])
+  useEffect(() => { loadTags() }, [loadTags])
+
+  const handleCreate = useCallback(async (data: CreateSnippetRequest | UpdateSnippetRequest) => {
+    try {
+      const created = await vaultApi.createSnippet(data as CreateSnippetRequest)
+      setShowCreate(false)
+      await loadSnippets()
+      await loadTags()
+      setSelectedId(created.id)
+    } catch (e) {
+      console.error('Failed to create snippet', e)
+    }
+  }, [loadSnippets, loadTags])
+
+  const handleUpdate = useCallback(async (data: CreateSnippetRequest | UpdateSnippetRequest) => {
+    if (!selectedId) return
+    try {
+      await vaultApi.updateSnippet(selectedId, data as UpdateSnippetRequest)
+      setShowEdit(false)
+      await loadSnippets()
+      await loadTags()
+    } catch (e) {
+      console.error('Failed to update snippet', e)
+    }
+  }, [selectedId, loadSnippets, loadTags])
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedId) return
+    if (!confirm('Delete this snippet?')) return
+    try {
+      await vaultApi.deleteSnippet(selectedId)
+      setSelectedId(null)
+      await loadSnippets()
+      await loadTags()
+    } catch (e) {
+      console.error('Failed to delete snippet', e)
+    }
+  }, [selectedId, loadSnippets, loadTags])
+
+  const handleCopy = useCallback(() => {
+    if (!selected) return
+    if (variables.length > 0 && !showVarForm) {
+      const initial: Record<string, string> = {}
+      for (const v of variables) initial[v] = varValues[v] ?? ''
+      setVarValues(initial)
+      setShowVarForm(true)
+      return
+    }
+    const text = variables.length > 0
+      ? substituteVariables(selected.command, varValues)
+      : selected.command
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback(true)
+      setShowVarForm(false)
+      setTimeout(() => setCopyFeedback(false), 1500)
+    })
+  }, [selected, variables, showVarForm, varValues])
+
+  const selectedTags = useMemo(() => {
+    if (!selected?.tags) return []
+    return selected.tags.split(',').map(t => t.trim()).filter(Boolean)
+  }, [selected])
+
+  return (
+    <div style={{ display: 'flex', height: '100%', width: '100%' }}>
+      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+      <aside style={{
+        width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)',
+        background: 'var(--sidebar-bg)', borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        {/* Logo */}
+        <div style={{
+          padding: '16px 16px 12px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>Command Vault</span>
+          <button onClick={() => setShowCreate(true)} style={{
+            width: 28, height: 28, borderRadius: 6, background: 'var(--accent-solid)',
+            color: '#fff', fontWeight: 700, fontSize: 16, display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}>+</button>
+        </div>
+
+        {/* Search */}
+        <div style={{ padding: '8px 12px' }}>
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search snippets..."
+            style={{ fontSize: 12.5 }}
+          />
+        </div>
+
+        {/* Tag filter */}
+        <div style={{ padding: '0 12px 8px' }}>
+          <select
+            value={tagFilter}
+            onChange={e => setTagFilter(e.target.value)}
+            style={{ fontSize: 12.5, padding: '6px 8px' }}
+          >
+            <option value="">All tags</option>
+            {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+
+        {/* Snippet list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
+          {snippets.map(s => {
+            const isActive = s.id === selectedId
+            const snippetTags = s.tags?.split(',').map(t => t.trim()).filter(Boolean) ?? []
+            const firstLine = s.command.split('\n')[0]
+            return (
+              <div
+                key={s.id}
+                onClick={() => { setSelectedId(s.id); setShowVarForm(false) }}
+                style={{
+                  padding: '10px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
+                  marginBottom: 2,
+                  background: isActive ? 'var(--active-bg)' : 'transparent',
+                  borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                }}
+              >
+                <div style={{ fontWeight: 500, fontSize: 13, color: isActive ? 'var(--active-text)' : 'var(--text)', marginBottom: 3 }}>
+                  {s.title}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {firstLine}
+                </div>
+                {snippetTags.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    {snippetTags.map(t => <TagBadge key={t} tag={t} />)}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {snippets.length === 0 && !error && (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-dim)', fontSize: 12.5 }}>
+              No snippets found
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* ── Main area ───────────────────────────────────────────────────── */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {error && (
+          <div style={{
+            padding: '10px 18px', background: '#2a0f0f', borderBottom: '1px solid #5a2020',
+            color: '#f87171', fontSize: 13,
+          }}>
+            {error}
+          </div>
+        )}
+
+        {!selected && !error && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--text-dim)' }}>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>&gt;_</div>
+            <div style={{ fontSize: 14 }}>Select a snippet or create a new one</div>
+          </div>
+        )}
+
+        {selected && (
+          <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 6 }}>{selected.title}</h1>
+                {selectedTags.length > 0 && (
+                  <div>{selectedTags.map(t => <TagBadge key={t} tag={t} />)}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setShowEdit(true)} style={{
+                  padding: '6px 14px', borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12.5,
+                }}>Edit</button>
+                <button onClick={handleDelete} style={{
+                  padding: '6px 14px', borderRadius: 'var(--radius)',
+                  border: '1px solid #5a2020', color: 'var(--danger)', fontSize: 12.5,
+                }}>Delete</button>
+              </div>
+            </div>
+
+            {/* Description */}
+            {selected.description && (
+              <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginBottom: 16, lineHeight: 1.6 }}>
+                {selected.description}
+              </p>
+            )}
+
+            {/* Command block */}
+            <div style={{
+              background: '#0a0914', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)', overflow: 'hidden',
+            }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '8px 14px', borderBottom: '1px solid var(--border)',
+                background: 'var(--card-bg)',
+              }}>
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Command</span>
+                <button onClick={handleCopy} style={{
+                  padding: '4px 12px', borderRadius: 6,
+                  background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
+                  color: '#fff', fontSize: 12, fontWeight: 500,
+                  transition: 'background 0.2s',
+                }}>
+                  {copyFeedback ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <pre style={{
+                padding: '14px 16px', margin: 0,
+                fontFamily: 'var(--mono)', fontSize: 13, lineHeight: 1.7,
+                color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+              }}>
+                {selected.command}
+              </pre>
+            </div>
+
+            {/* Variable substitution form */}
+            {showVarForm && variables.length > 0 && (
+              <div style={{
+                marginTop: 12, padding: 16, background: 'var(--card-bg)',
+                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+              }}>
+                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
+                  Fill in variables:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {variables.map(v => (
+                    <div key={v} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <label style={{ fontSize: 12.5, color: 'var(--accent-2)', fontFamily: 'var(--mono)', minWidth: 120 }}>
+                        {`{${v}}`}
+                      </label>
+                      <input
+                        value={varValues[v] ?? ''}
+                        onChange={e => setVarValues(prev => ({ ...prev, [v]: e.target.value }))}
+                        placeholder={`Value for ${v}`}
+                        style={{ flex: 1, fontSize: 12.5 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setShowVarForm(false)} style={{
+                    padding: '6px 14px', borderRadius: 6,
+                    border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
+                  }}>Cancel</button>
+                  <button onClick={handleCopy} style={{
+                    padding: '6px 14px', borderRadius: 6,
+                    background: 'var(--accent-solid)', color: '#fff', fontSize: 12, fontWeight: 500,
+                  }}>Copy with values</button>
+                </div>
+              </div>
+            )}
+
+            {/* Meta */}
+            <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-dim)' }}>
+              Created: {new Date(selected.createdAt).toLocaleString()} | Updated: {new Date(selected.updatedAt).toLocaleString()}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ── Modals ──────────────────────────────────────────────────────── */}
+      {showCreate && (
+        <Modal title="New Snippet" onClose={() => setShowCreate(false)}>
+          <SnippetForm onSubmit={handleCreate} onCancel={() => setShowCreate(false)} submitLabel="Create" />
+        </Modal>
+      )}
+
+      {showEdit && selected && (
+        <Modal title="Edit Snippet" onClose={() => setShowEdit(false)}>
+          <SnippetForm initial={selected} onSubmit={handleUpdate} onCancel={() => setShowEdit(false)} submitLabel="Save" />
+        </Modal>
+      )}
+    </div>
+  )
+}

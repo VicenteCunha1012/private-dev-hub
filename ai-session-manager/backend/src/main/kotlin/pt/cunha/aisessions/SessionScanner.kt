@@ -79,6 +79,31 @@ data class ProjectInfo(
     val lastActivity: Long
 )
 
+@Serializable
+data class TimelinePoint(
+    val date: String,
+    val costUsd: Double,
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val sessions: Int
+)
+
+@Serializable
+data class SpendingTimeline(
+    val tool: String,
+    val period: String,
+    val points: List<TimelinePoint>
+)
+
+@Serializable
+data class SpendingProjection(
+    val tool: String,
+    val dailyAvgCostUsd: Double,
+    val projectedMonthlyCostUsd: Double,
+    val daysOfData: Int,
+    val totalCostUsd: Double
+)
+
 private val json = Json { ignoreUnknownKeys = true }
 
 // Pricing per million tokens (approximate)
@@ -342,5 +367,59 @@ class SessionScanner(private val claudeDir: String) {
         val cacheCreationCost = (cacheCreation.toDouble() / 1_000_000) * inputPrice * CACHE_CREATION_MULTIPLIER
 
         return inputCost + outputCost + cacheReadCost + cacheCreationCost
+    }
+
+    fun getSpendingTimeline(tool: String, period: String): SpendingTimeline {
+        val sessions = getSessions(tool)
+        val bucketFormat = if (period == "weekly") {
+            { ts: Long ->
+                val instant = Instant.ofEpochMilli(ts)
+                val ld = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                val weekStart = ld.with(java.time.DayOfWeek.MONDAY)
+                weekStart.toString()
+            }
+        } else {
+            { ts: Long ->
+                val instant = Instant.ofEpochMilli(ts)
+                instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
+            }
+        }
+
+        val buckets = mutableMapOf<String, Triple<Double, Long, Long>>()
+        val sessionCounts = mutableMapOf<String, Int>()
+
+        for (s in sessions) {
+            val key = bucketFormat(s.lastActivity)
+            val (cost, input, output) = buckets.getOrDefault(key, Triple(0.0, 0L, 0L))
+            buckets[key] = Triple(cost + s.estimatedCostUsd, input + s.totalInputTokens, output + s.totalOutputTokens)
+            sessionCounts[key] = (sessionCounts[key] ?: 0) + 1
+        }
+
+        val points = buckets.entries.sortedBy { it.key }.map { (date, data) ->
+            TimelinePoint(date, data.first, data.second, data.third, sessionCounts[date] ?: 0)
+        }
+
+        return SpendingTimeline(tool, period, points)
+    }
+
+    fun getProjection(tool: String): SpendingProjection {
+        val sessions = getSessions(tool)
+        if (sessions.isEmpty()) {
+            return SpendingProjection(tool, 0.0, 0.0, 0, 0.0)
+        }
+
+        val totalCost = sessions.sumOf { it.estimatedCostUsd }
+        val minTs = sessions.minOf { it.lastActivity }
+        val maxTs = sessions.maxOf { it.lastActivity }
+        val daysSpan = maxOf(((maxTs - minTs) / 86_400_000.0).toLong(), 1)
+        val dailyAvg = totalCost / daysSpan
+
+        return SpendingProjection(
+            tool = tool,
+            dailyAvgCostUsd = dailyAvg,
+            projectedMonthlyCostUsd = dailyAvg * 30,
+            daysOfData = daysSpan.toInt(),
+            totalCostUsd = totalCost
+        )
     }
 }

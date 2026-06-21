@@ -1,0 +1,10 @@
+ktor:
+  deployment:
+    port: 10410
+  application:
+    modules:
+      - pt.cunha.portradar.ApplicationKt.module
+
+portradar:
+  procNetPath: "/host/proc/net"
+  procPath: "/host/proc"

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { SessionSummary } from './api/sessionsApi'
 import { sessionsApi } from './api/sessionsApi'
+import CostTracker from './components/CostTracker'
 import SessionDetailView from './components/SessionDetailView'
 import SessionList from './components/SessionList'
 import SpendingOverview from './components/SpendingOverview'
+
+type HomeTab = 'overview' | 'costs'
 
 export default function App() {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -11,6 +14,7 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [homeTab, setHomeTab] = useState<HomeTab>('overview')
 
   const loadSessions = useCallback(async () => {
     setLoading(true)
@@ -43,7 +47,21 @@ export default function App() {
         {selectedId ? (
           <SessionDetailView key={selectedId} sessionId={selectedId} />
         ) : (
-          <SpendingOverview />
+          <>
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#161922' }}>
+              {(['overview', 'costs'] as const).map(t => (
+                <button key={t} onClick={() => setHomeTab(t)} style={{
+                  padding: '10px 20px', fontSize: 12.5, fontWeight: 500,
+                  color: homeTab === t ? '#8b5cf6' : '#64748b',
+                  borderBottom: homeTab === t ? '2px solid #8b5cf6' : '2px solid transparent',
+                  textTransform: 'capitalize',
+                }}>
+                  {t === 'costs' ? 'Cost Tracker' : 'Overview'}
+                </button>
+              ))}
+            </div>
+            {homeTab === 'overview' ? <SpendingOverview /> : <CostTracker />}
+          </>
         )}
       </main>
     </div>

@@ -132,6 +132,27 @@ class Database(private val config: ApplicationConfig) {
         entryStmt.setInt(5, 3)
         entryStmt.executeUpdate()
 
+        entryStmt.setString(1, "Command Vault")
+        entryStmt.setString(2, "http://localhost:10309")
+        entryStmt.setString(3, "tool")
+        entryStmt.setInt(4, toolsId)
+        entryStmt.setInt(5, 4)
+        entryStmt.executeUpdate()
+
+        entryStmt.setString(1, "Port Radar")
+        entryStmt.setString(2, "http://localhost:10310")
+        entryStmt.setString(3, "tool")
+        entryStmt.setInt(4, toolsId)
+        entryStmt.setInt(5, 5)
+        entryStmt.executeUpdate()
+
+        entryStmt.setString(1, "Health Dashboard")
+        entryStmt.setString(2, "http://localhost:10311")
+        entryStmt.setString(3, "tool")
+        entryStmt.setInt(4, toolsId)
+        entryStmt.setInt(5, 6)
+        entryStmt.executeUpdate()
+
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"
         )
