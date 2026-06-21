@@ -23,7 +23,7 @@ export default function App() {
   const allEntries = useMemo(() => folders.flatMap(f => f.entries), [folders])
 
   const reconcileTuis = useCallback(async (folders: Folder[], attempt = 0) => {
-    const tuiEntries = folders.flatMap(f => f.entries).filter(e => e.type === 'tui' && e.command)
+    const tuiEntries = folders.flatMap(f => f.entries).filter(e => e.type === 'tui')
     if (tuiEntries.length === 0) return
     try {
       const liveSessions = await ttydApi.list()
@@ -32,7 +32,8 @@ export default function App() {
         if (entry.url && liveUrls.has(entry.url)) continue
         try {
           const workdir = entry.workdir && entry.workdir !== '/root' ? entry.workdir : '/home/cunvic'
-          const session = await ttydApi.create(entry.label, workdir, entry.command!)
+          const cmd = entry.command || 'bash'
+          const session = await ttydApi.create(entry.label, workdir, cmd)
           await api.updateEntry(entry.id, { url: session.url })
         } catch { /* individual create failed */ }
       }
@@ -137,6 +138,7 @@ export default function App() {
   const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => { rootRef.current?.focus() }, [])
 
+
   const showIframe = selectedEntry !== null && !showConfig
   const showHome = !showConfig && selectedEntry === null
 
@@ -203,6 +205,7 @@ export default function App() {
           onSaved={() => { setShowAddEntry(false); loadFolders() }}
         />
       )}
+
     </div>
   )
 }
