@@ -17,3 +17,6 @@
 **/.gradle/
 **/node_modules/
 **/dist/
+
+# Runtime
+.ttyd-manager.pid
