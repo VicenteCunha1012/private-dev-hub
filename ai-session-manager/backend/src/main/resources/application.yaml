@@ -8,3 +8,5 @@ ktor:
 sessions:
   claudeDir: "/home/user/.claude"
   openCodeDb: "/home/user/.opencode/opencode.db"
+  openCodeDir: "/home/user/.opencode-config"
+  homeMcpJson: "/home/user/.claude.json"

@@ -3,16 +3,32 @@ import { vaultApi, type Snippet, type CreateSnippetRequest, type UpdateSnippetRe
 
 // ── Variable parsing ─────────────────────────────────────────────────────────
 
-function parseVariables(command: string): string[] {
-  const matches = command.match(/\{(\w+)\}/g)
+interface VarDef {
+  name: string
+  type: 'text' | 'file'
+}
+
+function parseVariables(command: string): VarDef[] {
+  const matches = command.match(/\{(?:file:)?\w+\}/g)
   if (!matches) return []
-  const unique = [...new Set(matches.map(m => m.slice(1, -1)))]
-  return unique
+  const seen = new Set<string>()
+  const vars: VarDef[] = []
+  for (const m of matches) {
+    const inner = m.slice(1, -1)
+    const isFile = inner.startsWith('file:')
+    const name = isFile ? inner.slice(5) : inner
+    if (!seen.has(name)) {
+      seen.add(name)
+      vars.push({ name, type: isFile ? 'file' : 'text' })
+    }
+  }
+  return vars
 }
 
 function substituteVariables(command: string, values: Record<string, string>): string {
   let result = command
   for (const [key, val] of Object.entries(values)) {
+    result = result.replaceAll(`{file:${key}}`, val)
     result = result.replaceAll(`{${key}}`, val)
   }
   return result
@@ -41,14 +57,16 @@ function saveVarHistory(values: Record<string, string>): void {
 }
 
 function CommandPreview({ command, variables, varValues }: {
-  command: string; variables: string[]; varValues: Record<string, string>
+  command: string; variables: VarDef[]; varValues: Record<string, string>
 }) {
+  const varNames = variables.map(v => v.name)
   const parts: { text: string; type: 'literal' | 'filled' | 'placeholder' }[] = []
-  const pattern = new RegExp(`(\\{(?:${variables.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\})`)
+  const escaped = varNames.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  const pattern = new RegExp(`(\\{(?:file:)?(?:${escaped})\\})`)
   const segments = command.split(pattern)
   for (const seg of segments) {
-    const match = seg.match(/^\{(\w+)\}$/)
-    if (match && variables.includes(match[1])) {
+    const match = seg.match(/^\{(?:file:)?(\w+)\}$/)
+    if (match && varNames.includes(match[1])) {
       const val = varValues[match[1]]
       if (val) {
         parts.push({ text: val, type: 'filled' })
@@ -77,6 +95,178 @@ function CommandPreview({ command, variables, varValues }: {
           return <span key={i} style={{ color: 'var(--text)' }}>{p.text}</span>
         })}
       </pre>
+    </div>
+  )
+}
+
+// ── File Path Input ─────────────────────────────────────────────────────────
+
+const TTYD_BASE = 'http://localhost:10600'
+
+interface FEntry { name: string; path: string; isDir: boolean }
+
+function FilePickerModal({ initialPath, onSelect, onClose }: {
+  initialPath: string; onSelect: (path: string) => void; onClose: () => void
+}) {
+  const [currentPath, setCurrentPath] = useState(initialPath || '/home')
+  const [entries, setEntries] = useState<FEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [filter, setFilter] = useState('')
+
+  const fetchDir = useCallback(async (dirPath: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${TTYD_BASE}/files?path=${encodeURIComponent(dirPath)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setEntries(data.entries)
+      setCurrentPath(data.path)
+      setFilter('')
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchDir(currentPath) }, [])
+
+  const parentPath = currentPath === '/' ? null : currentPath.substring(0, currentPath.lastIndexOf('/')) || '/'
+  const filtered = filter ? entries.filter(e => e.name.toLowerCase().includes(filter.toLowerCase())) : entries
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--card-bg)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', width: 520, maxHeight: '70vh',
+        display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>Select File</span>
+          <button onClick={onClose} style={{ fontSize: 18, color: 'var(--text-muted)' }}>x</button>
+        </div>
+
+        {/* Path bar */}
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+          {currentPath.split('/').filter(Boolean).map((seg, i, arr) => {
+            const segPath = '/' + arr.slice(0, i + 1).join('/')
+            return (
+              <span key={segPath} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {i > 0 && <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>/</span>}
+                <button onClick={() => fetchDir(segPath)} style={{
+                  fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--mono)',
+                  padding: '2px 4px', borderRadius: 3,
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
+                >{seg}</button>
+              </span>
+            )
+          })}
+        </div>
+
+        {/* Filter */}
+        <div style={{ padding: '6px 16px' }}>
+          <input
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Filter..."
+            autoFocus
+            style={{ fontSize: 12.5, padding: '6px 10px' }}
+          />
+        </div>
+
+        {/* File list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
+          {loading && <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-dim)', fontSize: 12 }}>Loading...</div>}
+
+          {!loading && parentPath !== null && (
+            <button onClick={() => fetchDir(parentPath)} style={{
+              width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 12.5,
+              color: 'var(--text-muted)', fontFamily: 'var(--mono)', borderRadius: 4,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
+              <span style={{ fontSize: 14 }}>↩</span> ..
+            </button>
+          )}
+
+          {!loading && filtered.map(entry => (
+            <button
+              key={entry.path}
+              onClick={() => entry.isDir ? fetchDir(entry.path) : onSelect(entry.path)}
+              onDoubleClick={() => onSelect(entry.path)}
+              style={{
+                width: '100%', textAlign: 'left', padding: '7px 12px', fontSize: 12.5,
+                color: entry.isDir ? '#22c55e' : 'var(--text)',
+                fontFamily: 'var(--mono)', borderRadius: 4,
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
+              <span style={{ fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                {entry.isDir ? '📁' : '📄'}
+              </span>
+              {entry.name}{entry.isDir ? '/' : ''}
+            </button>
+          ))}
+
+          {!loading && filtered.length === 0 && (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-dim)', fontSize: 12 }}>
+              {filter ? 'No matches' : 'Empty directory'}
+            </div>
+          )}
+        </div>
+
+        {/* Footer with current path + select dir button */}
+        <div style={{
+          padding: '10px 16px', borderTop: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {currentPath}
+          </span>
+          <button onClick={() => onSelect(currentPath)} style={{
+            padding: '6px 14px', borderRadius: 6,
+            border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
+            flexShrink: 0, marginLeft: 8,
+          }}>Select directory</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FilePathInput({ value, onChange, placeholder }: {
+  value: string; onChange: (v: string) => void; placeholder: string
+}) {
+  const [showPicker, setShowPicker] = useState(false)
+
+  return (
+    <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ flex: 1, fontSize: 12.5, fontFamily: 'var(--mono)' }}
+        />
+        <button onClick={() => setShowPicker(true)} style={{
+          padding: '4px 10px', borderRadius: 4, border: '1px solid var(--border)',
+          color: '#22c55e', fontSize: 11, fontWeight: 500, flexShrink: 0,
+        }}>Browse</button>
+      </div>
+      {showPicker && (
+        <FilePickerModal
+          initialPath={value ? (value.includes('/') ? value.substring(0, value.lastIndexOf('/')) || '/' : '/home') : '/home'}
+          onSelect={path => { onChange(path); setShowPicker(false) }}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </div>
   )
 }
@@ -185,6 +375,7 @@ export default function App() {
   const [copyFeedback, setCopyFeedback] = useState(false)
   const [execResult, setExecResult] = useState<{ exitCode: number; stdout: string; stderr: string; timedOut?: boolean } | null>(null)
   const [execRunning, setExecRunning] = useState(false)
+  const [workdir, setWorkdir] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
 
   const selected = useMemo(() => snippets.find(s => s.id === selectedId) ?? null, [snippets, selectedId])
@@ -247,25 +438,27 @@ export default function App() {
     }
   }, [selectedId, loadSnippets, loadTags])
 
-  const handleCopy = useCallback(() => {
+  const handleExpand = useCallback(() => {
     if (!selected) return
-    if (variables.length > 0 && !showVarForm) {
+    if (!showVarForm) {
       const initial: Record<string, string> = {}
-      for (const v of variables) initial[v] = varValues[v] ?? ''
+      for (const v of variables) initial[v.name] = varValues[v.name] ?? ''
       setVarValues(initial)
       setShowVarForm(true)
-      return
     }
+  }, [selected, variables, showVarForm, varValues])
+
+  const handleCopy = useCallback(() => {
+    if (!selected) return
     const text = variables.length > 0
       ? substituteVariables(selected.command, varValues)
       : selected.command
     navigator.clipboard.writeText(text).then(() => {
       if (variables.length > 0) saveVarHistory(varValues)
       setCopyFeedback(true)
-      setShowVarForm(false)
       setTimeout(() => setCopyFeedback(false), 1500)
     })
-  }, [selected, variables, showVarForm, varValues])
+  }, [selected, variables, varValues])
 
   const handleRun = useCallback(async () => {
     if (!selected) return
@@ -279,7 +472,7 @@ export default function App() {
       const res = await fetch('http://localhost:10600/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: cmd, timeoutSeconds: 30 }),
+        body: JSON.stringify({ command: cmd, timeoutSeconds: 30, ...(workdir ? { workdir } : {}) }),
       })
       const data = await res.json()
       setExecResult(data)
@@ -289,7 +482,7 @@ export default function App() {
     } finally {
       setExecRunning(false)
     }
-  }, [selected, variables, varValues])
+  }, [selected, variables, varValues, workdir])
 
   const selectedTags = useMemo(() => {
     if (!selected?.tags) return []
@@ -437,24 +630,13 @@ export default function App() {
                 background: 'var(--card-bg)',
               }}>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Command</span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={handleRun} disabled={execRunning} style={{
-                    padding: '4px 12px', borderRadius: 6,
-                    background: execRunning ? 'var(--text-dim)' : '#22c55e',
-                    color: '#fff', fontSize: 12, fontWeight: 500,
-                    opacity: execRunning ? 0.6 : 1,
-                  }}>
-                    {execRunning ? 'Running...' : 'Run'}
-                  </button>
-                  <button onClick={handleCopy} style={{
-                    padding: '4px 12px', borderRadius: 6,
-                    background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
-                    color: '#fff', fontSize: 12, fontWeight: 500,
-                    transition: 'background 0.2s',
-                  }}>
-                    {copyFeedback ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
+                <button onClick={handleExpand} style={{
+                  padding: '4px 12px', borderRadius: 6,
+                  background: showVarForm ? 'var(--text-dim)' : 'var(--accent-solid)',
+                  color: '#fff', fontSize: 12, fontWeight: 500,
+                }}>
+                  {showVarForm ? 'Expanded' : 'Expand'}
+                </button>
               </div>
               <pre style={{
                 padding: '14px 16px', margin: 0,
@@ -465,44 +647,66 @@ export default function App() {
               </pre>
             </div>
 
-            {/* Variable substitution form */}
-            {showVarForm && variables.length > 0 && (() => {
+            {/* Expanded action panel */}
+            {showVarForm && (() => {
               const history = loadVarHistory()
               return (
                 <div style={{
                   marginTop: 12, padding: 16, background: 'var(--card-bg)',
                   border: '1px solid var(--border)', borderRadius: 'var(--radius)',
                 }}>
-                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
-                    Fill in variables:
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {variables.map(v => (
-                      <div key={v} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <label style={{ fontSize: 12.5, color: 'var(--accent-2)', fontFamily: 'var(--mono)', minWidth: 120 }}>
-                          {`{${v}}`}
-                        </label>
-                        <input
-                          value={varValues[v] ?? ''}
-                          onChange={e => setVarValues(prev => ({ ...prev, [v]: e.target.value }))}
-                          placeholder={`Value for ${v}`}
-                          list={`varhistory-${v}`}
-                          style={{ flex: 1, fontSize: 12.5 }}
-                        />
-                        {(history[v]?.length ?? 0) > 0 && (
-                          <datalist id={`varhistory-${v}`}>
-                            {history[v].map(val => <option key={val} value={val} />)}
-                          </datalist>
-                        )}
+                  {variables.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
+                        Fill in variables:
                       </div>
-                    ))}
-                  </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {variables.map(v => (
+                          <div key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <label style={{ fontSize: 12.5, color: v.type === 'file' ? '#22c55e' : 'var(--accent-2)', fontFamily: 'var(--mono)', minWidth: 120 }}>
+                              {v.type === 'file' ? `{file:${v.name}}` : `{${v.name}}`}
+                            </label>
+                            {v.type === 'file' ? (
+                              <FilePathInput
+                                value={varValues[v.name] ?? ''}
+                                onChange={val => setVarValues(prev => ({ ...prev, [v.name]: val }))}
+                                placeholder={`Path for ${v.name}`}
+                              />
+                            ) : (
+                              <>
+                                <input
+                                  value={varValues[v.name] ?? ''}
+                                  onChange={e => setVarValues(prev => ({ ...prev, [v.name]: e.target.value }))}
+                                  placeholder={`Value for ${v.name}`}
+                                  list={`varhistory-${v.name}`}
+                                  style={{ flex: 1, fontSize: 12.5 }}
+                                />
+                                {(history[v.name]?.length ?? 0) > 0 && (
+                                  <datalist id={`varhistory-${v.name}`}>
+                                    {history[v.name].map(val => <option key={val} value={val} />)}
+                                  </datalist>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <CommandPreview command={selected.command} variables={variables} varValues={varValues} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                    <label style={{ fontSize: 11, color: 'var(--text-dim)', flexShrink: 0 }}>Working dir:</label>
+                    <FilePathInput
+                      value={workdir}
+                      onChange={setWorkdir}
+                      placeholder="~ (default)"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
                     <button onClick={() => setShowVarForm(false)} style={{
                       padding: '6px 14px', borderRadius: 6,
                       border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
-                    }}>Cancel</button>
+                    }}>Collapse</button>
                     <button onClick={handleRun} disabled={execRunning} style={{
                       padding: '6px 14px', borderRadius: 6,
                       background: execRunning ? 'var(--text-dim)' : '#22c55e',
@@ -511,8 +715,9 @@ export default function App() {
                     }}>{execRunning ? 'Running...' : 'Run'}</button>
                     <button onClick={handleCopy} style={{
                       padding: '6px 14px', borderRadius: 6,
-                      background: 'var(--accent-solid)', color: '#fff', fontSize: 12, fontWeight: 500,
-                    }}>Copy with values</button>
+                      background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
+                      color: '#fff', fontSize: 12, fontWeight: 500,
+                    }}>{copyFeedback ? 'Copied!' : 'Copy'}</button>
                   </div>
                 </div>
               )

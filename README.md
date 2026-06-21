@@ -65,7 +65,7 @@ Most tools work out of the box. The ones that need config:
 
 | Tool | What to configure | Where |
 |---|---|---|
-| Kafbat+ | Kafka broker URLs (e.g. `host.docker.internal:29092`) | Hub Settings → Module Configuration, or `POST http://localhost:10401/config` |
+| Kafbat+ | Kafka cluster(s) — broker URLs | Hub Settings → Module Configuration → Add/edit clusters |
 | Mock Data Generator | Groq API key (free at [console.groq.com](https://console.groq.com)) | Open Mock Generator → config card, paste your API key |
 | AI Session Manager | Path to `.claude` directory | Pre-configured via docker-compose volume mount |
 | Backup Scheduler | Backup directory, interval, retention | Hub Settings → Backup Scheduler section |
@@ -118,7 +118,9 @@ The shell. Everything else lives inside it.
 - Sidebar with collapsible folders, drag-and-drop entries between folders
 - All iframes mounted simultaneously — switching never loses state
 - Home screen with search and icon grid
-- Settings page: CRUD for entries/folders, module config (Kafbat+ brokers), keybinds, multi-palette themes (5 presets + custom colors), backup & restore
+- Settings page: CRUD for entries/folders, module config (Kafbat+ clusters), keybinds, multi-palette themes (5 presets + custom colors), backup & restore
+- Home screen icons reload iframes to their home page on click
+- Click "Dev Hub" logo in sidebar to go home
 - TUI entry creation spawns a ttyd session automatically
 - Backup scheduler: auto-backup hub DB on configurable interval with retention policy
 
@@ -131,13 +133,14 @@ The shell. Everything else lives inside it.
 
 ### Kafbat+
 
-Local Kafka UI built from scratch.
+Local Kafka UI built from scratch. Supports **multiple clusters**.
 
 **What you can do:**
+- **Multi-cluster**: switch between Kafka clusters from a dropdown in the sidebar. Add/edit/remove clusters in Hub Settings → Module Configuration
 - Browse all topics with search, see partition count and message count per topic
 - View latest messages with syntax-highlighted JSON (auto-collapsed for large payloads)
 - Filter messages by value substring, exact key, partition, configurable limit (50/100/200/500)
-- Produce messages: JSON editor, drag & drop `.json` file, or "Generate payload" from Mock Generator
+- Produce messages: JSON editor, drag & drop `.json` file onto the message area, or "Generate payload" from Mock Generator
 - Create and delete topics
 - View partition details (leader, replicas, ISR, offsets) and topic-level Kafka configs
 - Cluster overview: brokers, controller, total topics/partitions
@@ -154,7 +157,7 @@ Visual dashboard for Claude Code and OpenCode session usage and spending.
 - **Model filter**: filter sessions by model (Sonnet, Opus, Haiku, etc.)
 - Spending breakdown by model and by project with proportional bars
 - Click a session: token summary, distribution bar, duration, cost, turn-by-turn view, MCP tools
-- **Cost Tracker tab**: daily/weekly spending bar chart, daily average, monthly projection, detail table by date
+- **Cost Tracker tab**: daily/weekly/monthly spending bar chart, daily average, monthly projection, detail table by date
 
 **How it works:** reads `~/.claude/projects/` for Claude Code (JSONL files, mounted read-only) and `~/.local/share/opencode/opencode.db` for OpenCode (SQLite). No database of its own.
 
@@ -176,39 +179,50 @@ Self-hosted JSON utility. Stateless, no DB.
 
 Generate realistic mock data from real JSON samples using AI-inferred specs.
 
-**How it works:**
-1. Paste real JSON samples (+ optional OpenAPI schema or Java DTOs)
-2. AI (Groq, free) analyzes samples **once** → structured generation spec
-3. Local generator (Python + Faker) produces N records from the spec — zero API cost, reproducible
+**How to use it:**
 
-**What you can do:**
-- Infer a spec from samples — captures source types, distributions, patterns, null rates, correlations, referential integrity
-- Review and edit every field attribute in an expandable table
-- Generate with 3 profiles: `valid`, `invalid` (violates constraints), `edge` (boundary values)
-- Export `generate.py` (offline, Faker) and `call_api.py` (REST calls with `auth_util.get_token()`)
-- Version history with rollback
-- Two-pass generation for referential coherence (foreign keys resolve to real IDs)
-- Kafbat+ integration: "Generate payload" button in produce modal
+1. **Get a Groq API key** (free) at [console.groq.com](https://console.groq.com). Open Mock Generator → you'll see a config card at the top → paste your API key → Save
+2. **Click "+ New Spec"** in the sidebar
+3. **Paste JSON samples** — real examples of the data you want to generate. At least 1 sample, ideally 3–5 for better pattern detection. You can also drag & drop `.json` files
+4. **(Optional)** Paste an OpenAPI schema or Java DTO classes in the "Schema" field — the AI uses them to understand types and constraints better
+5. **Choose mode**: `kafka` (generates standalone JSON records) or `api` (generates records + REST call scripts)
+6. **Click "Infer Spec"** — the AI analyzes your samples once and produces a structured generation spec. Takes a few seconds
+7. **Review the spec** — an expandable field table shows every field with its inferred type, source (faker, enum, range, regex, constant, reference), null rate, constraints, etc. You can edit any attribute
+8. **Generate data** — go to the Generate tab, pick a count (1–1000) and a profile:
+   - `valid` — respects all constraints
+   - `invalid` — randomly violates one constraint per record (null a required field, wrong type, overflow max length)
+   - `edge` — boundary values (0, -1, empty string, max-length, range min/max)
+9. **Export scripts** — download a standalone `generate.py` (runs offline with Faker, no API) or `call_api.py` (sends generated data to REST endpoints with JWT auth)
 
-**Config:** set Groq API key in the config card (free at [console.groq.com](https://console.groq.com)).
+**Key features:**
+- AI infers once, generates locally forever — 10,000 records costs zero API calls
+- Version history with rollback — every edit creates a new version
+- Two-pass generation for referential coherence (foreign keys always point to real IDs)
+- Kafbat+ integration: "Generate payload" button in the Kafbat+ produce modal generates data from a spec directly into a Kafka topic
+- Supports nested objects and arrays, enum distributions with weights, regex templates, conditional fields, correlations between fields
 
 ---
 
 ### Command Vault
 
-Personal command/snippet manager with variable substitution.
+Personal command/snippet manager with variable substitution and execution.
 
 **What you can do:**
 - Save commands with title, the command itself, description, and tags
 - Search by text (title/command/description), filter by tags
-- **Variable substitution**: commands can have `{namespace}`, `{pod}`, etc. When you click Copy, a form appears asking for each variable's value — with autocomplete from previous values (stored in localStorage). Live preview shows the resolved command with highlighted substitutions before copying
-- One-click copy for commands without variables
+- **Expand panel**: click "Expand" on any snippet to open the action panel with live preview, Copy, and Run buttons
+- **Variable substitution**: commands can have `{namespace}`, `{pod}`, etc. Fill in values with autocomplete from history (stored in localStorage). Live preview shows the resolved command with highlighted substitutions
+- **File picker variables**: use `{file:varname}` for path variables — opens a full file browser modal (Browse button) to navigate and select files/directories from the host filesystem
+- **Run button**: execute the command on the host and see stdout/stderr output inline. Configurable working directory with file picker
+- **Variable history**: previous values per variable are remembered across sessions (last 10)
 - Tag badges, tag filter dropdown, distinct tags list
 
 **Examples:**
 ```
 kubectl get pods -n {namespace} | grep {filter}
 docker exec -it {container} bash
+cat {file:config}
+scp {file:source} user@host:{destination}
 SELECT * FROM {table} WHERE id = {id} LIMIT {limit};
 ```
 
@@ -247,12 +261,14 @@ Shows which ports are in use on localhost right now. Stateless, no DB.
 
 ### ttyd Manager
 
-Manages terminal sessions exposed as iframes via `ttyd`. Runs natively on the host (not in Docker) so TUIs can use your local binaries and configs (`~/.kube/config`, etc.).
+Manages terminal sessions and command execution. Runs natively on the host (not in Docker) so TUIs and executed commands can use your local binaries and configs (`~/.kube/config`, etc.).
 
 - Spawns `ttyd` processes dynamically, one per TUI
 - Each TUI gets a port in the `10604–10620` range
 - Add/remove TUIs at runtime via hub Settings
-- API: `GET /tuis`, `POST /tuis`, `DELETE /tuis/{id}`
+- **Command execution**: `POST /exec` runs shell commands on the host with configurable working directory and timeout (used by Command Vault's Run button)
+- **File browsing**: `GET /files?path=` lists directory contents (used by Command Vault's file picker)
+- API: `GET /tuis`, `POST /tuis`, `DELETE /tuis/{id}`, `POST /exec`, `GET /files`
 
 ---
 

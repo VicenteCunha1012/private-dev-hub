@@ -84,6 +84,8 @@ services:
     volumes:
       - ${HOME}/.claude:/home/user/.claude:ro
       - ${HOME}/.local/share/opencode:/home/user/.opencode
+      - ${HOME}/.config/opencode:/home/user/.opencode-config:ro
+      - ${HOME}/.claude.json:/home/user/.claude.json:ro
 
   json-tools-frontend:
     build: ./json-tools/frontend

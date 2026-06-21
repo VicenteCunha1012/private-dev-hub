@@ -7,14 +7,15 @@ interface SidebarProps {
   selectedId: number | null
   showConfig: boolean
   keybinds: KeybindsConfig
-  onSelect: (entry: Entry) => void
+  onSelect: (entry: Entry, reload?: boolean) => void
   onConfigClick: () => void
   onGoHome: () => void
+  onAddEntry: () => void
   onMoveEntry: (entryId: number, newFolderId: number | undefined, newPosition: number) => void
 }
 
 const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
-  { folders, selectedId, showConfig, keybinds, onSelect, onConfigClick, onGoHome, onMoveEntry },
+  { folders, selectedId, showConfig, keybinds, onSelect, onConfigClick, onGoHome, onAddEntry, onMoveEntry },
   ref
 ) {
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
@@ -55,34 +56,34 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
         outline: 'none',
       }}
     >
-      {/* Logo — click to go home */}
-      <button
-        onClick={onGoHome}
-        style={{
-          padding: '18px 16px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          width: '100%',
-          background: 'none',
-          border: 'none',
-          borderBottom: '1px solid var(--border)',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <div style={{
-          width: 26, height: 26,
-          borderRadius: 7,
-          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+      {/* Logo + Add button */}
+      <div style={{
+        padding: '12px 10px 10px 16px',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', gap: 9,
+      }}>
+        <button onClick={onGoHome} style={{
+          display: 'flex', alignItems: 'center', gap: 9, flex: 1,
+          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0,
+        }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: 7,
+            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(124,58,237,0.4)',
+          }}>⬡</div>
+          <span style={{ fontWeight: 700, fontSize: 14.5, color: 'var(--text)', letterSpacing: -0.2 }}>
+            Dev Hub
+          </span>
+        </button>
+        <button onClick={onAddEntry} title="Add entry" style={{
+          width: 26, height: 26, borderRadius: 6,
+          background: 'var(--accent-solid)', color: '#fff',
+          fontSize: 16, fontWeight: 700, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, flexShrink: 0,
-          boxShadow: '0 2px 8px rgba(124,58,237,0.4)',
-        }}>⬡</div>
-        <span style={{ fontWeight: 700, fontSize: 14.5, color: 'var(--text)', letterSpacing: -0.2 }}>
-          Dev Hub
-        </span>
-      </button>
+        }}>+</button>
+      </div>
 
       {/* Folders */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
@@ -173,7 +174,7 @@ interface SidebarEntryProps {
   entry: Entry
   selected: boolean
   shortcut?: string
-  onSelect: (entry: Entry) => void
+  onSelect: (entry: Entry, reload?: boolean) => void
   onDragStart: (entry: Entry) => void
 }
 
@@ -182,7 +183,7 @@ function SidebarEntry({ entry, selected, shortcut, onSelect, onDragStart }: Side
     <button
       draggable
       onDragStart={() => onDragStart(entry)}
-      onClick={() => onSelect(entry)}
+      onClick={() => onSelect(entry, selected)}
       style={{
         width: '100%', textAlign: 'left',
         padding: '6px 10px 6px 20px',

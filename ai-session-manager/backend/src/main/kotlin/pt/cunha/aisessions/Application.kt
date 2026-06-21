@@ -15,8 +15,11 @@ import kotlinx.serialization.json.Json
 fun Application.module() {
     val claudeDir = environment.config.propertyOrNull("sessions.claudeDir")?.getString() ?: "/home/user/.claude"
     val openCodeDb = environment.config.propertyOrNull("sessions.openCodeDb")?.getString() ?: "/home/user/.opencode/opencode.db"
+    val openCodeDir = environment.config.propertyOrNull("sessions.openCodeDir")?.getString() ?: "/home/user/.opencode-config"
+    val homeMcpJson = environment.config.propertyOrNull("sessions.homeMcpJson")?.getString() ?: "/home/user/.claude.json"
     val sessionScanner = SessionScanner(claudeDir)
     val openCodeScanner = OpenCodeScanner(openCodeDb)
+    val aiConfigScanner = AiConfigScanner(claudeDir, openCodeDir, homeMcpJson)
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true })
@@ -117,6 +120,20 @@ fun Application.module() {
                 else -> sessionScanner.getProjection(tool)
             }
             call.respond(projection)
+        }
+
+        get("/aiconfig") {
+            call.respond(aiConfigScanner.scan())
+        }
+
+        get("/aiconfig/file") {
+            val path = call.request.queryParameters["path"] ?: throw IllegalArgumentException("path required")
+            val content = aiConfigScanner.readFile(path)
+            if (content != null) {
+                call.respond(mapOf("path" to path, "content" to content))
+            } else {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "File not found or not allowed"))
+            }
         }
     }
 }

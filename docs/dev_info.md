@@ -196,7 +196,7 @@ dev-hub/
 ├── command-vault/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Sidebar + snippet viewer + variable substitution UI + value history + live preview
+│   │   │   ├── App.tsx             # Sidebar + snippet viewer + expand panel (vars, file picker, preview, run, copy)
 │   │   │   └── api/vaultApi.ts
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
@@ -341,9 +341,13 @@ Tags are stored as comma-separated strings. Search uses ILIKE on title, command,
 | POST | /config/import | Import config |
 | GET | /db/export | Export DB as SQL |
 | POST | /db/import | Import SQL |
-| GET | /cluster | Cluster overview (brokers, topic count, partitions, controller) |
-| GET | /brokers | List brokers with host/port/controller status |
-| GET | /topics | List topics `?search=&showInternal=` |
+| GET | /clusters | List all clusters `[{id, name, brokers, isDefault}]` |
+| POST | /clusters | Create cluster `{name, brokers}` |
+| PUT | /clusters/{id} | Update cluster |
+| DELETE | /clusters/{id} | Delete cluster (cannot delete default) |
+| GET | /cluster | Cluster overview `?cluster=<id>` (brokers, topic count, partitions, controller) |
+| GET | /brokers | List brokers `?cluster=<id>` with host/port/controller status |
+| GET | /topics | List topics `?search=&showInternal=&cluster=<id>` |
 | POST | /topics | Create topic `{name, partitions, replicationFactor}` |
 | GET | /topics/{topic} | Topic details (partitions, configs) |
 | DELETE | /topics/{topic} | Delete topic |
@@ -440,6 +444,8 @@ Tags are stored as comma-separated strings. Search uses ILIKE on title, command,
 | GET | /tuis | List active TUI sessions |
 | POST | /tuis | Create TUI `{name, workdir, command}` → assigns port from 10604-10620 |
 | DELETE | /tuis/{id} | Kill TUI process and reclaim port |
+| POST | /exec | Execute command `{command, workdir?, timeoutSeconds?}` → `{exitCode, stdout, stderr, timedOut}` |
+| GET | /files | List directory `?path=/home/user` → `{path, entries: [{name, path, isDir}]}` |
 
 ---
 

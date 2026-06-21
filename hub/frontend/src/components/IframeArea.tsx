@@ -54,9 +54,9 @@ export default function IframeArea({ entries, selectedId, reloadKey }: IframeAre
             border: 'none',
             display: selectedId === entry.id ? 'block' : 'none',
           }}
-          allow="fullscreen"
+          allow="fullscreen; storage-access; camera; microphone"
           {...(isLocalHttps(entry.url!) ? {} : {
-            sandbox: 'allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads'
+            sandbox: 'allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-storage-access-by-user-activation'
           })}
         />
       ))}

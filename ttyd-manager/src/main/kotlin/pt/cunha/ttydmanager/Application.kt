@@ -23,6 +23,12 @@ data class ExecRequest(val command: String, val workdir: String? = null, val tim
 @Serializable
 data class ExecResult(val exitCode: Int, val stdout: String, val stderr: String, val timedOut: Boolean = false)
 
+@Serializable
+data class FileEntry(val name: String, val path: String, val isDir: Boolean)
+
+@Serializable
+data class FilesResponse(val path: String, val entries: List<FileEntry>)
+
 fun Application.module() {
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
@@ -52,6 +58,22 @@ fun Application.module() {
         get("/health") {
             call.respond(mapOf("status" to "ok"))
         }
+        get("/files") {
+            val path = call.request.queryParameters["path"] ?: System.getProperty("user.home")
+            val dir = File(path)
+            if (!dir.exists() || !dir.isDirectory) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Not a directory"))
+                return@get
+            }
+            val entries = dir.listFiles()
+                ?.filter { !it.name.startsWith(".") }
+                ?.sortedWith(compareByDescending<File> { it.isDirectory }.thenBy { it.name })
+                ?.take(100)
+                ?.map { FileEntry(it.name, it.absolutePath, it.isDirectory) }
+                ?: emptyList()
+            call.respond(FilesResponse(dir.absolutePath, entries))
+        }
+
         post("/exec") {
             val req = call.receive<ExecRequest>()
             val timeout = req.timeoutSeconds.coerceIn(1, 120).toLong()

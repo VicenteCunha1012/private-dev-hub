@@ -7,9 +7,10 @@ interface HomeScreenProps {
   keybinds: KeybindsConfig
   searchRef: RefObject<HTMLInputElement | null>
   onSelect: (entry: Entry, reload?: boolean) => void
+  onAddEntry: () => void
 }
 
-export default function HomeScreen({ folders, keybinds, searchRef, onSelect }: HomeScreenProps) {
+export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onAddEntry }: HomeScreenProps) {
   const [search, setSearch] = useState('')
 
   const allEntries = folders.flatMap(f => f.entries)
@@ -52,6 +53,17 @@ export default function HomeScreen({ folders, keybinds, searchRef, onSelect }: H
           onChange={e => setSearch(e.target.value)}
           style={{ paddingLeft: 36, fontSize: 14 }}
         />
+      </div>
+
+      {/* Add button */}
+      <div style={{ width: '100%', maxWidth: 860, display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button onClick={onAddEntry} style={{
+          padding: '7px 16px', fontSize: 12.5, fontWeight: 600, borderRadius: 7,
+          background: 'linear-gradient(135deg, var(--accent-solid), var(--accent-2))',
+          color: '#fff', display: 'flex', alignItems: 'center', gap: 5,
+        }}>
+          <span style={{ fontSize: 16 }}>+</span> Add entry
+        </button>
       </div>
 
       {/* Grid */}

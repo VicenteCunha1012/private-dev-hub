@@ -83,6 +83,31 @@ export interface SpendingProjection {
   totalCostUsd: number
 }
 
+export interface AiConfigItem {
+  name: string
+  source: string
+  tool: string
+  category: string
+  filePath: string
+  content: string | null
+}
+
+export interface AiConfigCategory {
+  name: string
+  items: AiConfigItem[]
+  sync: { claudeCode: boolean; openCode: boolean }
+}
+
+export interface AiConfigResult {
+  categories: AiConfigCategory[]
+  scanPaths: Record<string, string>
+}
+
+export interface AiConfigFile {
+  path: string
+  content: string
+}
+
 export const sessionsApi = {
   health: (): Promise<{ status: string }> => req('/health'),
   getSessions: (tool: string = 'claude-code'): Promise<SessionSummary[]> => req(`/sessions?tool=${tool}`),
@@ -94,4 +119,7 @@ export const sessionsApi = {
     req(`/spending/timeline?tool=${tool}&period=${period}`),
   getProjection: (tool: string = 'claude-code'): Promise<SpendingProjection> =>
     req(`/spending/projection?tool=${tool}`),
+  getAiConfig: (): Promise<AiConfigResult> => req('/aiconfig'),
+  getAiConfigFile: (path: string): Promise<AiConfigFile> =>
+    req(`/aiconfig/file?path=${encodeURIComponent(path)}`),
 }

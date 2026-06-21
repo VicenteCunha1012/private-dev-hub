@@ -16,7 +16,7 @@ data class TuiSession(
 @Serializable
 data class CreateTuiRequest(
     val name: String,
-    val workdir: String = "/root",
+    val workdir: String = System.getProperty("user.home") ?: "/home/cunvic",
     val command: String
 )
 
@@ -24,18 +24,44 @@ class TuiManager {
     private val sessions = mutableMapOf<String, Pair<TuiSession, Process>>()
     private val portPool = (10604..10620).toMutableList()
     private var nextId = 1
+    private val ttydPath = findTtyd()
+
+    private fun findTtyd(): String {
+        val candidates = listOf(
+            System.getenv("HOME")?.let { "$it/.local/bin/ttyd" },
+            "/usr/local/bin/ttyd",
+            "/usr/bin/ttyd"
+        ).filterNotNull()
+        return candidates.firstOrNull { File(it).canExecute() } ?: "ttyd"
+    }
+
+    init {
+        killOrphanTtydProcesses()
+    }
+
+    private fun killOrphanTtydProcesses() {
+        try {
+            val result = ProcessBuilder("pgrep", "-a", "ttyd")
+                .redirectErrorStream(true).start()
+            val lines = result.inputStream.bufferedReader().readLines()
+            result.waitFor()
+            for (line in lines) {
+                val match = Regex("^(\\d+)\\s+ttyd\\s+-p\\s+(106\\d+)").find(line) ?: continue
+                val pid = match.groupValues[1].toLong()
+                ProcessHandle.of(pid).ifPresent { it.destroyForcibly() }
+            }
+        } catch (_: Exception) {}
+    }
 
     @Synchronized
     fun create(name: String, workdir: String, command: String): TuiSession {
-        // cleanup dead processes and reclaim ports before allocating
         cleanup()
         if (portPool.isEmpty()) error("No available ports in range 10604–10620 (max 17 sessions)")
         val port = portPool.removeFirst()
         val id = (nextId++).toString()
 
         val dir = File(workdir).also { if (!it.exists()) it.mkdirs() }
-        val cmdParts = listOf("ttyd", "-p", port.toString(), "-W") +
-            command.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+        val cmdParts = listOf(ttydPath, "-p", port.toString(), "-W", "bash", "-c", command)
 
         val process = ProcessBuilder(cmdParts)
             .directory(dir)
