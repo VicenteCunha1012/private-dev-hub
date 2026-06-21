@@ -1,0 +1,9 @@
+ktor:
+  deployment:
+    port: 10402
+  application:
+    modules:
+      - pt.cunha.aisessions.ApplicationKt.module
+
+sessions:
+  claudeDir: "/home/user/.claude"

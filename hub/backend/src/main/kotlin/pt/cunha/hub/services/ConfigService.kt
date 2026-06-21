@@ -59,4 +59,44 @@ class ConfigService(private val conn: Connection) {
         if (palette != null) set("palette", json.encodeToString(palette))
         getConfig()
     }
+
+    suspend fun exportDatabase(): String = withContext(Dispatchers.IO) {
+        val sb = StringBuilder()
+        val tables = listOf("folders", "entries", "entry_icons", "hub_config")
+        for (table in tables) {
+            val rs = conn.createStatement().executeQuery("SELECT * FROM $table")
+            val meta = rs.metaData
+            val colCount = meta.columnCount
+            while (rs.next()) {
+                val values = (1..colCount).joinToString(", ") { i ->
+                    val v = rs.getObject(i)
+                    when (v) {
+                        null -> "NULL"
+                        is ByteArray -> "decode('${v.joinToString("") { "%02x".format(it) }}', 'hex')"
+                        is Number -> v.toString()
+                        is Boolean -> v.toString()
+                        else -> "'${v.toString().replace("'", "''")}'"
+                    }
+                }
+                sb.appendLine("INSERT INTO $table VALUES ($values);")
+            }
+            rs.close()
+        }
+        sb.toString()
+    }
+
+    suspend fun importDatabase(sql: String) = withContext(Dispatchers.IO) {
+        conn.createStatement().use { stmt ->
+            stmt.executeUpdate("DELETE FROM entry_icons")
+            stmt.executeUpdate("DELETE FROM entries")
+            stmt.executeUpdate("DELETE FROM folders")
+            stmt.executeUpdate("DELETE FROM hub_config")
+        }
+        for (line in sql.lines()) {
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("--")) {
+                conn.createStatement().use { it.executeUpdate(trimmed) }
+            }
+        }
+    }
 }

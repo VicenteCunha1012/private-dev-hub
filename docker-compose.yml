@@ -42,5 +42,55 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /home:/home
 
+  kafbat-plus-frontend:
+    build: ./kafbat-plus/frontend
+    ports:
+      - "127.0.0.1:10301:80"
+    depends_on:
+      - kafbat-plus-backend
+
+  kafbat-plus-backend:
+    build: ./kafbat-plus/backend
+    ports:
+      - "127.0.0.1:10401:10401"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    depends_on:
+      kafbat-plus-db:
+        condition: service_healthy
+
+  kafbat-plus-db:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:10501:5432"
+    environment:
+      POSTGRES_DB: kafbat
+      POSTGRES_USER: kafbat
+      POSTGRES_PASSWORD: kafbat
+    volumes:
+      - kafbat-plus-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kafbat -d kafbat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-session-manager-frontend:
+    build: ./ai-session-manager/frontend
+    ports:
+      - "127.0.0.1:10302:80"
+    depends_on:
+      - ai-session-manager-backend
+
+  ai-session-manager-backend:
+    build: ./ai-session-manager/backend
+    ports:
+      - "127.0.0.1:10402:10402"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    volumes:
+      - /home/vicente/.claude:/home/user/.claude:ro
+
 volumes:
   hub-db-data:
+  kafbat-plus-db-data:

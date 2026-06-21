@@ -48,6 +48,21 @@ export const api = {
   importConfig: (data: ExportedConfig): Promise<void> =>
     req('/config/import', { method: 'POST', body: JSON.stringify(data) }),
 
+  // DB export/import
+  exportDb: async (): Promise<string> => {
+    const res = await fetch(`${BASE}/db/export`)
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    return res.text()
+  },
+  importDb: async (sql: string): Promise<void> => {
+    const res = await fetch(`${BASE}/db/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: sql,
+    })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  },
+
   // Health
   health: (): Promise<{ status: string }> => req('/health'),
 }

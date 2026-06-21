@@ -47,4 +47,17 @@ fun Routing.configRoutes(configService: ConfigService, folderService: FolderServ
             call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
         }
     }
+
+    route("/db") {
+        get("/export") {
+            val dump = configService.exportDatabase()
+            call.respondText(dump, ContentType.Text.Plain)
+        }
+
+        post("/import") {
+            val sql = call.receiveText()
+            configService.importDatabase(sql)
+            call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
+        }
+    }
 }

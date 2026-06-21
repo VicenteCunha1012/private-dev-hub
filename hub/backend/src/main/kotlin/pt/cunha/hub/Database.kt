@@ -96,11 +96,27 @@ class Database(private val config: ApplicationConfig) {
             entryStmt.executeUpdate()
         }
 
+        val toolsId = insertFolder("Tools", 3)
+
         insertEntry("Portainer", "https://localhost:9443", infraId, 0)
         insertEntry("GitLab", "https://gitlab.example.com", devId, 0)
         insertEntry("Confluence", "https://example.atlassian.net/wiki", devId, 1)
         insertEntry("Jira", "https://example.atlassian.net", devId, 2)
         insertEntry("Grafana", "https://grafana.example.com", obsId, 0)
+
+        entryStmt.setString(1, "Kafbat+")
+        entryStmt.setString(2, "http://localhost:10301")
+        entryStmt.setString(3, "tool")
+        entryStmt.setInt(4, toolsId)
+        entryStmt.setInt(5, 0)
+        entryStmt.executeUpdate()
+
+        entryStmt.setString(1, "AI Sessions")
+        entryStmt.setString(2, "http://localhost:10302")
+        entryStmt.setString(3, "tool")
+        entryStmt.setInt(4, toolsId)
+        entryStmt.setInt(5, 1)
+        entryStmt.executeUpdate()
 
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"

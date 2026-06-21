@@ -105,6 +105,33 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
     onRefresh()
   }
 
+  const exportDb = async () => {
+    try {
+      const sql = await api.exportDb()
+      const blob = new Blob([sql], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `hub-db-${new Date().toISOString().slice(0, 10)}.sql`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('Database exported')
+    } catch (e) {
+      showToast('Export failed: ' + (e as Error).message)
+    }
+  }
+
+  const importDb = async (file: File) => {
+    try {
+      const sql = await file.text()
+      await api.importDb(sql)
+      showToast('Database imported — refreshing…')
+      onRefresh()
+    } catch (e) {
+      showToast('Import failed: ' + (e as Error).message)
+    }
+  }
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
@@ -398,12 +425,30 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
 
         {/* Backup */}
         <Section title="Backup & Restore">
-          <div style={{ display: 'flex', gap: 8 }}>
-            <PrimaryBtn onClick={exportConfig}>Export config</PrimaryBtn>
-            <label style={{ display: 'inline-block' }}>
-              <GhostBtn as="span">Import config</GhostBtn>
-              <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) importConfig(f) }} />
-            </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <SectionLabel>Configuration (entries, folders, keybinds, theme)</SectionLabel>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <PrimaryBtn onClick={exportConfig}>Export config</PrimaryBtn>
+                <label style={{ display: 'inline-block' }}>
+                  <GhostBtn as="span">Import config</GhostBtn>
+                  <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) importConfig(f) }} />
+                </label>
+              </div>
+            </div>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <SectionLabel>Database (full hub data including icons)</SectionLabel>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <PrimaryBtn onClick={exportDb}>Export database</PrimaryBtn>
+                <label style={{ display: 'inline-block' }}>
+                  <GhostBtn as="span">Import database</GhostBtn>
+                  <input type="file" accept=".sql" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) importDb(f) }} />
+                </label>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>
+                Importing a database will replace all current data. Make sure to export first as a backup.
+              </p>
+            </div>
           </div>
         </Section>
 

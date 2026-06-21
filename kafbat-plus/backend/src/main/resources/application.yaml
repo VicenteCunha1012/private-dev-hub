@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10401
+  application:
+    modules:
+      - pt.cunha.kafbat.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://kafbat-plus-db:5432/kafbat"
+  user: "kafbat"
+  password: "kafbat"
