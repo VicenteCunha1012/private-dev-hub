@@ -35,11 +35,14 @@ Each module is fully self-contained: its own Dockerfile, its own Postgres DB (if
 
 | Module | Frontend | Backend | DB | Notes |
 |---|---|---|---|---|
-| Hub | 10300 | 10303 | 10403 | Shell with sidebar + iframes |
+| Hub | 10300 | 10303 | 10403 | Shell with sidebar + iframes + backup scheduler |
 | Kafbat+ | 10301 | 10401 | 10501 | Kafka UI |
-| AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` from host |
+| AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` from host, cost tracker |
 | JSON Tools | 10306 | 10406 | — | Stateless |
 | Mock Data Generator | 10308 | 10408 | 10508 | AI-inferred specs + Python generator |
+| Command Vault | 10309 | 10409 | 10509 | Snippet manager with {variable} substitution |
+| Port Radar | 10310 | 10410 | — | Reads host /proc/net, stateless |
+| Health Dashboard | 10311 | 10411 | — | Proxies /health checks, stateless |
 | ttyd Manager | — | 10600 | — | Runs on host, not in Docker |
 | ttyd TUI sessions | — | — | — | 10604–10620 dynamic |
 
@@ -189,6 +192,50 @@ dev-hub/
 │       ├── build.gradle.kts       # + ktor-client-core, ktor-client-cio, ktor-client-content-negotiation
 │       └── Dockerfile             # temurin:21-jre + python3 + faker
 │
+├── command-vault/
+│   ├── frontend/
+│   │   ├── src/
+│   │   │   ├── App.tsx             # Sidebar + snippet viewer + variable substitution UI
+│   │   │   └── api/vaultApi.ts
+│   │   ├── Dockerfile
+│   │   └── nginx.conf
+│   │
+│   └── backend/
+│       ├── src/main/kotlin/pt/cunha/commandvault/
+│       │   ├── Application.kt     # Module setup
+│       │   ├── Database.kt        # Schema: commandvault_config, snippets
+│       │   ├── Models.kt          # Snippet, CreateSnippetRequest, UpdateSnippetRequest
+│       │   ├── ConfigService.kt   # Config CRUD + DB export/import
+│       │   ├── SnippetService.kt  # CRUD with search/tag filtering + getTags
+│       │   └── Routes.kt          # /snippets CRUD, /snippets/tags, /config, /db
+│       └── Dockerfile
+│
+├── port-radar/
+│   ├── frontend/
+│   │   ├── src/
+│   │   │   ├── App.tsx             # Port table with conflict detection, auto-refresh
+│   │   │   └── api/radarApi.ts
+│   │   ├── Dockerfile
+│   │   └── nginx.conf
+│   │
+│   └── backend/
+│       ├── src/main/kotlin/pt/cunha/portradar/
+│       │   └── Application.kt     # Reads /host/proc/net/tcp, maps ports to modules
+│       └── Dockerfile
+│
+├── health-dashboard/
+│   ├── frontend/
+│   │   ├── src/
+│   │   │   ├── App.tsx             # Traffic-light grid, auto-refresh, summary bar
+│   │   │   └── api/healthApi.ts
+│   │   ├── Dockerfile
+│   │   └── nginx.conf
+│   │
+│   └── backend/
+│       ├── src/main/kotlin/pt/cunha/healthdashboard/
+│       │   └── Application.kt     # Parallel health checks via Ktor client, in-memory config
+│       └── Dockerfile
+│
 ├── ttyd-manager/                  # Runs NATIVELY on host, not in Docker
 │   ├── src/main/kotlin/pt/cunha/ttydmanager/
 │   │   ├── Application.kt        # Ktor server on port 10600
@@ -240,6 +287,16 @@ spec_versions (id SERIAL PK, spec_id INT FK→specs, version INT,
 
 Seed: `groq_api_key=` (empty), `groq_model=llama-3.3-70b-versatile`, `faker_locale=en_US`.
 
+### Command Vault DB (port 10509, db: commandvault, user: commandvault)
+
+```sql
+commandvault_config (key VARCHAR(255) PK, value TEXT)
+snippets (id SERIAL PK, title VARCHAR(255), command TEXT NOT NULL, description TEXT,
+          tags TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())
+```
+
+Tags are stored as comma-separated strings. Search uses ILIKE on title, command, and description. Tag filter uses ILIKE on the tags column.
+
 ---
 
 ## API Reference
@@ -267,6 +324,10 @@ Seed: `groq_api_key=` (empty), `groq_model=llama-3.3-70b-versatile`, `faker_loca
 | POST | /config/import | Import config JSON |
 | GET | /db/export | Export full DB as SQL INSERT statements |
 | POST | /db/import | Import SQL (replaces all data) |
+| GET | /backups | List backup snapshots |
+| POST | /backups/run | Trigger manual backup now |
+| GET | /backups/config | Get backup scheduler config |
+| POST | /backups/config | Update backup scheduler `{enabled, intervalMinutes, path, retention}` |
 
 ### Kafbat+ Backend (10401)
 
@@ -299,6 +360,8 @@ Seed: `groq_api_key=` (empty), `groq_model=llama-3.3-70b-versatile`, `faker_loca
 | GET | /sessions | List sessions `?tool=claude-code` |
 | GET | /sessions/{id} | Session detail with turns and MCP tools |
 | GET | /spending | Spending report `?tool=claude-code` |
+| GET | /spending/timeline | Time series `?tool=&period=daily\|weekly` → points with date, cost, tokens, sessions |
+| GET | /spending/projection | Monthly projection `?tool=` → dailyAvg, projectedMonthly, daysOfData |
 | GET | /projects | List projects with session counts |
 
 ### JSON Tools Backend (10406)
@@ -330,6 +393,43 @@ Seed: `groq_api_key=` (empty), `groq_model=llama-3.3-70b-versatile`, `faker_loca
 | POST | /infer | Infer spec from samples `{name, mode, samples[], schema?, schemaType?}` |
 | POST | /generate | Generate data `{specId, count, profile, seed?, entityName?}` |
 | GET | /specs/{id}/export | Download Python script `?type=generate\|call_api` |
+
+### Command Vault Backend (10409)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /health | Health check |
+| GET | /config | Get config |
+| POST | /config | Update config |
+| GET | /config/export | Export config |
+| POST | /config/import | Import config |
+| GET | /db/export | Export DB as SQL |
+| POST | /db/import | Import SQL |
+| GET | /snippets | List snippets `?search=&tag=` |
+| POST | /snippets | Create `{title, command, description?, tags?}` |
+| GET | /snippets/{id} | Get snippet |
+| PUT | /snippets/{id} | Update snippet (partial) |
+| DELETE | /snippets/{id} | Delete snippet |
+| GET | /snippets/tags | List distinct tags |
+
+### Port Radar Backend (10410)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /health | Health check |
+| GET | /config | Get config (procNetPath) |
+| GET | /ports | List open ports `?range=portal` (filters to 10300-10620) |
+
+### Health Dashboard Backend (10411)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /health | Health check |
+| GET | /config | Get service list |
+| POST | /config | Replace service list `[{name, url}, ...]` |
+| GET | /config/export | Export config |
+| POST | /config/import | Import config |
+| GET | /status | Check all services in parallel → `{services: [{name, url, status, responseTimeMs, error?}], checkedAt}` |
 
 ### ttyd Manager (10600, runs on host)
 
@@ -384,8 +484,14 @@ Hub Frontend (10300)
   ├── iframes → Mock Generator Frontend (10308)
   │                └── calls → Mock Generator Backend (10408) → Groq API (for inference)
   │                                                           → Python subprocess (for generation)
+  ├── iframes → Command Vault Frontend (10309)
+  │                └── calls → Command Vault Backend (10409) → Command Vault DB (10509)
+  ├── iframes → Port Radar Frontend (10310)
+  │                └── calls → Port Radar Backend (10410) → reads /host/proc/net/tcp
+  ├── iframes → Health Dashboard Frontend (10311)
+  │                └── calls → Health Dashboard Backend (10411) → pings /health on all backends
   ├── iframes → ttyd sessions (10604-10620) [served by host ttyd processes]
-  └── calls → Hub Backend (10303) → Hub DB (10403)
+  └── calls → Hub Backend (10303) → Hub DB (10403) [+ backup scheduler writes to local dir]
                                   → ttyd Manager API (10600)
 ```
 
@@ -609,3 +715,7 @@ API key is stored in `mockgen_config` table, set via `POST /config`, masked in `
 - The ttyd-manager doesn't persist sessions across restarts. If the process dies, all TUI sessions are lost and ports are reclaimed.
 - Mock Generator's Python subprocess has no timeout — a malformed spec could hang the generation.
 - Kafbat+ consumer uses ephemeral consumer groups (random UUID per request), so it doesn't track offsets.
+- Port Radar requires `/proc` to be mounted from the host (`/proc:/host/proc:ro` in docker-compose). Without this, it only sees the container's own ports.
+- Health Dashboard uses Docker service names to reach backends — `host.docker.internal` for ttyd-manager (host-native). On Linux without Docker Desktop, `host.docker.internal` may need `extra_hosts` in compose.
+- Backup Scheduler runs as a coroutine in the hub backend process. If the process restarts, the scheduler restarts from config but any in-flight backup is lost.
+- AI Session Manager Cost Tracker timeline aggregation is done at query time (no pre-computed rollups). May be slow with thousands of sessions.
