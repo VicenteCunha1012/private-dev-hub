@@ -2,15 +2,21 @@ import { useEffect, useState } from 'react'
 import type { ClusterOverview as ClusterOverviewType } from '../api/kafkaApi'
 import { kafkaApi } from '../api/kafkaApi'
 
-export default function ClusterOverview() {
+interface ClusterOverviewProps {
+  clusterId?: number | null
+}
+
+export default function ClusterOverview({ clusterId }: ClusterOverviewProps) {
   const [cluster, setCluster] = useState<ClusterOverviewType | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    kafkaApi.getCluster()
+    setCluster(null)
+    setError(null)
+    kafkaApi.getCluster(clusterId)
       .then(setCluster)
       .catch(e => setError(e.message))
-  }, [])
+  }, [clusterId])
 
   if (error) {
     return (

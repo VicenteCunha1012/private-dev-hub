@@ -23,7 +23,12 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} sessions'\\); [print\\(f'  {s[\\\\\"id\\\\\"]}: {s[\\\\\"messageCount\\\\\"]} steps, \\\\${s[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\) for s in d[:5]]\")",
       "Bash(sqlite3 *)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'tool={d[\\\\\"tool\\\\\"]}, sessions={d[\\\\\"totalSessions\\\\\"]}, cost=\\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\)\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); tools=set\\(s['tool'] for s in d\\); print\\(f'{len\\(d\\)} total sessions, tools: {tools}'\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); tools=set\\(s['tool'] for s in d\\); print\\(f'{len\\(d\\)} total sessions, tools: {tools}'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f'{p[\\\\\"date\\\\\"]}: \\\\${p[\\\\\"costUsd\\\\\"]:.2f}, {p[\\\\\"sessions\\\\\"]} sessions'\\) for p in d['points'][-10:]]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Total: \\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}, sessions: {d[\\\\\"totalSessions\\\\\"]}'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f'{p[\\\\\"date\\\\\"]}: \\\\${p[\\\\\"costUsd\\\\\"]:.2f}, {p[\\\\\"sessions\\\\\"]} sessions'\\) for p in d['points']]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} topics'\\)\")",
+      "Bash(rtk gradlew *)"
     ]
   }
 }

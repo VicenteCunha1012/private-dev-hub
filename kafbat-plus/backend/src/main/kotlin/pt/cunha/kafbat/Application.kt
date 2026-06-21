@@ -16,7 +16,7 @@ fun Application.module() {
     db.init()
 
     val configService = ConfigService(db.connection)
-    val kafkaService = KafkaService(configService)
+    val kafkaService = KafkaService()
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true })
@@ -52,7 +52,8 @@ fun Application.module() {
             call.respond(mapOf("status" to "ok"))
         }
         configRoutes(configService)
-        brokerRoutes(kafkaService)
-        topicRoutes(kafkaService)
+        clusterRoutes(configService)
+        brokerRoutes(kafkaService, configService)
+        topicRoutes(kafkaService, configService)
     }
 }

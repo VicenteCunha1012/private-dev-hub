@@ -9,11 +9,12 @@ interface SidebarProps {
   keybinds: KeybindsConfig
   onSelect: (entry: Entry) => void
   onConfigClick: () => void
+  onGoHome: () => void
   onMoveEntry: (entryId: number, newFolderId: number | undefined, newPosition: number) => void
 }
 
 const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
-  { folders, selectedId, showConfig, keybinds, onSelect, onConfigClick, onMoveEntry },
+  { folders, selectedId, showConfig, keybinds, onSelect, onConfigClick, onGoHome, onMoveEntry },
   ref
 ) {
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
@@ -35,7 +36,13 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
   return (
     <nav
       ref={ref}
-      tabIndex={-1}
+      tabIndex={0}
+      onMouseEnter={e => {
+        if (document.activeElement?.tagName === 'IFRAME') {
+          (document.activeElement as HTMLElement).blur()
+        }
+        (e.currentTarget as HTMLElement).focus()
+      }}
       style={{
         width: 'var(--sidebar-width)',
         background: 'var(--sidebar-bg)',
@@ -48,14 +55,22 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
         outline: 'none',
       }}
     >
-      {/* Logo */}
-      <div style={{
-        padding: '18px 16px 14px',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 9,
-      }}>
+      {/* Logo — click to go home */}
+      <button
+        onClick={onGoHome}
+        style={{
+          padding: '18px 16px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          borderBottom: '1px solid var(--border)',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
         <div style={{
           width: 26, height: 26,
           borderRadius: 7,
@@ -67,7 +82,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
         <span style={{ fontWeight: 700, fontSize: 14.5, color: 'var(--text)', letterSpacing: -0.2 }}>
           Dev Hub
         </span>
-      </div>
+      </button>
 
       {/* Folders */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>

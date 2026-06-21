@@ -6,7 +6,7 @@ interface HomeScreenProps {
   folders: Folder[]
   keybinds: KeybindsConfig
   searchRef: RefObject<HTMLInputElement | null>
-  onSelect: (entry: Entry) => void
+  onSelect: (entry: Entry, reload?: boolean) => void
 }
 
 export default function HomeScreen({ folders, keybinds, searchRef, onSelect }: HomeScreenProps) {
@@ -92,12 +92,12 @@ export default function HomeScreen({ folders, keybinds, searchRef, onSelect }: H
   )
 }
 
-function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry) => void }) {
+function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry, reload?: boolean) => void }) {
   const [hovered, setHovered] = useState(false)
 
   return (
     <button
-      onClick={() => onSelect(entry)}
+      onClick={() => onSelect(entry, true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

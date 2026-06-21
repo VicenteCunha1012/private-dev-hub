@@ -84,22 +84,22 @@ data class ClusterOverview(
     val controllerId: Int
 )
 
-class KafkaService(private val configService: ConfigService) {
+class KafkaService() {
 
-    private fun adminProps(): Properties {
+    private fun adminProps(brokers: String): Properties {
         val props = Properties()
-        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = configService.getBrokers().joinToString(",")
+        props[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = brokers
         props[AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG] = "5000"
         props[AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG] = "10000"
         return props
     }
 
-    private fun <T> withAdmin(block: (AdminClient) -> T): T {
-        val admin = AdminClient.create(adminProps())
+    private fun <T> withAdmin(brokers: String, block: (AdminClient) -> T): T {
+        val admin = AdminClient.create(adminProps(brokers))
         return admin.use { block(it) }
     }
 
-    fun getClusterOverview(): ClusterOverview = withAdmin { admin ->
+    fun getClusterOverview(brokers: String): ClusterOverview = withAdmin(brokers) { admin ->
         val cluster = admin.describeCluster()
         val nodes = cluster.nodes().get()
         val controllerId = cluster.controller().get().id()
@@ -115,14 +115,14 @@ class KafkaService(private val configService: ConfigService) {
         )
     }
 
-    fun getBrokers(): List<BrokerInfo> = withAdmin { admin ->
+    fun getBrokers(brokers: String): List<BrokerInfo> = withAdmin(brokers) { admin ->
         val cluster = admin.describeCluster()
         val nodes = cluster.nodes().get()
         val controllerId = cluster.controller().get().id()
         nodes.map { BrokerInfo(it.id(), it.host(), it.port(), it.id() == controllerId) }
     }
 
-    fun getTopics(search: String? = null, showInternal: Boolean = false): List<TopicInfo> = withAdmin { admin ->
+    fun getTopics(brokers: String, search: String? = null, showInternal: Boolean = false): List<TopicInfo> = withAdmin(brokers) { admin ->
         val listOptions = org.apache.kafka.clients.admin.ListTopicsOptions().listInternal(showInternal)
         val topicNames = admin.listTopics(listOptions).names().get()
         val filtered = if (!search.isNullOrBlank()) {
@@ -166,7 +166,7 @@ class KafkaService(private val configService: ConfigService) {
         }.sortedBy { it.name }
     }
 
-    fun getTopicDetails(topicName: String): TopicDetails = withAdmin { admin ->
+    fun getTopicDetails(brokers: String, topicName: String): TopicDetails = withAdmin(brokers) { admin ->
         val desc = admin.describeTopics(listOf(topicName)).allTopicNames().get()[topicName]
             ?: throw NoSuchElementException("Topic '$topicName' not found")
 
@@ -200,6 +200,7 @@ class KafkaService(private val configService: ConfigService) {
     }
 
     fun getMessages(
+        brokers: String,
         topicName: String,
         limit: Int = 100,
         search: String? = null,
@@ -208,7 +209,6 @@ class KafkaService(private val configService: ConfigService) {
         toTimestamp: Long? = null,
         partition: Int? = null
     ): List<KafkaMessage> {
-        val brokers = configService.getBrokers().joinToString(",")
         val props = Properties().apply {
             put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
             put(ConsumerConfig.GROUP_ID_CONFIG, "kafbat-plus-${UUID.randomUUID()}")
@@ -289,8 +289,7 @@ class KafkaService(private val configService: ConfigService) {
         }
     }
 
-    fun produceMessage(topicName: String, request: ProduceRequest): ProduceResult {
-        val brokers = configService.getBrokers().joinToString(",")
+    fun produceMessage(brokers: String, topicName: String, request: ProduceRequest): ProduceResult {
         val props = Properties().apply {
             put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
             put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.name)
@@ -319,11 +318,11 @@ class KafkaService(private val configService: ConfigService) {
         }
     }
 
-    fun createTopic(name: String, partitions: Int, replicationFactor: Short) = withAdmin { admin ->
+    fun createTopic(brokers: String, name: String, partitions: Int, replicationFactor: Short) = withAdmin(brokers) { admin ->
         admin.createTopics(listOf(NewTopic(name, partitions, replicationFactor))).all().get()
     }
 
-    fun deleteTopic(name: String) = withAdmin { admin ->
+    fun deleteTopic(brokers: String, name: String) = withAdmin(brokers) { admin ->
         admin.deleteTopics(listOf(name)).all().get()
     }
 }

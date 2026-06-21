@@ -13,6 +13,13 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   return res.json()
 }
 
+function clusterQs(clusterId?: number | null, extra?: URLSearchParams): string {
+  const params = extra ?? new URLSearchParams()
+  if (clusterId != null) params.set('cluster', String(clusterId))
+  const qs = params.toString()
+  return qs ? '?' + qs : ''
+}
+
 export interface BrokerInfo {
   id: number
   host: string
@@ -70,35 +77,53 @@ export interface KafbatConfig {
   default_limit: string
 }
 
+export interface ClusterConfig {
+  id: number
+  name: string
+  brokers: string
+  isDefault: boolean
+}
+
 export const kafkaApi = {
   health: (): Promise<{ status: string }> => req('/health'),
 
+  // Clusters
+  getClusters: (): Promise<ClusterConfig[]> => req('/clusters'),
+  createCluster: (name: string, brokers: string): Promise<ClusterConfig> =>
+    req('/clusters', { method: 'POST', body: JSON.stringify({ name, brokers }) }),
+  updateCluster: (id: number, name: string, brokers: string): Promise<ClusterConfig> =>
+    req(`/clusters/${id}`, { method: 'PUT', body: JSON.stringify({ name, brokers }) }),
+  deleteCluster: (id: number): Promise<void> =>
+    req(`/clusters/${id}`, { method: 'DELETE' }),
+
   // Cluster
-  getCluster: (): Promise<ClusterOverview> => req('/cluster'),
-  getBrokers: (): Promise<BrokerInfo[]> => req('/brokers'),
+  getCluster: (clusterId?: number | null): Promise<ClusterOverview> =>
+    req(`/cluster${clusterQs(clusterId)}`),
+  getBrokers: (clusterId?: number | null): Promise<BrokerInfo[]> =>
+    req(`/brokers${clusterQs(clusterId)}`),
 
   // Topics
-  getTopics: (search?: string, showInternal?: boolean): Promise<TopicInfo[]> => {
+  getTopics: (search?: string, showInternal?: boolean, clusterId?: number | null): Promise<TopicInfo[]> => {
     const params = new URLSearchParams()
     if (search) params.set('search', search)
     if (showInternal) params.set('showInternal', 'true')
-    const qs = params.toString()
-    return req(`/topics${qs ? '?' + qs : ''}`)
+    return req(`/topics${clusterQs(clusterId, params)}`)
   },
 
-  getTopicDetails: (topic: string): Promise<TopicDetails> =>
-    req(`/topics/${encodeURIComponent(topic)}`),
+  getTopicDetails: (topic: string, clusterId?: number | null): Promise<TopicDetails> =>
+    req(`/topics/${encodeURIComponent(topic)}${clusterQs(clusterId)}`),
 
-  createTopic: (name: string, partitions: number, replicationFactor: number): Promise<void> =>
-    req('/topics', { method: 'POST', body: JSON.stringify({ name, partitions, replicationFactor }) }),
+  createTopic: (name: string, partitions: number, replicationFactor: number, clusterId?: number | null): Promise<void> =>
+    req(`/topics${clusterQs(clusterId)}`, { method: 'POST', body: JSON.stringify({ name, partitions, replicationFactor }) }),
 
-  deleteTopic: (topic: string): Promise<void> =>
-    req(`/topics/${encodeURIComponent(topic)}`, { method: 'DELETE' }),
+  deleteTopic: (topic: string, clusterId?: number | null): Promise<void> =>
+    req(`/topics/${encodeURIComponent(topic)}${clusterQs(clusterId)}`, { method: 'DELETE' }),
 
   // Messages
   getMessages: (
     topic: string,
-    opts?: { limit?: number; search?: string; key?: string; from?: number; to?: number; partition?: number }
+    opts?: { limit?: number; search?: string; key?: string; from?: number; to?: number; partition?: number },
+    clusterId?: number | null
   ): Promise<KafkaMessage[]> => {
     const params = new URLSearchParams()
     if (opts?.limit) params.set('limit', String(opts.limit))
@@ -107,13 +132,12 @@ export const kafkaApi = {
     if (opts?.from) params.set('from', String(opts.from))
     if (opts?.to) params.set('to', String(opts.to))
     if (opts?.partition !== undefined) params.set('partition', String(opts.partition))
-    const qs = params.toString()
-    return req(`/topics/${encodeURIComponent(topic)}/messages${qs ? '?' + qs : ''}`)
+    return req(`/topics/${encodeURIComponent(topic)}/messages${clusterQs(clusterId, params)}`)
   },
 
   // Produce
-  produce: (topic: string, data: { key?: string; value: string; headers?: Record<string, string>; partition?: number }): Promise<ProduceResult> =>
-    req(`/topics/${encodeURIComponent(topic)}/produce`, { method: 'POST', body: JSON.stringify(data) }),
+  produce: (topic: string, data: { key?: string; value: string; headers?: Record<string, string>; partition?: number }, clusterId?: number | null): Promise<ProduceResult> =>
+    req(`/topics/${encodeURIComponent(topic)}/produce${clusterQs(clusterId)}`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Config
   getConfig: (): Promise<KafbatConfig> => req('/config'),

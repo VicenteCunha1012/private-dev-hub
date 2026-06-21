@@ -5,7 +5,7 @@ import { sessionsApi } from '../api/sessionsApi'
 export default function CostTracker({ tool }: { tool: string }) {
   const [timeline, setTimeline] = useState<SpendingTimeline | null>(null)
   const [projection, setProjection] = useState<SpendingProjection | null>(null)
-  const [period, setPeriod] = useState<'daily' | 'weekly'>('daily')
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily')
 
   useEffect(() => {
     const t = tool || 'claude-code'
@@ -37,7 +37,7 @@ export default function CostTracker({ tool }: { tool: string }) {
           Spending Timeline
         </h3>
         <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: 2 }}>
-          {(['daily', 'weekly'] as const).map(p => (
+          {(['daily', 'weekly', 'monthly'] as const).map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{
               padding: '5px 14px', fontSize: 11, fontWeight: 500,
               borderRadius: 4, textTransform: 'capitalize',

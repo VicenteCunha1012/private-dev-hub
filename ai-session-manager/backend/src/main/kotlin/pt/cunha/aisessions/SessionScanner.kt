@@ -371,15 +371,19 @@ class SessionScanner(private val claudeDir: String) {
 
     fun getSpendingTimeline(tool: String, period: String): SpendingTimeline {
         val sessions = getSessions(tool)
-        val bucketFormat = if (period == "weekly") {
-            { ts: Long ->
+        val bucketFormat: (Long) -> String = when (period) {
+            "weekly" -> { ts: Long ->
                 val instant = Instant.ofEpochMilli(ts)
                 val ld = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
                 val weekStart = ld.with(java.time.DayOfWeek.MONDAY)
                 weekStart.toString()
             }
-        } else {
-            { ts: Long ->
+            "monthly" -> { ts: Long ->
+                val instant = Instant.ofEpochMilli(ts)
+                val ld = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                "${ld.year}-${String.format("%02d", ld.monthValue)}"
+            }
+            else -> { ts: Long ->
                 val instant = Instant.ofEpochMilli(ts)
                 instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
             }
@@ -409,9 +413,10 @@ class SessionScanner(private val claudeDir: String) {
         }
 
         val totalCost = sessions.sumOf { it.estimatedCostUsd }
-        val minTs = sessions.minOf { it.lastActivity }
-        val maxTs = sessions.maxOf { it.lastActivity }
-        val daysSpan = maxOf(((maxTs - minTs) / 86_400_000.0).toLong(), 1)
+        val activeDays = sessions.map {
+            Instant.ofEpochMilli(it.lastActivity).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        }.toSet().size.toLong()
+        val daysSpan = maxOf(activeDays, 1)
         val dailyAvg = totalCost / daysSpan
 
         return SpendingProjection(

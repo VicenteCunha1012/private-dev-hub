@@ -85,6 +85,13 @@ export interface KafbatConfig {
   defaultLimit: string
 }
 
+export interface KafbatCluster {
+  id: number
+  name: string
+  brokers: string
+  isDefault: boolean
+}
+
 export const kafbatApi = {
   getConfig: async (): Promise<KafbatConfig> => {
     const res = await fetch(`${KAFBAT_BASE}/config`)
@@ -99,6 +106,33 @@ export const kafbatApi = {
     })
     if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
     return res.json()
+  },
+  getClusters: async (): Promise<KafbatCluster[]> => {
+    const res = await fetch(`${KAFBAT_BASE}/clusters`)
+    if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
+    return res.json()
+  },
+  createCluster: async (name: string, brokers: string): Promise<KafbatCluster> => {
+    const res = await fetch(`${KAFBAT_BASE}/clusters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, brokers }),
+    })
+    if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
+    return res.json()
+  },
+  updateCluster: async (id: number, name: string, brokers: string): Promise<KafbatCluster> => {
+    const res = await fetch(`${KAFBAT_BASE}/clusters/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, brokers }),
+    })
+    if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
+    return res.json()
+  },
+  deleteCluster: async (id: number): Promise<void> => {
+    const res = await fetch(`${KAFBAT_BASE}/clusters/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
   },
 }
 

@@ -183,6 +183,8 @@ export default function App() {
   const [varValues, setVarValues] = useState<Record<string, string>>({})
   const [showVarForm, setShowVarForm] = useState(false)
   const [copyFeedback, setCopyFeedback] = useState(false)
+  const [execResult, setExecResult] = useState<{ exitCode: number; stdout: string; stderr: string; timedOut?: boolean } | null>(null)
+  const [execRunning, setExecRunning] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const selected = useMemo(() => snippets.find(s => s.id === selectedId) ?? null, [snippets, selectedId])
@@ -265,6 +267,30 @@ export default function App() {
     })
   }, [selected, variables, showVarForm, varValues])
 
+  const handleRun = useCallback(async () => {
+    if (!selected) return
+    const cmd = variables.length > 0
+      ? substituteVariables(selected.command, varValues)
+      : selected.command
+    if (variables.length > 0) saveVarHistory(varValues)
+    setExecRunning(true)
+    setExecResult(null)
+    try {
+      const res = await fetch('http://localhost:10600/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd, timeoutSeconds: 30 }),
+      })
+      const data = await res.json()
+      setExecResult(data)
+      setShowVarForm(false)
+    } catch (e) {
+      setExecResult({ exitCode: -1, stdout: '', stderr: `Failed to connect to executor: ${e instanceof Error ? e.message : 'unknown'}` })
+    } finally {
+      setExecRunning(false)
+    }
+  }, [selected, variables, varValues])
+
   const selectedTags = useMemo(() => {
     if (!selected?.tags) return []
     return selected.tags.split(',').map(t => t.trim()).filter(Boolean)
@@ -323,7 +349,7 @@ export default function App() {
             return (
               <div
                 key={s.id}
-                onClick={() => { setSelectedId(s.id); setShowVarForm(false) }}
+                onClick={() => { setSelectedId(s.id); setShowVarForm(false); setExecResult(null) }}
                 style={{
                   padding: '10px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
                   marginBottom: 2,
@@ -411,14 +437,24 @@ export default function App() {
                 background: 'var(--card-bg)',
               }}>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Command</span>
-                <button onClick={handleCopy} style={{
-                  padding: '4px 12px', borderRadius: 6,
-                  background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
-                  color: '#fff', fontSize: 12, fontWeight: 500,
-                  transition: 'background 0.2s',
-                }}>
-                  {copyFeedback ? 'Copied!' : 'Copy'}
-                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={handleRun} disabled={execRunning} style={{
+                    padding: '4px 12px', borderRadius: 6,
+                    background: execRunning ? 'var(--text-dim)' : '#22c55e',
+                    color: '#fff', fontSize: 12, fontWeight: 500,
+                    opacity: execRunning ? 0.6 : 1,
+                  }}>
+                    {execRunning ? 'Running...' : 'Run'}
+                  </button>
+                  <button onClick={handleCopy} style={{
+                    padding: '4px 12px', borderRadius: 6,
+                    background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
+                    color: '#fff', fontSize: 12, fontWeight: 500,
+                    transition: 'background 0.2s',
+                  }}>
+                    {copyFeedback ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
               </div>
               <pre style={{
                 padding: '14px 16px', margin: 0,
@@ -467,6 +503,12 @@ export default function App() {
                       padding: '6px 14px', borderRadius: 6,
                       border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
                     }}>Cancel</button>
+                    <button onClick={handleRun} disabled={execRunning} style={{
+                      padding: '6px 14px', borderRadius: 6,
+                      background: execRunning ? 'var(--text-dim)' : '#22c55e',
+                      color: '#fff', fontSize: 12, fontWeight: 500,
+                      opacity: execRunning ? 0.6 : 1,
+                    }}>{execRunning ? 'Running...' : 'Run'}</button>
                     <button onClick={handleCopy} style={{
                       padding: '6px 14px', borderRadius: 6,
                       background: 'var(--accent-solid)', color: '#fff', fontSize: 12, fontWeight: 500,
@@ -475,6 +517,52 @@ export default function App() {
                 </div>
               )
             })()}
+
+            {/* Execution output */}
+            {execResult && (
+              <div style={{
+                marginTop: 12, background: '#0a0914', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)', overflow: 'hidden',
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 14px', borderBottom: '1px solid var(--border)',
+                  background: 'var(--card-bg)',
+                }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Output
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600,
+                      color: execResult.timedOut ? 'var(--warning)' : execResult.exitCode === 0 ? 'var(--success)' : 'var(--danger)',
+                    }}>
+                      {execResult.timedOut ? 'Timed out' : `exit ${execResult.exitCode}`}
+                    </span>
+                    <button onClick={() => setExecResult(null)} style={{
+                      fontSize: 14, color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer',
+                    }}>×</button>
+                  </div>
+                </div>
+                <pre style={{
+                  padding: '12px 16px', margin: 0, maxHeight: 400, overflowY: 'auto',
+                  fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6,
+                  color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                }}>
+                  {execResult.stdout || '(no output)'}
+                </pre>
+                {execResult.stderr && (
+                  <pre style={{
+                    padding: '8px 16px', margin: 0, borderTop: '1px solid var(--border)',
+                    fontFamily: 'var(--mono)', fontSize: 11, lineHeight: 1.5,
+                    color: 'var(--danger)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                    background: 'rgba(239,68,68,0.04)',
+                  }}>
+                    {execResult.stderr}
+                  </pre>
+                )}
+              </div>
+            )}
 
             {/* Meta */}
             <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-dim)' }}>

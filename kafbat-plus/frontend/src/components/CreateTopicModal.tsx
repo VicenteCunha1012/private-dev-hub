@@ -4,9 +4,10 @@ import { kafkaApi } from '../api/kafkaApi'
 interface CreateTopicModalProps {
   onClose: () => void
   onCreated: () => void
+  clusterId?: number | null
 }
 
-export default function CreateTopicModal({ onClose, onCreated }: CreateTopicModalProps) {
+export default function CreateTopicModal({ onClose, onCreated, clusterId }: CreateTopicModalProps) {
   const [name, setName] = useState('')
   const [partitions, setPartitions] = useState(1)
   const [replication, setReplication] = useState(1)
@@ -18,7 +19,7 @@ export default function CreateTopicModal({ onClose, onCreated }: CreateTopicModa
     setCreating(true)
     setError(null)
     try {
-      await kafkaApi.createTopic(name.trim(), partitions, replication)
+      await kafkaApi.createTopic(name.trim(), partitions, replication, clusterId)
       onCreated()
       onClose()
     } catch (e: unknown) {
@@ -26,7 +27,7 @@ export default function CreateTopicModal({ onClose, onCreated }: CreateTopicModa
     } finally {
       setCreating(false)
     }
-  }, [name, partitions, replication, onCreated, onClose])
+  }, [name, partitions, replication, onCreated, onClose, clusterId])
 
   return (
     <div

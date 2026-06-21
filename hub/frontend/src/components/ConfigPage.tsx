@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api, kafbatApi, ttydApi } from '../api/hubApi'
-import type { KafbatConfig } from '../api/hubApi'
+import type { KafbatCluster, KafbatConfig } from '../api/hubApi'
 import { applyPalette, PRESETS } from '../palettes'
-import type { Entry, ExportedConfig, Folder, HubConfig, KeybindsConfig, PaletteConfig } from '../types'
+import type { Entry, ExportedConfig, Folder, KeybindsConfig, PaletteConfig } from '../types'
 import Modal from './Modal'
 
 interface ConfigPageProps {
@@ -15,16 +15,11 @@ interface ConfigPageProps {
 }
 
 export default function ConfigPage({ folders, keybinds, onKeybindsChange, palette, onPaletteChange, onRefresh }: ConfigPageProps) {
-  const [editConfig, setEditConfig] = useState<HubConfig | null>(null)
   const [showAddFolder, setShowAddFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [toast, setToast] = useState('')
-
-  useEffect(() => {
-    api.getConfig().then(c => setEditConfig(c)).catch(console.error)
-  }, [])
 
   const [editKeybinds, setEditKeybinds] = useState<KeybindsConfig>(keybinds)
   useEffect(() => { setEditKeybinds(keybinds) }, [keybinds])
@@ -35,12 +30,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(''), 2500)
-  }
-
-  const saveConfig = async () => {
-    if (!editConfig) return
-    await api.updateConfig(editConfig)
-    showToast('Settings saved')
   }
 
   const saveKeybinds = async () => {
@@ -293,26 +282,6 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
             </div>
           </div>
         </Section>
-
-        {/* PostgreSQL tools */}
-        {editConfig && (
-          <Section title="PostgreSQL Binaries">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label="pg_dump">
-                <input value={editConfig.pgDumpPath} onChange={e => setEditConfig(c => c ? { ...c, pgDumpPath: e.target.value } : c)} />
-              </Field>
-              <Field label="psql">
-                <input value={editConfig.psqlPath} onChange={e => setEditConfig(c => c ? { ...c, psqlPath: e.target.value } : c)} />
-              </Field>
-              <Field label="pg_restore">
-                <input value={editConfig.pgRestorePath} onChange={e => setEditConfig(c => c ? { ...c, pgRestorePath: e.target.value } : c)} />
-              </Field>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
-                <PrimaryBtn onClick={saveConfig}>Save</PrimaryBtn>
-              </div>
-            </div>
-          </Section>
-        )}
 
         {/* Module Configuration */}
         <ModuleConfigSection showToast={showToast} />
@@ -746,9 +715,14 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
 
 function ModuleConfigSection({ showToast }: { showToast: (msg: string) => void }) {
   const [kafbat, setKafbat] = useState<KafbatConfig | null>(null)
+  const [clusters, setClusters] = useState<KafbatCluster[]>([])
+  const [newClusterName, setNewClusterName] = useState('')
+  const [newClusterBrokers, setNewClusterBrokers] = useState('')
+  const [editingCluster, setEditingCluster] = useState<KafbatCluster | null>(null)
 
   useEffect(() => {
     kafbatApi.getConfig().then(setKafbat).catch(() => {})
+    kafbatApi.getClusters().then(setClusters).catch(() => {})
   }, [])
 
   const saveKafbat = async () => {
@@ -761,18 +735,150 @@ function ModuleConfigSection({ showToast }: { showToast: (msg: string) => void }
     }
   }
 
+  const addCluster = async () => {
+    if (!newClusterName.trim() || !newClusterBrokers.trim()) return
+    try {
+      const created = await kafbatApi.createCluster(newClusterName.trim(), newClusterBrokers.trim())
+      setClusters(prev => [...prev, created])
+      setNewClusterName('')
+      setNewClusterBrokers('')
+      showToast('Cluster added')
+    } catch {
+      showToast('Failed to add cluster')
+    }
+  }
+
+  const saveCluster = async () => {
+    if (!editingCluster) return
+    try {
+      const updated = await kafbatApi.updateCluster(editingCluster.id, editingCluster.name, editingCluster.brokers)
+      setClusters(prev => prev.map(c => c.id === updated.id ? updated : c))
+      setEditingCluster(null)
+      showToast('Cluster updated')
+    } catch {
+      showToast('Failed to update cluster')
+    }
+  }
+
+  const removeCluster = async (id: number) => {
+    if (!confirm('Delete this cluster?')) return
+    try {
+      await kafbatApi.deleteCluster(id)
+      setClusters(prev => prev.filter(c => c.id !== id))
+      showToast('Cluster deleted')
+    } catch {
+      showToast('Cannot delete default cluster')
+    }
+  }
+
   if (!kafbat) return null
 
   return (
     <Section title="Module Configuration">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <SectionLabel>Kafbat+</SectionLabel>
-        <Field label="Broker URLs">
-          <input value={kafbat.brokers} onChange={e => setKafbat(c => c ? { ...c, brokers: e.target.value } : c)} placeholder="localhost:9092" />
-        </Field>
-        <Field label="Default message limit">
-          <input type="number" min={1} value={kafbat.defaultLimit} onChange={e => setKafbat(c => c ? { ...c, defaultLimit: e.target.value } : c)} />
-        </Field>
+
+        {/* Clusters */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>Kafka Clusters</span>
+          </div>
+          {clusters.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>No clusters configured.</p>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {clusters.map(c => (
+              <div key={c.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 12px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+              }}>
+                {editingCluster?.id === c.id ? (
+                  <>
+                    <input
+                      value={editingCluster.name}
+                      onChange={e => setEditingCluster({ ...editingCluster, name: e.target.value })}
+                      style={{ flex: '0 0 140px', fontSize: 12 }}
+                      placeholder="Name"
+                    />
+                    <input
+                      value={editingCluster.brokers}
+                      onChange={e => setEditingCluster({ ...editingCluster, brokers: e.target.value })}
+                      style={{ flex: 1, fontSize: 12 }}
+                      placeholder="Brokers"
+                    />
+                    <TextBtn onClick={saveCluster}>Save</TextBtn>
+                    <TextBtn onClick={() => setEditingCluster(null)}>Cancel</TextBtn>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', minWidth: 100 }}>{c.name}</span>
+                    {c.isDefault && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                        color: '#6366f1', background: 'rgba(99,102,241,0.1)',
+                        padding: '2px 6px', borderRadius: 4,
+                      }}>default</span>
+                    )}
+                    <span style={{
+                      flex: 1, fontSize: 11.5, fontFamily: 'monospace',
+                      color: 'var(--text-muted)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{c.brokers}</span>
+                    <TextBtn onClick={() => setEditingCluster({ ...c })}>Edit</TextBtn>
+                    {!c.isDefault && <DangerBtn onClick={() => removeCluster(c.id)}>Delete</DangerBtn>}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Add cluster */}
+          <div style={{
+            display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end',
+          }}>
+            <div style={{ flex: '0 0 140px' }}>
+              <label style={{ fontSize: 10, color: 'var(--text-dim)', display: 'block', marginBottom: 3 }}>Cluster name</label>
+              <input
+                value={newClusterName}
+                onChange={e => setNewClusterName(e.target.value)}
+                placeholder="e.g. Production"
+                style={{ fontSize: 12 }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 10, color: 'var(--text-dim)', display: 'block', marginBottom: 3 }}>Brokers</label>
+              <input
+                value={newClusterBrokers}
+                onChange={e => setNewClusterBrokers(e.target.value)}
+                placeholder="host:9092,host2:9092"
+                style={{ fontSize: 12 }}
+              />
+            </div>
+            <button
+              onClick={addCluster}
+              disabled={!newClusterName.trim() || !newClusterBrokers.trim()}
+              style={{
+                padding: '7px 14px', fontSize: 12, fontWeight: 500,
+                background: !newClusterName.trim() || !newClusterBrokers.trim() ? 'var(--text-dim)' : '#6366f1',
+                color: '#fff', borderRadius: 6, whiteSpace: 'nowrap',
+                opacity: !newClusterName.trim() || !newClusterBrokers.trim() ? 0.5 : 1,
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              + Add
+            </button>
+          </div>
+        </div>
+
+        {/* General config */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <Field label="Default message limit">
+            <input type="number" min={1} value={kafbat.defaultLimit} onChange={e => setKafbat(c => c ? { ...c, defaultLimit: e.target.value } : c)} />
+          </Field>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
           <PrimaryBtn onClick={saveKafbat}>Save</PrimaryBtn>
         </div>

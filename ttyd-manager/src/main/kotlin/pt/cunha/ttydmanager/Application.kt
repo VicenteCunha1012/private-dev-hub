@@ -10,9 +10,18 @@ import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 private val manager = TuiManager()
+
+@Serializable
+data class ExecRequest(val command: String, val workdir: String? = null, val timeoutSeconds: Int = 30)
+
+@Serializable
+data class ExecResult(val exitCode: Int, val stdout: String, val stderr: String, val timedOut: Boolean = false)
 
 fun Application.module() {
     install(ContentNegotiation) {
@@ -43,6 +52,28 @@ fun Application.module() {
         get("/health") {
             call.respond(mapOf("status" to "ok"))
         }
+        post("/exec") {
+            val req = call.receive<ExecRequest>()
+            val timeout = req.timeoutSeconds.coerceIn(1, 120).toLong()
+            val workdir = req.workdir?.let { File(it) }?.takeIf { it.isDirectory } ?: File(System.getProperty("user.home"))
+
+            val process = ProcessBuilder("bash", "-c", req.command)
+                .directory(workdir)
+                .redirectErrorStream(false)
+                .start()
+
+            val finished = process.waitFor(timeout, TimeUnit.SECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                val partial = process.inputStream.bufferedReader().readText().take(50_000)
+                call.respond(ExecResult(exitCode = -1, stdout = partial, stderr = "Process timed out after ${timeout}s", timedOut = true))
+            } else {
+                val stdout = process.inputStream.bufferedReader().readText().take(50_000)
+                val stderr = process.errorStream.bufferedReader().readText().take(10_000)
+                call.respond(ExecResult(exitCode = process.exitValue(), stdout = stdout, stderr = stderr))
+            }
+        }
+
         route("/tuis") {
             get {
                 call.respond(manager.list())

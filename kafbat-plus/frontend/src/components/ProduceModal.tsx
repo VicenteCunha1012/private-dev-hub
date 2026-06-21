@@ -11,11 +11,13 @@ interface ProduceModalProps {
   topic: string
   onClose: () => void
   onProduced: () => void
+  initialValue?: string
+  clusterId?: number | null
 }
 
-export default function ProduceModal({ topic, onClose, onProduced }: ProduceModalProps) {
+export default function ProduceModal({ topic, onClose, onProduced, initialValue, clusterId }: ProduceModalProps) {
   const [key, setKey] = useState('')
-  const [value, setValue] = useState('{\n  \n}')
+  const [value, setValue] = useState(initialValue ?? '{\n  \n}')
   const [headers, setHeaders] = useState('')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<ProduceResult | null>(null)
@@ -74,7 +76,7 @@ export default function ProduceModal({ topic, onClose, onProduced }: ProduceModa
         key: key || undefined,
         value,
         headers: Object.keys(parsedHeaders).length > 0 ? parsedHeaders : undefined,
-      })
+      }, clusterId)
       setResult(res)
       onProduced()
     } catch (e: unknown) {
@@ -82,7 +84,7 @@ export default function ProduceModal({ topic, onClose, onProduced }: ProduceModa
     } finally {
       setSending(false)
     }
-  }, [topic, key, value, headers, onProduced])
+  }, [topic, key, value, headers, onProduced, clusterId])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()

@@ -43,9 +43,12 @@ export default function App() {
       .catch(() => {})
   }, [loadFolders])
 
-  const handleSelectEntry = useCallback((entry: Entry) => {
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const handleSelectEntry = useCallback((entry: Entry, reload?: boolean) => {
     setSelectedEntry(entry)
     setShowConfig(false)
+    if (reload) setReloadKey(k => k + 1)
   }, [])
 
   const handleConfigClick = useCallback(() => {
@@ -112,6 +115,7 @@ export default function App() {
         keybinds={keybinds}
         onSelect={handleSelectEntry}
         onConfigClick={handleConfigClick}
+        onGoHome={() => { setSelectedEntry(null); setShowConfig(false) }}
         onMoveEntry={handleMoveEntry}
       />
 
@@ -151,7 +155,7 @@ export default function App() {
           display: showIframe ? 'flex' : 'none',
           flexDirection: 'column',
         }}>
-          <IframeArea entries={allEntries} selectedId={selectedEntry?.id ?? null} />
+          <IframeArea entries={allEntries} selectedId={selectedEntry?.id ?? null} reloadKey={reloadKey} />
         </div>
       </main>
     </div>

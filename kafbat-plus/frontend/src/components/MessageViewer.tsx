@@ -7,9 +7,10 @@ interface MessageViewerProps {
   topic: string
   onProduce: () => void
   onDeleteTopic: () => void
+  clusterId?: number | null
 }
 
-export default function MessageViewer({ topic, onProduce, onDeleteTopic }: MessageViewerProps) {
+export default function MessageViewer({ topic, onProduce, onDeleteTopic, clusterId }: MessageViewerProps) {
   const [messages, setMessages] = useState<KafkaMessage[]>([])
   const [details, setDetails] = useState<TopicDetails | null>(null)
   const [loading, setLoading] = useState(false)
@@ -35,21 +36,21 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic }: Messa
         search: activeSearch || undefined,
         key: activeKey || undefined,
         partition: activePartition !== '' ? parseInt(activePartition) : undefined,
-      })
+      }, clusterId)
       setMessages(msgs)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to fetch messages')
     } finally {
       setLoading(false)
     }
-  }, [topic, limit, activeSearch, activeKey, activePartition])
+  }, [topic, limit, activeSearch, activeKey, activePartition, clusterId])
 
   const fetchDetails = useCallback(async () => {
     try {
-      const d = await kafkaApi.getTopicDetails(topic)
+      const d = await kafkaApi.getTopicDetails(topic, clusterId)
       setDetails(d)
     } catch { /* ignore */ }
-  }, [topic])
+  }, [topic, clusterId])
 
   useEffect(() => {
     setMessages([])

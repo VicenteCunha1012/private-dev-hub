@@ -1,6 +1,7 @@
 package pt.cunha.kafbat
 
 import io.ktor.http.*
+import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -23,6 +24,12 @@ data class CreateTopicRequest(
     val name: String,
     val partitions: Int = 1,
     val replicationFactor: Short = 1
+)
+
+@Serializable
+data class ClusterRequest(
+    val name: String,
+    val brokers: String
 )
 
 fun Routing.configRoutes(configService: ConfigService) {
@@ -59,11 +66,47 @@ fun Routing.configRoutes(configService: ConfigService) {
     }
 }
 
-fun Routing.brokerRoutes(kafkaService: KafkaService) {
+fun Routing.clusterRoutes(configService: ConfigService) {
+    route("/clusters") {
+        get {
+            call.respond(configService.getClusters())
+        }
+        post {
+            val req = call.receive<ClusterRequest>()
+            val cluster = configService.createCluster(req.name, req.brokers)
+            call.respond(HttpStatusCode.Created, cluster)
+        }
+        route("/{id}") {
+            put {
+                val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid cluster id")
+                val req = call.receive<ClusterRequest>()
+                val cluster = configService.updateCluster(id, req.name, req.brokers)
+                    ?: return@put call.respond(HttpStatusCode.NotFound, mapOf("error" to "Cluster not found"))
+                call.respond(cluster)
+            }
+            delete {
+                val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid cluster id")
+                if (configService.deleteCluster(id)) {
+                    call.respond(HttpStatusCode.NoContent)
+                } else {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Cannot delete default cluster"))
+                }
+            }
+        }
+    }
+}
+
+private fun ApplicationCall.resolveBrokers(configService: ConfigService): String {
+    val clusterId = request.queryParameters["cluster"]?.toIntOrNull()
+    return configService.resolveBrokers(clusterId)
+}
+
+fun Routing.brokerRoutes(kafkaService: KafkaService, configService: ConfigService) {
     route("/brokers") {
         get {
             try {
-                call.respond(kafkaService.getBrokers())
+                val brokers = call.resolveBrokers(configService)
+                call.respond(kafkaService.getBrokers(brokers))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Cannot connect to Kafka: ${e.message}"))
             }
@@ -71,20 +114,22 @@ fun Routing.brokerRoutes(kafkaService: KafkaService) {
     }
     get("/cluster") {
         try {
-            call.respond(kafkaService.getClusterOverview())
+            val brokers = call.resolveBrokers(configService)
+            call.respond(kafkaService.getClusterOverview(brokers))
         } catch (e: Exception) {
             call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Cannot connect to Kafka: ${e.message}"))
         }
     }
 }
 
-fun Routing.topicRoutes(kafkaService: KafkaService) {
+fun Routing.topicRoutes(kafkaService: KafkaService, configService: ConfigService) {
     route("/topics") {
         get {
             val search = call.request.queryParameters["search"]
             val showInternal = call.request.queryParameters["showInternal"]?.toBoolean() ?: false
             try {
-                call.respond(kafkaService.getTopics(search, showInternal))
+                val brokers = call.resolveBrokers(configService)
+                call.respond(kafkaService.getTopics(brokers, search, showInternal))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Cannot connect to Kafka: ${e.message}"))
             }
@@ -92,19 +137,22 @@ fun Routing.topicRoutes(kafkaService: KafkaService) {
 
         post {
             val req = call.receive<CreateTopicRequest>()
-            kafkaService.createTopic(req.name, req.partitions, req.replicationFactor)
+            val brokers = call.resolveBrokers(configService)
+            kafkaService.createTopic(brokers, req.name, req.partitions, req.replicationFactor)
             call.respond(HttpStatusCode.Created, mapOf("status" to "created", "topic" to req.name))
         }
 
         route("/{topic}") {
             get {
                 val topic = call.parameters["topic"] ?: throw IllegalArgumentException("Topic required")
-                call.respond(kafkaService.getTopicDetails(topic))
+                val brokers = call.resolveBrokers(configService)
+                call.respond(kafkaService.getTopicDetails(brokers, topic))
             }
 
             delete {
                 val topic = call.parameters["topic"] ?: throw IllegalArgumentException("Topic required")
-                kafkaService.deleteTopic(topic)
+                val brokers = call.resolveBrokers(configService)
+                kafkaService.deleteTopic(brokers, topic)
                 call.respond(HttpStatusCode.NoContent)
             }
 
@@ -118,7 +166,8 @@ fun Routing.topicRoutes(kafkaService: KafkaService) {
                 val partition = call.request.queryParameters["partition"]?.toIntOrNull()
 
                 try {
-                    val messages = kafkaService.getMessages(topic, limit, search, key, from, to, partition)
+                    val brokers = call.resolveBrokers(configService)
+                    val messages = kafkaService.getMessages(brokers, topic, limit, search, key, from, to, partition)
                     call.respond(messages)
                 } catch (e: Exception) {
                     call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Failed to fetch messages: ${e.message}"))
@@ -128,7 +177,8 @@ fun Routing.topicRoutes(kafkaService: KafkaService) {
             post("/produce") {
                 val topic = call.parameters["topic"] ?: throw IllegalArgumentException("Topic required")
                 val req = call.receive<ProduceRequest>()
-                val result = kafkaService.produceMessage(topic, req)
+                val brokers = call.resolveBrokers(configService)
+                val result = kafkaService.produceMessage(brokers, topic, req)
                 call.respond(HttpStatusCode.Created, result)
             }
         }

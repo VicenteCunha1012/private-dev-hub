@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { TopicInfo } from '../api/kafkaApi'
+import type { ClusterConfig, TopicInfo } from '../api/kafkaApi'
 
 interface TopicListProps {
   topics: TopicInfo[]
@@ -9,10 +9,14 @@ interface TopicListProps {
   error: string | null
   onRefresh: () => void
   onCreateTopic: () => void
+  clusters: ClusterConfig[]
+  selectedClusterId: number | null
+  onClusterChange: (id: number) => void
 }
 
 export default function TopicList({
-  topics, selectedTopic, onSelect, loading, error, onRefresh, onCreateTopic
+  topics, selectedTopic, onSelect, loading, error, onRefresh, onCreateTopic,
+  clusters, selectedClusterId, onClusterChange,
 }: TopicListProps) {
   const [search, setSearch] = useState('')
 
@@ -64,6 +68,40 @@ export default function TopicList({
           </svg>
         </button>
       </div>
+
+      {/* Cluster selector */}
+      {clusters.length > 0 && (
+        <div style={{ padding: '10px 14px 0' }}>
+          <div style={{ position: 'relative' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{
+              position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+              color: '#6366f1', pointerEvents: 'none',
+            }}>
+              <circle cx="12" cy="5" r="3" stroke="currentColor" strokeWidth="2" />
+              <circle cx="5" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
+              <circle cx="19" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
+              <path d="M12 8v4M9 15l-2 2M15 15l2 2" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <select
+              value={selectedClusterId ?? ''}
+              onChange={e => onClusterChange(Number(e.target.value))}
+              style={{
+                width: '100%', paddingLeft: 30, fontSize: 12,
+                background: 'rgba(99,102,241,0.06)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                borderRadius: 6, color: 'var(--text)',
+                height: 32, cursor: 'pointer',
+              }}
+            >
+              {clusters.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.isDefault ? ' (default)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div style={{ padding: '10px 14px' }}>

@@ -134,13 +134,16 @@ class OpenCodeScanner(private val dbPath: String) {
     fun getOpenCodeTimeline(period: String): SpendingTimeline {
         val sessions = getOpenCodeSessions()
 
-        val bucketFormat: (Long) -> String = if (period == "weekly") {
-            { ts ->
+        val bucketFormat: (Long) -> String = when (period) {
+            "weekly" -> { ts ->
                 val ld = Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate()
                 ld.with(DayOfWeek.MONDAY).toString()
             }
-        } else {
-            { ts ->
+            "monthly" -> { ts ->
+                val ld = Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate()
+                "${ld.year}-${String.format("%02d", ld.monthValue)}"
+            }
+            else -> { ts ->
                 Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate().toString()
             }
         }
@@ -169,9 +172,10 @@ class OpenCodeScanner(private val dbPath: String) {
         }
 
         val totalCost = sessions.sumOf { it.estimatedCostUsd }
-        val minTs = sessions.minOf { it.lastActivity }
-        val maxTs = sessions.maxOf { it.lastActivity }
-        val daysSpan = maxOf(((maxTs - minTs) / 86_400_000.0).toLong(), 1)
+        val activeDays = sessions.map {
+            Instant.ofEpochMilli(it.lastActivity).atZone(ZoneId.systemDefault()).toLocalDate()
+        }.toSet().size.toLong()
+        val daysSpan = maxOf(activeDays, 1)
         val dailyAvg = totalCost / daysSpan
 
         return SpendingProjection(
