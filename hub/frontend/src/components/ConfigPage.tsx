@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { api, ttydApi } from '../api/hubApi'
+import { api, kafbatApi, ttydApi } from '../api/hubApi'
+import type { KafbatConfig } from '../api/hubApi'
 import { applyPalette, PRESETS } from '../palettes'
 import type { Entry, ExportedConfig, Folder, HubConfig, KeybindsConfig, PaletteConfig } from '../types'
 import Modal from './Modal'
@@ -312,6 +313,9 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
             </div>
           </Section>
         )}
+
+        {/* Module Configuration */}
+        <ModuleConfigSection showToast={showToast} />
 
         {/* Keybinds */}
         <Section title="Keyboard Shortcuts">
@@ -735,6 +739,45 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
         <ModalFooter onCancel={onClose} submitLabel={saving ? 'Saving…' : entry ? 'Save changes' : 'Add entry'} />
       </form>
     </Modal>
+  )
+}
+
+// ── Module Configuration ─────────────────────────────────────────────────────
+
+function ModuleConfigSection({ showToast }: { showToast: (msg: string) => void }) {
+  const [kafbat, setKafbat] = useState<KafbatConfig | null>(null)
+
+  useEffect(() => {
+    kafbatApi.getConfig().then(setKafbat).catch(() => {})
+  }, [])
+
+  const saveKafbat = async () => {
+    if (!kafbat) return
+    try {
+      await kafbatApi.updateConfig(kafbat)
+      showToast('Kafbat+ config saved')
+    } catch {
+      showToast('Failed to save Kafbat+ config')
+    }
+  }
+
+  if (!kafbat) return null
+
+  return (
+    <Section title="Module Configuration">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <SectionLabel>Kafbat+</SectionLabel>
+        <Field label="Broker URLs">
+          <input value={kafbat.brokers} onChange={e => setKafbat(c => c ? { ...c, brokers: e.target.value } : c)} placeholder="localhost:9092" />
+        </Field>
+        <Field label="Default message limit">
+          <input type="number" min={1} value={kafbat.defaultLimit} onChange={e => setKafbat(c => c ? { ...c, defaultLimit: e.target.value } : c)} />
+        </Field>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
+          <PrimaryBtn onClick={saveKafbat}>Save</PrimaryBtn>
+        </div>
+      </div>
+    </Section>
   )
 }
 

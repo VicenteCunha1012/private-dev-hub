@@ -2,15 +2,18 @@ import { useEffect, useState } from 'react'
 import type { SpendingProjection, SpendingTimeline } from '../api/sessionsApi'
 import { sessionsApi } from '../api/sessionsApi'
 
-export default function CostTracker() {
+export default function CostTracker({ tool }: { tool: string }) {
   const [timeline, setTimeline] = useState<SpendingTimeline | null>(null)
   const [projection, setProjection] = useState<SpendingProjection | null>(null)
   const [period, setPeriod] = useState<'daily' | 'weekly'>('daily')
 
   useEffect(() => {
-    sessionsApi.getTimeline('claude-code', period).then(setTimeline).catch(() => {})
-    sessionsApi.getProjection('claude-code').then(setProjection).catch(() => {})
-  }, [period])
+    const t = tool || 'claude-code'
+    setTimeline(null)
+    setProjection(null)
+    sessionsApi.getTimeline(t, period).then(setTimeline).catch(() => {})
+    sessionsApi.getProjection(t).then(setProjection).catch(() => {})
+  }, [period, tool])
 
   if (!timeline || !projection) {
     return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading cost data...</div>

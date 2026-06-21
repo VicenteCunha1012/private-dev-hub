@@ -7,3 +7,4 @@ ktor:
 
 sessions:
   claudeDir: "/home/user/.claude"
+  openCodeDb: "/home/user/.opencode/opencode.db"

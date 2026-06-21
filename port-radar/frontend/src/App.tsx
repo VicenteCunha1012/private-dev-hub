@@ -46,8 +46,9 @@ function App() {
   const isConflict = (p: PortInfo): boolean => {
     if (!p.isPortal || !p.portalModule) return false;
     if (p.state !== 'LISTEN') return false;
-    const expectedPrefix = p.portalModule.split('-')[0];
-    return p.process != null && !p.process.toLowerCase().includes(expectedPrefix);
+    const proc = (p.process ?? '').toLowerCase();
+    const expected = ['java', 'docker-proxy', 'nginx', 'postgres', 'ttyd'];
+    return proc !== '' && !expected.some(e => proc.includes(e));
   };
 
   const isClickable = (p: PortInfo): boolean => p.state === 'LISTEN';

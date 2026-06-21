@@ -37,7 +37,7 @@ Each module is fully self-contained: its own Dockerfile, its own Postgres DB (if
 |---|---|---|---|---|
 | Hub | 10300 | 10303 | 10403 | Shell with sidebar + iframes + backup scheduler |
 | Kafbat+ | 10301 | 10401 | 10501 | Kafka UI |
-| AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` from host, cost tracker |
+| AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` + `~/.local/share/opencode/opencode.db` from host |
 | JSON Tools | 10306 | 10406 | — | Stateless |
 | Mock Data Generator | 10308 | 10408 | 10508 | AI-inferred specs + Python generator |
 | Command Vault | 10309 | 10409 | 10509 | Snippet manager with {variable} substitution |
@@ -70,13 +70,13 @@ dev-hub/
 │   │   │   ├── main.tsx            # Entry point
 │   │   │   ├── types.ts            # Entry, Folder, KeybindsConfig, PaletteConfig, HubConfig, ExportedConfig
 │   │   │   ├── palettes.ts         # Theme presets (midnight, ocean, forest, ember, mono) + custom builder
-│   │   │   ├── api/hubApi.ts       # Hub backend API client + ttyd-manager API client
+│   │   │   ├── api/hubApi.ts       # Hub backend API client + ttyd-manager API client + kafbat config API client
 │   │   │   ├── hooks/useKeybinds.ts # Global keyboard shortcut handler
 │   │   │   └── components/
 │   │   │       ├── Sidebar.tsx     # Collapsible folders, entry list, drag-and-drop
 │   │   │       ├── HomeScreen.tsx  # Search + icon grid
 │   │   │       ├── IframeArea.tsx  # All iframes mounted simultaneously, show/hide via CSS
-│   │   │       ├── ConfigPage.tsx  # Full settings: entries CRUD, themes, keybinds, backup/restore
+│   │   │       ├── ConfigPage.tsx  # Full settings: entries CRUD, module config (Kafbat+), themes, keybinds, backup/restore
 │   │   │       ├── EntryIcon.tsx   # Renders favicons (from backend cache or fallback)
 │   │   │       └── Modal.tsx       # Reusable modal wrapper
 │   │   ├── Dockerfile              # node:22-alpine build → nginx:alpine serve
@@ -134,10 +134,10 @@ dev-hub/
 ├── ai-session-manager/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Session list + detail/spending view
+│   │   │   ├── App.tsx             # Session list + detail/spending view + tool/model filter state
 │   │   │   ├── api/sessionsApi.ts
 │   │   │   └── components/
-│   │   │       ├── SessionList.tsx       # Sidebar: search, cost, message count
+│   │   │       ├── SessionList.tsx       # Sidebar: search, tool selector, model filter, cost, message count
 │   │   │       ├── SessionDetailView.tsx # Token cards, distribution bar, turns timeline, MCP tools
 │   │   │       └── SpendingOverview.tsx  # Home: total stats, by-model, by-project bars
 │   │   ├── Dockerfile
@@ -146,14 +146,15 @@ dev-hub/
 │   └── backend/
 │       ├── src/main/kotlin/pt/cunha/aisessions/
 │       │   ├── Application.kt     # Module setup + all routes inline
-│       │   └── SessionScanner.kt  # Filesystem scanner for ~/.claude/projects/ JSONL files
-│       ├── build.gradle.kts       # No DB dependencies
+│       │   ├── SessionScanner.kt  # Filesystem scanner for ~/.claude/projects/ JSONL files
+│       │   └── OpenCodeScanner.kt # SQLite reader for ~/.local/share/opencode/opencode.db
+│       ├── build.gradle.kts       # + sqlite-jdbc
 │       └── Dockerfile
 │
 ├── json-tools/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Three tabs: Format, Compact, Diff — all in one file
+│   │   │   ├── App.tsx             # Three tabs: Format, Compact, Diff (LCS inline highlighting, Ctrl+Enter) — all in one file
 │   │   │   └── api/jsonApi.ts
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
@@ -195,7 +196,7 @@ dev-hub/
 ├── command-vault/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Sidebar + snippet viewer + variable substitution UI
+│   │   │   ├── App.tsx             # Sidebar + snippet viewer + variable substitution UI + value history + live preview
 │   │   │   └── api/vaultApi.ts
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
@@ -213,7 +214,7 @@ dev-hub/
 ├── port-radar/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Port table with conflict detection, auto-refresh
+│   │   │   ├── App.tsx             # Port table with conflict detection (allowlist-based), auto-refresh
 │   │   │   └── api/radarApi.ts
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
@@ -357,7 +358,7 @@ Tags are stored as comma-separated strings. Search uses ILIKE on title, command,
 | GET | /config | `{claudeDir}` |
 | GET | /config/export | Export config |
 | POST | /config/import | No-op (config is in application.yaml) |
-| GET | /sessions | List sessions `?tool=claude-code` |
+| GET | /sessions | List sessions `?tool=claude-code\|opencode\|` (empty = all tools merged) |
 | GET | /sessions/{id} | Session detail with turns and MCP tools |
 | GET | /spending | Spending report `?tool=claude-code` |
 | GET | /spending/timeline | Time series `?tool=&period=daily\|weekly` → points with date, cost, tokens, sessions |
@@ -479,6 +480,7 @@ Hub Frontend (10300)
   │                └── calls → Mock Generator Backend (10408) [optional, for "Generate payload"]
   ├── iframes → AI Sessions Frontend (10302)
   │                └── calls → AI Sessions Backend (10402) → reads ~/.claude filesystem
+  │                                                        → reads ~/.local/share/opencode/opencode.db (SQLite)
   ├── iframes → JSON Tools Frontend (10306)
   │                └── calls → JSON Tools Backend (10406)
   ├── iframes → Mock Generator Frontend (10308)
@@ -642,6 +644,38 @@ Cost estimation uses per-model pricing (per million tokens):
 
 ---
 
+## OpenCode Session Format (for AI Session Manager)
+
+Sessions are stored in `~/.local/share/opencode/opencode.db` (SQLite).
+
+Table: `part` with columns `data` (JSON text) and `time_created` (timestamp in ms).
+
+Query: `SELECT data, time_created FROM part WHERE json_extract(data, '$.type') = 'step-finish'`
+
+Each `step-finish` row:
+```json
+{
+  "type": "step-finish",
+  "tokens": {
+    "input": 1234,
+    "output": 567,
+    "cache": { "read": 890, "write": 123 }
+  }
+}
+```
+
+OpenCode doesn't have discrete sessions — steps are grouped by day into daily "sessions" (`opencode-YYYY-MM-DD`).
+
+Cost estimation uses GitHub Copilot published rates for Claude Sonnet 4.6 (per million tokens):
+- Input: $3.00
+- Output: $15.00
+- Cache read: $0.30
+- Cache write: $3.75
+
+The opencode DB is mounted read-write in Docker (SQLite WAL mode requires write access to `-wal` and `-shm` files).
+
+---
+
 ## Mock Data Generator — Spec Format
 
 The `GenerationSpec` is the core data model:
@@ -716,6 +750,6 @@ API key is stored in `mockgen_config` table, set via `POST /config`, masked in `
 - Mock Generator's Python subprocess has no timeout — a malformed spec could hang the generation.
 - Kafbat+ consumer uses ephemeral consumer groups (random UUID per request), so it doesn't track offsets.
 - Port Radar requires `/proc` to be mounted from the host (`/proc:/host/proc:ro` in docker-compose). Without this, it only sees the container's own ports.
-- Health Dashboard uses Docker service names to reach backends — `host.docker.internal` for ttyd-manager (host-native). On Linux without Docker Desktop, `host.docker.internal` may need `extra_hosts` in compose.
+- Health Dashboard uses Docker service names to reach backends — `host.docker.internal` for ttyd-manager (host-native). On Linux, `extra_hosts: host.docker.internal:host-gateway` is configured in docker-compose.
 - Backup Scheduler runs as a coroutine in the hub backend process. If the process restarts, the scheduler restarts from config but any in-flight backup is lost.
 - AI Session Manager Cost Tracker timeline aggregation is done at query time (no pre-computed rollups). May be slow with thousands of sessions.

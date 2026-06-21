@@ -14,7 +14,9 @@ import kotlinx.serialization.json.Json
 
 fun Application.module() {
     val claudeDir = environment.config.propertyOrNull("sessions.claudeDir")?.getString() ?: "/home/user/.claude"
+    val openCodeDb = environment.config.propertyOrNull("sessions.openCodeDb")?.getString() ?: "/home/user/.opencode/opencode.db"
     val sessionScanner = SessionScanner(claudeDir)
+    val openCodeScanner = OpenCodeScanner(openCodeDb)
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true })
@@ -60,8 +62,17 @@ fun Application.module() {
         }
 
         get("/sessions") {
-            val tool = call.request.queryParameters["tool"] ?: "claude-code"
-            val sessions = sessionScanner.getSessions(tool)
+            val tool = call.request.queryParameters["tool"]
+            val sessions = when (tool) {
+                "opencode" -> openCodeScanner.getOpenCodeSessions()
+                "claude-code" -> sessionScanner.getSessions("claude-code")
+                null, "" -> {
+                    val claude = sessionScanner.getSessions("claude-code")
+                    val opencode = openCodeScanner.getOpenCodeSessions()
+                    (claude + opencode).sortedByDescending { it.lastActivity }
+                }
+                else -> sessionScanner.getSessions(tool)
+            }
             call.respond(sessions)
         }
 
@@ -77,7 +88,10 @@ fun Application.module() {
 
         get("/spending") {
             val tool = call.request.queryParameters["tool"] ?: "claude-code"
-            val spending = sessionScanner.getSpending(tool)
+            val spending = when (tool) {
+                "opencode" -> openCodeScanner.getOpenCodeSpending()
+                else -> sessionScanner.getSpending(tool)
+            }
             call.respond(spending)
         }
 
@@ -89,13 +103,19 @@ fun Application.module() {
         get("/spending/timeline") {
             val tool = call.request.queryParameters["tool"] ?: "claude-code"
             val period = call.request.queryParameters["period"] ?: "daily"
-            val timeline = sessionScanner.getSpendingTimeline(tool, period)
+            val timeline = when (tool) {
+                "opencode" -> openCodeScanner.getOpenCodeTimeline(period)
+                else -> sessionScanner.getSpendingTimeline(tool, period)
+            }
             call.respond(timeline)
         }
 
         get("/spending/projection") {
             val tool = call.request.queryParameters["tool"] ?: "claude-code"
-            val projection = sessionScanner.getProjection(tool)
+            val projection = when (tool) {
+                "opencode" -> openCodeScanner.getOpenCodeProjection()
+                else -> sessionScanner.getProjection(tool)
+            }
             call.respond(projection)
         }
     }

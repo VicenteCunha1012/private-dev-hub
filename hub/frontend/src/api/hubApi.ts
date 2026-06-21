@@ -76,6 +76,32 @@ export const api = {
   health: (): Promise<{ status: string }> => req('/health'),
 }
 
+// ── Kafbat+ API ──────────────────────────────────────────────────────────────
+
+const KAFBAT_BASE = 'http://localhost:10401'
+
+export interface KafbatConfig {
+  brokers: string
+  defaultLimit: string
+}
+
+export const kafbatApi = {
+  getConfig: async (): Promise<KafbatConfig> => {
+    const res = await fetch(`${KAFBAT_BASE}/config`)
+    if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
+    return res.json()
+  },
+  updateConfig: async (data: KafbatConfig): Promise<KafbatConfig> => {
+    const res = await fetch(`${KAFBAT_BASE}/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error(`kafbat: ${res.status} ${res.statusText}`)
+    return res.json()
+  },
+}
+
 // ── ttyd-manager API ──────────────────────────────────────────────────────────
 
 const TTYD_BASE = 'http://localhost:10600'

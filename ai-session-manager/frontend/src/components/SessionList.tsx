@@ -8,17 +8,43 @@ interface SessionListProps {
   onSearchChange: (s: string) => void
   loading: boolean
   error: string | null
+  tool: string
+  onToolChange: (tool: string) => void
+  modelFilter: string
+  onModelFilterChange: (model: string) => void
+}
+
+const selectStyle: React.CSSProperties = {
+  fontSize: 12.5,
+  width: '100%',
+  padding: '7px 10px',
+  borderRadius: 6,
+  border: '1px solid var(--border)',
+  background: 'var(--card-bg)',
+  color: 'var(--text)',
+  outline: 'none',
+  appearance: 'none' as const,
+  WebkitAppearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 10px center',
+  paddingRight: 28,
+  cursor: 'pointer',
 }
 
 export default function SessionList({
-  sessions, selectedId, onSelect, search, onSearchChange, loading, error
+  sessions, selectedId, onSelect, search, onSearchChange, loading, error,
+  tool, onToolChange, modelFilter, onModelFilterChange,
 }: SessionListProps) {
-  const filtered = search
-    ? sessions.filter(s =>
-        s.title.toLowerCase().includes(search.toLowerCase()) ||
-        s.project.toLowerCase().includes(search.toLowerCase())
-      )
-    : sessions
+  const availableModels = [...new Set(sessions.map(s => s.model).filter(Boolean))] as string[]
+
+  const filtered = sessions
+    .filter(s => !modelFilter || s.model === modelFilter)
+    .filter(s =>
+      !search ||
+      s.title.toLowerCase().includes(search.toLowerCase()) ||
+      s.project.toLowerCase().includes(search.toLowerCase())
+    )
 
   return (
     <nav style={{
@@ -48,8 +74,8 @@ export default function SessionList({
         </span>
       </div>
 
-      {/* Search */}
-      <div style={{ padding: '10px 14px' }}>
+      {/* Search & Filters */}
+      <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <input
           type="search"
           placeholder="Search sessions..."
@@ -57,6 +83,25 @@ export default function SessionList({
           onChange={e => onSearchChange(e.target.value)}
           style={{ fontSize: 12.5 }}
         />
+        <select
+          value={tool}
+          onChange={e => onToolChange(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="claude-code">Claude Code</option>
+          <option value="opencode">OpenCode</option>
+          <option value="">All Tools</option>
+        </select>
+        <select
+          value={modelFilter}
+          onChange={e => onModelFilterChange(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="">All models</option>
+          {availableModels.sort().map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
       </div>
 
       <div style={{ padding: '4px 14px 8px' }}>

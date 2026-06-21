@@ -18,6 +18,69 @@ function substituteVariables(command: string, values: Record<string, string>): s
   return result
 }
 
+const VAR_HISTORY_KEY = 'command-vault-var-history'
+
+function loadVarHistory(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(VAR_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveVarHistory(values: Record<string, string>): void {
+  const history = loadVarHistory()
+  for (const [key, val] of Object.entries(values)) {
+    if (!val) continue
+    const prev = history[key] ?? []
+    const filtered = prev.filter(v => v !== val)
+    history[key] = [val, ...filtered].slice(0, 10)
+  }
+  localStorage.setItem(VAR_HISTORY_KEY, JSON.stringify(history))
+}
+
+function CommandPreview({ command, variables, varValues }: {
+  command: string; variables: string[]; varValues: Record<string, string>
+}) {
+  const parts: { text: string; type: 'literal' | 'filled' | 'placeholder' }[] = []
+  const pattern = new RegExp(`(\\{(?:${variables.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\})`)
+  const segments = command.split(pattern)
+  for (const seg of segments) {
+    const match = seg.match(/^\{(\w+)\}$/)
+    if (match && variables.includes(match[1])) {
+      const val = varValues[match[1]]
+      if (val) {
+        parts.push({ text: val, type: 'filled' })
+      } else {
+        parts.push({ text: seg, type: 'placeholder' })
+      }
+    } else {
+      parts.push({ text: seg, type: 'literal' })
+    }
+  }
+  return (
+    <div style={{
+      background: '#0a0914', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', padding: '12px 16px', marginTop: 12,
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+        Preview
+      </div>
+      <pre style={{
+        margin: 0, fontFamily: 'var(--mono)', fontSize: 13, lineHeight: 1.7,
+        whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+      }}>
+        {parts.map((p, i) => {
+          if (p.type === 'filled') return <span key={i} style={{ color: 'var(--accent)' }}>{p.text}</span>
+          if (p.type === 'placeholder') return <span key={i} style={{ color: 'var(--text-dim)', opacity: 0.5 }}>{p.text}</span>
+          return <span key={i} style={{ color: 'var(--text)' }}>{p.text}</span>
+        })}
+      </pre>
+    </div>
+  )
+}
+
 // ── Modal ────────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -195,6 +258,7 @@ export default function App() {
       ? substituteVariables(selected.command, varValues)
       : selected.command
     navigator.clipboard.writeText(text).then(() => {
+      if (variables.length > 0) saveVarHistory(varValues)
       setCopyFeedback(true)
       setShowVarForm(false)
       setTimeout(() => setCopyFeedback(false), 1500)
@@ -366,41 +430,51 @@ export default function App() {
             </div>
 
             {/* Variable substitution form */}
-            {showVarForm && variables.length > 0 && (
-              <div style={{
-                marginTop: 12, padding: 16, background: 'var(--card-bg)',
-                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-              }}>
-                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
-                  Fill in variables:
+            {showVarForm && variables.length > 0 && (() => {
+              const history = loadVarHistory()
+              return (
+                <div style={{
+                  marginTop: 12, padding: 16, background: 'var(--card-bg)',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
+                    Fill in variables:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {variables.map(v => (
+                      <div key={v} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <label style={{ fontSize: 12.5, color: 'var(--accent-2)', fontFamily: 'var(--mono)', minWidth: 120 }}>
+                          {`{${v}}`}
+                        </label>
+                        <input
+                          value={varValues[v] ?? ''}
+                          onChange={e => setVarValues(prev => ({ ...prev, [v]: e.target.value }))}
+                          placeholder={`Value for ${v}`}
+                          list={`varhistory-${v}`}
+                          style={{ flex: 1, fontSize: 12.5 }}
+                        />
+                        {(history[v]?.length ?? 0) > 0 && (
+                          <datalist id={`varhistory-${v}`}>
+                            {history[v].map(val => <option key={val} value={val} />)}
+                          </datalist>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <CommandPreview command={selected.command} variables={variables} varValues={varValues} />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setShowVarForm(false)} style={{
+                      padding: '6px 14px', borderRadius: 6,
+                      border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
+                    }}>Cancel</button>
+                    <button onClick={handleCopy} style={{
+                      padding: '6px 14px', borderRadius: 6,
+                      background: 'var(--accent-solid)', color: '#fff', fontSize: 12, fontWeight: 500,
+                    }}>Copy with values</button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {variables.map(v => (
-                    <div key={v} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <label style={{ fontSize: 12.5, color: 'var(--accent-2)', fontFamily: 'var(--mono)', minWidth: 120 }}>
-                        {`{${v}}`}
-                      </label>
-                      <input
-                        value={varValues[v] ?? ''}
-                        onChange={e => setVarValues(prev => ({ ...prev, [v]: e.target.value }))}
-                        placeholder={`Value for ${v}`}
-                        style={{ flex: 1, fontSize: 12.5 }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setShowVarForm(false)} style={{
-                    padding: '6px 14px', borderRadius: 6,
-                    border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
-                  }}>Cancel</button>
-                  <button onClick={handleCopy} style={{
-                    padding: '6px 14px', borderRadius: 6,
-                    background: 'var(--accent-solid)', color: '#fff', fontSize: 12, fontWeight: 500,
-                  }}>Copy with values</button>
-                </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Meta */}
             <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-dim)' }}>

@@ -119,10 +119,13 @@ fun Application.module() {
             ports.addAll(parseProcNet("$procNetPath/tcp", "tcp", inodeToProcess))
             ports.addAll(parseProcNet("$procNetPath/tcp6", "tcp6", inodeToProcess))
 
+            val deduped = ports
+                .filter { it.state == "LISTEN" }
+                .distinctBy { Triple(it.port, it.protocol, it.state) }
             val result = if (range == "portal") {
-                ports.filter { it.isPortal }
+                deduped.filter { it.isPortal }
             } else {
-                ports
+                deduped
             }
 
             call.respond(PortsResponse(

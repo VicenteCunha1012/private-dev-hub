@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import type { SpendingReport } from '../api/sessionsApi'
 import { sessionsApi } from '../api/sessionsApi'
 
-export default function SpendingOverview() {
+export default function SpendingOverview({ tool }: { tool: string }) {
   const [spending, setSpending] = useState<SpendingReport | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    sessionsApi.getSpending()
+    setSpending(null)
+    sessionsApi.getSpending(tool || 'claude-code')
       .then(setSpending)
       .catch(e => setError(e.message))
-  }, [])
+  }, [tool])
 
   if (error) {
     return (

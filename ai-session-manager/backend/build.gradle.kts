@@ -25,6 +25,7 @@ dependencies {
     implementation(ktorLibs.server.netty)
     implementation(ktorLibs.server.statusPages)
     implementation(libs.logback.classic)
+    implementation("org.xerial:sqlite-jdbc:3.47.2.0")
 
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)

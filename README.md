@@ -65,7 +65,7 @@ Most tools work out of the box. The ones that need config:
 
 | Tool | What to configure | Where |
 |---|---|---|
-| Kafbat+ | Kafka broker URLs (e.g. `my-broker:9092`) | `POST http://localhost:10401/config` with `{"brokers": "host:port"}` |
+| Kafbat+ | Kafka broker URLs (e.g. `host.docker.internal:29092`) | Hub Settings → Module Configuration, or `POST http://localhost:10401/config` |
 | Mock Data Generator | Groq API key (free at [console.groq.com](https://console.groq.com)) | Open Mock Generator → config card, paste your API key |
 | AI Session Manager | Path to `.claude` directory | Pre-configured via docker-compose volume mount |
 | Backup Scheduler | Backup directory, interval, retention | Hub Settings → Backup Scheduler section |
@@ -86,7 +86,7 @@ dev-hub/
 │   └── backend/                    Ktor — port 10401 + PostgreSQL 10501
 ├── ai-session-manager/
 │   ├── frontend/                   React + Vite — port 10302
-│   └── backend/                    Ktor — port 10402 (reads ~/.claude)
+│   └── backend/                    Ktor — port 10402 (reads ~/.claude + opencode.db)
 ├── json-tools/
 │   ├── frontend/                   React + Vite — port 10306
 │   └── backend/                    Ktor — port 10406 (stateless)
@@ -118,7 +118,7 @@ The shell. Everything else lives inside it.
 - Sidebar with collapsible folders, drag-and-drop entries between folders
 - All iframes mounted simultaneously — switching never loses state
 - Home screen with search and icon grid
-- Settings page: CRUD for entries/folders, keybinds, multi-palette themes (5 presets + custom colors), backup & restore
+- Settings page: CRUD for entries/folders, module config (Kafbat+ brokers), keybinds, multi-palette themes (5 presets + custom colors), backup & restore
 - TUI entry creation spawns a ttyd session automatically
 - Backup scheduler: auto-backup hub DB on configurable interval with retention policy
 
@@ -146,15 +146,17 @@ Local Kafka UI built from scratch.
 
 ### AI Session Manager
 
-Visual dashboard for Claude Code session usage and spending.
+Visual dashboard for Claude Code and OpenCode session usage and spending.
 
 **What you can do:**
-- See all Claude Code sessions across projects, search by title or project
+- See all sessions across projects, search by title or project
+- **Tool filter**: switch between Claude Code, OpenCode, or All — each with its own spending view
+- **Model filter**: filter sessions by model (Sonnet, Opus, Haiku, etc.)
 - Spending breakdown by model and by project with proportional bars
 - Click a session: token summary, distribution bar, duration, cost, turn-by-turn view, MCP tools
 - **Cost Tracker tab**: daily/weekly spending bar chart, daily average, monthly projection, detail table by date
 
-**How it works:** reads `~/.claude/projects/` (mounted read-only). No database.
+**How it works:** reads `~/.claude/projects/` for Claude Code (JSONL files, mounted read-only) and `~/.local/share/opencode/opencode.db` for OpenCode (SQLite). No database of its own.
 
 ---
 
@@ -165,7 +167,7 @@ Self-hosted JSON utility. Stateless, no DB.
 **What you can do:**
 - **Format** — prettify JSON with configurable indent, copy button
 - **Compact** — minify to single line, shows size reduction %
-- **Diff** — structural side-by-side comparison at every JSON path (added/removed/changed)
+- **Diff** — structural side-by-side comparison at every JSON path (added/removed/changed), inline line-by-line highlighting (LCS-based), `Ctrl+Enter` to compare
 - Drag & drop `.json` files, paste/copy buttons
 
 ---
@@ -199,7 +201,7 @@ Personal command/snippet manager with variable substitution.
 **What you can do:**
 - Save commands with title, the command itself, description, and tags
 - Search by text (title/command/description), filter by tags
-- **Variable substitution**: commands can have `{namespace}`, `{pod}`, etc. When you click Copy, a form appears asking for each variable's value. Fill them in → the resolved command is copied to clipboard
+- **Variable substitution**: commands can have `{namespace}`, `{pod}`, etc. When you click Copy, a form appears asking for each variable's value — with autocomplete from previous values (stored in localStorage). Live preview shows the resolved command with highlighted substitutions before copying
 - One-click copy for commands without variables
 - Tag badges, tag filter dropdown, distinct tags list
 

@@ -15,11 +15,13 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [homeTab, setHomeTab] = useState<HomeTab>('overview')
+  const [tool, setTool] = useState('claude-code')
+  const [modelFilter, setModelFilter] = useState('')
 
   const loadSessions = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await sessionsApi.getSessions()
+      const data = await sessionsApi.getSessions(tool || 'claude-code')
       setSessions(data)
       setError(null)
     } catch (e: unknown) {
@@ -27,7 +29,7 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [tool])
 
   useEffect(() => { loadSessions() }, [loadSessions])
 
@@ -41,6 +43,10 @@ export default function App() {
         onSearchChange={setSearch}
         loading={loading}
         error={error}
+        tool={tool}
+        onToolChange={setTool}
+        modelFilter={modelFilter}
+        onModelFilterChange={setModelFilter}
       />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -60,7 +66,7 @@ export default function App() {
                 </button>
               ))}
             </div>
-            {homeTab === 'overview' ? <SpendingOverview /> : <CostTracker />}
+            {homeTab === 'overview' ? <SpendingOverview tool={tool} /> : <CostTracker tool={tool} />}
           </>
         )}
       </main>

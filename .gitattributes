@@ -1,0 +1,11 @@
+# Force LF line endings everywhere
+* text=auto eol=lf
+
+# Ensure shell scripts always LF
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Binary files
+*.jar binary
+*.png binary
+*.ico binary
