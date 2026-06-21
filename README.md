@@ -6,7 +6,7 @@ Personal local developer portal. All your tools in one browser tab — sidebar, 
 
 ## What it is
 
-A self-hosted dashboard that keeps every dev tool you use (Kafka UI, JSON differ, terminal sessions, ArgoCD, Portainer, etc.) in a persistent iframe. Switching between tools is instant and stateless — the iframe stays mounted in the DOM, only its visibility changes.
+A self-hosted dashboard that keeps every dev tool you use (Kafka UI, mock data generator, JSON differ, terminal sessions, ArgoCD, Portainer, etc.) in a persistent iframe. Switching between tools is instant and stateless — the iframe stays mounted in the DOM, only its visibility changes.
 
 ---
 
@@ -19,6 +19,7 @@ A self-hosted dashboard that keeps every dev tool you use (Kafka UI, JSON differ
 | Databases | PostgreSQL 16 |
 | Infrastructure | Docker Compose |
 | TUIs in browser | ttyd |
+| AI inference | Groq (free, llama-3.3-70b) |
 
 ---
 
@@ -32,6 +33,7 @@ Each module gets a consistent `xx` suffix across its services.
 | Kafbat+ | 10301 | 10401 | 10501 |
 | AI Session Manager | 10302 | 10402 | — |
 | JSON Tools | 10306 | 10406 | — |
+| Mock Data Generator | 10308 | 10408 | 10508 |
 | ttyd Manager | — | 10600 | 10604–10620 (dynamic) |
 
 All ports are bound to `127.0.0.1` only — not exposed on your network.
@@ -46,7 +48,19 @@ docker compose up --build -d
 
 Open `http://localhost:10300`.
 
-First run seeds the hub with default folders (Infra, Dev, Observabilidade, Tools) and placeholder entries. Own tools (Kafbat+, AI Sessions, JSON Tools) are auto-registered — no manual setup needed. Edit or delete any entry in Settings.
+First run seeds the hub with default folders (Infra, Dev, Observabilidade, Tools) and placeholder entries. Own tools (Kafbat+, AI Sessions, JSON Tools, Mock Generator) are auto-registered — no manual setup needed. Edit or delete any entry in Settings.
+
+---
+
+## First-time setup
+
+Most tools work out of the box. The ones that need config:
+
+| Tool | What to configure | Where |
+|---|---|---|
+| Kafbat+ | Kafka broker URLs (e.g. `my-broker:9092`) | Open Kafbat+ → config is at `http://localhost:10401/config` or set via its API |
+| Mock Data Generator | Groq API key (free at [console.groq.com](https://console.groq.com)) | Open Mock Generator → Settings (config card in the UI), paste your API key |
+| AI Session Manager | Path to `.claude` directory | Pre-configured to `/home/user/.claude` (mounted from host via docker-compose) |
 
 ---
 
@@ -56,19 +70,22 @@ First run seeds the hub with default folders (Infra, Dev, Observabilidade, Tools
 dev-hub/
 ├── docker-compose.yml
 ├── hub/
-│   ├── frontend/            React + Vite — port 10300
-│   └── backend/             Ktor — port 10303 + PostgreSQL 10403
+│   ├── frontend/               React + Vite — port 10300
+│   └── backend/                Ktor — port 10303 + PostgreSQL 10403
 ├── kafbat-plus/
-│   ├── frontend/            React + Vite — port 10301
-│   └── backend/             Ktor — port 10401 + PostgreSQL 10501
+│   ├── frontend/               React + Vite — port 10301
+│   └── backend/                Ktor — port 10401 + PostgreSQL 10501
 ├── ai-session-manager/
-│   ├── frontend/            React + Vite — port 10302
-│   └── backend/             Ktor — port 10402 (no DB, reads ~/.claude)
+│   ├── frontend/               React + Vite — port 10302
+│   └── backend/                Ktor — port 10402 (no DB, reads ~/.claude)
 ├── json-tools/
-│   ├── frontend/            React + Vite — port 10306
-│   └── backend/             Ktor — port 10406 (stateless, no DB)
-├── ttyd-manager/            Ktor — port 10600, manages TUIs on 10604–10620
-└── backend-template/        Ktor starter to copy for new modules
+│   ├── frontend/               React + Vite — port 10306
+│   └── backend/                Ktor — port 10406 (stateless, no DB)
+├── mock-data-generator/
+│   ├── frontend/               React + Vite — port 10308
+│   └── backend/                Ktor — port 10408 + PostgreSQL 10508
+├── ttyd-manager/               Ktor — port 10600, manages TUIs on 10604–10620
+└── backend-template/           Ktor starter to copy for new modules
 ```
 
 ---
@@ -101,26 +118,18 @@ The shell. Everything else lives inside it.
 
 ### Kafbat+
 
-Local Kafka UI built from scratch. Full-featured topic browser and message producer.
+Local Kafka UI built from scratch.
 
-**Frontend (10301):**
-- Topic sidebar with search, partition count, and message count per topic
-- Cluster overview home screen showing brokers, topic count, total partitions, controller status
-- Message viewer with filtering: substring search in values, exact key filter, partition filter, configurable limit (50/100/200/500)
-- Collapsible JSON viewer with syntax highlighting — auto-collapses large payloads (>500 chars) with expand/collapse toggle and size indicator
-- Partition details tab: leader, replicas, ISR, offsets per partition
-- Topic config tab: all Kafka topic-level configs
-- Produce modal: JSON editor with Format JSON button, drag & drop `.json` file upload, custom headers (key:value per line), result feedback (partition + offset)
-- Create topic modal: name, partitions, replication factor
-- Delete topic with confirmation
+**What you can do:**
+- Browse all topics with search, see partition count and message count per topic
+- Click a topic to view its latest messages with full JSON formatting (syntax-highlighted, auto-collapsed for large payloads)
+- Filter messages by value substring, exact key, specific partition, configurable limit (50/100/200/500)
+- Produce messages: write JSON in the editor, drag & drop a `.json` file, or use "Generate payload" to pull mock data from the Mock Data Generator
+- Create and delete topics
+- View partition details (leader, replicas, ISR, offsets) and topic-level Kafka configs
+- See cluster overview: brokers, controller status, total topics and partitions
 
-**Backend (10401) + DB (10501):**
-- Apache Kafka client for admin operations (topic CRUD, cluster metadata, offset queries)
-- Consumer with seek-to-end for latest messages, seek-by-timestamp for time-range queries
-- Producer with key, value, headers, and partition targeting
-- Config stored in PostgreSQL (broker URLs, default message limit)
-- Endpoints: `GET /cluster`, `GET /brokers`, `GET /topics`, `GET /topics/{topic}`, `GET /topics/{topic}/messages`, `POST /topics/{topic}/produce`, `POST /topics`, `DELETE /topics/{topic}`
-- Full config/db export/import support
+**Config:** set your Kafka broker URLs via `POST http://localhost:10401/config` with `{"brokers": "broker1:9092,broker2:9092"}`.
 
 ---
 
@@ -128,46 +137,61 @@ Local Kafka UI built from scratch. Full-featured topic browser and message produ
 
 Visual dashboard for Claude Code session usage and spending.
 
-**Frontend (10302):**
-- Session list sidebar with search, showing title, project, message count, cost, and last activity timestamp
-- Spending overview home screen: total sessions, total cost, input/output tokens, cache read/creation tokens
-- Spending breakdown by model (Sonnet, Opus, Haiku, Fable) and by project with proportional bars
-- Session detail view:
-  - Token summary cards (input, output, cache read, cache creation)
-  - Token distribution bar chart
-  - Summary stats: total tokens, estimated cost, session duration
-  - Turns timeline showing role, model, tokens per turn, and message preview
-  - MCP tools tab listing all MCP tools used in the session
+**What you can do:**
+- See all your Claude Code sessions across projects, sorted by last activity
+- Search sessions by title or project name
+- View total spending breakdown: by model (Sonnet, Opus, Haiku, Fable) and by project, with proportional cost bars
+- Click a session to see: token summary (input/output/cache), token distribution bar, session duration, estimated cost
+- Browse the conversation turn-by-turn with role, model, token counts, and message preview
+- See which MCP tools were used in each session
 
-**Backend (10402):**
-- Scans `~/.claude/projects/` directory (mounted read-only from host)
-- Parses JSONL session files: extracts titles (`ai-title`), messages (`assistant`/`user`), usage metadata (input/output/cache tokens, model)
-- Cost estimation based on per-model pricing (input/output/cache-read/cache-creation rates)
-- Endpoints: `GET /sessions`, `GET /sessions/{id}`, `GET /spending`, `GET /projects`
-- No database — reads session files directly from the filesystem
+**How it works:** the backend reads `~/.claude/projects/` (mounted read-only from the host). No database — all data comes from Claude Code's own JSONL session files.
 
 ---
 
 ### JSON Tools
 
-Self-hosted JSON toolbox. Stateless, no DB.
+Self-hosted JSON utility. No DB, stateless.
 
-**Frontend (10306):**
-- Three-tab interface with pill-style tab switcher
-- **Format** — paste or drop JSON, pick indent (2/3/4 spaces), get prettified output. Copy output and paste input buttons
-- **Compact** — paste formatted JSON, get single-line minified output. Shows size reduction percentage (e.g. "1240 → 380 chars (69% smaller)")
-- **Diff** — two side-by-side editor panes. Structural comparison showing every difference at JSON path level:
-  - `ADDED` (green) — key/element exists only in right
-  - `REMOVED` (red) — key/element exists only in left
-  - `CHANGED` (amber) — value differs, shows both left and right values
-  - Swap button to flip left/right
-- All panes support drag & drop of `.json` files
+**What you can do:**
+- **Format** — paste or drop JSON, pick indent (2/3/4 spaces), get prettified output with copy button
+- **Compact** — paste formatted JSON, get single-line minified output. Shows size reduction percentage
+- **Diff** — paste two JSONs side by side, get a structural comparison at every path level (added/removed/changed with both values shown)
+- Drag & drop `.json` files into any pane
+- Paste and copy buttons for quick clipboard workflows
 
-**Backend (10406):**
-- `POST /format` — parse + re-serialize with configurable indent
-- `POST /compact` — parse + serialize without whitespace
-- `POST /diff` — recursive structural diff of two JSON trees, returns path-level differences with type (added/removed/changed) and values
-- Handles invalid JSON gracefully with error messages
+---
+
+### Mock Data Generator
+
+Generate realistic mock data from real JSON samples using AI-inferred specs.
+
+**How it works (the key principle):**
+1. You paste real JSON samples (and optionally an OpenAPI schema or Java DTOs)
+2. The AI (Groq, free tier) analyzes the samples **once** and produces a structured generation spec
+3. A local deterministic generator (Python + Faker) uses that spec to produce as many records as you want — no API cost per record, reproducible, with referential coherence
+
+**What you can do:**
+- **Infer a spec** — paste 1+ JSON samples, optionally upload a schema, click "Infer Spec". The AI captures per-field: source type (enum/regex/range/faker/constant/reference), distribution weights, patterns, ranges, null rates, conditionals, correlations, and referential integrity
+- **Review and edit the spec** — every field attribute is editable in an expandable table. Your overrides layer on top of the AI inference without replacing it
+- **Generate data** — pick entity, count (1–1000), profile (valid/invalid/edge), optional seed. Preview the results inline
+- **Three profiles:**
+  - `valid` — respects all constraints
+  - `invalid` — randomly violates one constraint per record (null required field, wrong type, overflow max length)
+  - `edge` — boundary values (empty strings, max-length strings, range min/max, zero, -1)
+- **Export Python scripts:**
+  - `generate.py` — standalone, runs offline with Faker, CLI: `python generate.py --count 100 --profile valid --seed 42`
+  - `call_api.py` — generates + sends to REST endpoints, uses `auth_util.get_token()` for JWT auth
+- **Version history** — every spec edit creates a new version. Full history with rollback to any previous version
+- **Two-pass generation** — pass 1 generates entities and collects ID pools; pass 2 resolves cross-entity references (foreign keys, parent-child). Handles correlations like `updatedAt > createdAt`
+
+**Kafbat+ integration:** in Kafbat+'s produce modal, the "Generate payload" button lets you pick a spec from the Mock Generator, choose entity/count/profile, and inject the generated JSON directly into the message editor. Optional — if the Mock Generator is down, the button is hidden and Kafbat+ works normally.
+
+**Config (required):** go to Mock Generator in the hub, set your **Groq API key** in the config card. Get a free key at [console.groq.com](https://console.groq.com). You can also change the model (default: `llama-3.3-70b-versatile`) and Faker locale (default: `en_US`).
+
+**Two modes:**
+- **Kafka mode** — no schema needed, AI infers everything from samples. Output is JSON payloads for Kafka topics
+- **API mode** — uses an OpenAPI schema or Java DTOs to constrain the structure. Generates `call_api.py` with endpoint routing
 
 ---
 
@@ -279,7 +303,7 @@ Requires dependencies running (PostgreSQL, Kafka, etc.) or adjust `application.y
 
 ## Conventions
 
-- Sensitive config (tokens, passwords) lives in the Settings card — nothing hardcoded
+- Sensitive config (API keys, tokens, passwords) lives in each module's config card — nothing hardcoded. Keys are masked in API responses
 - Backends retry DB connections on startup (or use `depends_on: condition: service_healthy`)
 - Icons: backend auto-fetches `/favicon.ico` from entry URLs asynchronously, caches bytes in DB
 - Override icons per entry via upload or URL in Settings
@@ -299,6 +323,7 @@ Requires dependencies running (PostgreSQL, Kafka, etc.) or adjust `application.y
 - [x] Kafbat+ — Kafka topic browser, message viewer, producer
 - [x] AI Session Manager — Claude Code session scanner, spending tracker
 - [x] JSON Tools — format, compact, structural diff
+- [x] Mock Data Generator — AI-inferred specs, deterministic generation, Kafbat+ integration
 - [x] ttyd Manager — dynamic TUI spawning
 - [ ] RTK Helper — `filters.toml` editor with versioned backups
 - [ ] GitLab MR Dashboard — personal MR overview
