@@ -118,6 +118,13 @@ class Database(private val config: ApplicationConfig) {
         entryStmt.setInt(5, 1)
         entryStmt.executeUpdate()
 
+        entryStmt.setString(1, "JSON Tools")
+        entryStmt.setString(2, "http://localhost:10306")
+        entryStmt.setString(3, "tool")
+        entryStmt.setInt(4, toolsId)
+        entryStmt.setInt(5, 2)
+        entryStmt.executeUpdate()
+
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"
         )

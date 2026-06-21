@@ -1,0 +1,48 @@
+:root {
+  --bg: #0f1117;
+  --bg-secondary: #161922;
+  --bg-tertiary: #1c1f2e;
+  --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(255,255,255,0.08);
+  --text: #e2e8f0;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-glow: rgba(245,158,11,0.15);
+  --success: #22c55e;
+  --danger: #ef4444;
+  --added-bg: rgba(34,197,94,0.08);
+  --added-border: rgba(34,197,94,0.25);
+  --removed-bg: rgba(239,68,68,0.08);
+  --removed-border: rgba(239,68,68,0.25);
+  --changed-bg: rgba(245,158,11,0.08);
+  --changed-border: rgba(245,158,11,0.25);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { border: none; background: none; cursor: pointer; font: inherit; color: inherit; }
+
+textarea {
+  border: 1px solid var(--border); background: var(--bg-secondary);
+  color: var(--text); border-radius: 8px; padding: 12px 14px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12.5px; line-height: 1.6;
+  outline: none; resize: none; width: 100%;
+  transition: border-color 0.15s;
+}
+textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }

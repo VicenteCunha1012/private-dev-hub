@@ -1,0 +1,6 @@
+ktor:
+  deployment:
+    port: 10406
+  application:
+    modules:
+      - pt.cunha.jsontools.ApplicationKt.module

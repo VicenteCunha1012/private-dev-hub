@@ -91,6 +91,20 @@ services:
     volumes:
       - /home/vicente/.claude:/home/user/.claude:ro
 
+  json-tools-frontend:
+    build: ./json-tools/frontend
+    ports:
+      - "127.0.0.1:10306:80"
+    depends_on:
+      - json-tools-backend
+
+  json-tools-backend:
+    build: ./json-tools/backend
+    ports:
+      - "127.0.0.1:10406:10406"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
