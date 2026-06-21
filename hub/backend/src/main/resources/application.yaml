@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10303
+  application:
+    modules:
+      - pt.cunha.hub.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://hub-db:5432/hub"
+  user: "hub"
+  password: "hub"

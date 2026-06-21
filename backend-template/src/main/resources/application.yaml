@@ -1,0 +1,12 @@
+ktor:
+  deployment:
+    port: 8080
+  application:
+    modules:
+      - pt.cunha.HttpKt.configureHttp
+      - pt.cunha.SerializationKt.configureSerialization
+      - pt.cunha.PostgresKt.configurePostgres
+      - pt.cunha.KoinKt.configureKoin
+      - pt.cunha.DIKt.configureDependencyInjection
+      - pt.cunha.StatusPagesKt.configureStatusPages
+      - pt.cunha.RoutingKt.configureRouting

@@ -1,0 +1,37 @@
+services:
+
+  hub-frontend:
+    build: ./hub/frontend
+    ports:
+      - "127.0.0.1:10300:80"
+    depends_on:
+      - hub-backend
+
+  hub-backend:
+    build: ./hub/backend
+    ports:
+      - "127.0.0.1:10303:10303"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    depends_on:
+      hub-db:
+        condition: service_healthy
+
+  hub-db:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:10403:5432"
+    environment:
+      POSTGRES_DB: hub
+      POSTGRES_USER: hub
+      POSTGRES_PASSWORD: hub
+    volumes:
+      - hub-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub -d hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hub-db-data:

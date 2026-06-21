@@ -1,0 +1,12 @@
+# Docker volumes (if using bind mounts)
+.volumes/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Env files with secrets
+.env
+*.env.local
