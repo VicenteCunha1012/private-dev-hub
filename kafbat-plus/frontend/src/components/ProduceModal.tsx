@@ -1,6 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ProduceResult } from '../api/kafkaApi'
 import { kafkaApi } from '../api/kafkaApi'
+
+const MOCKGEN_BASE = 'http://localhost:10408'
+
+interface MockgenSpec { id: number; name: string; mode: string; spec: { entities: { name: string }[] } }
+interface MockgenResult { records: string[] }
 
 interface ProduceModalProps {
   topic: string
@@ -16,6 +21,40 @@ export default function ProduceModal({ topic, onClose, onProduced }: ProduceModa
   const [result, setResult] = useState<ProduceResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [showMockgen, setShowMockgen] = useState(false)
+  const [mockgenSpecs, setMockgenSpecs] = useState<MockgenSpec[]>([])
+  const [mockgenAvailable, setMockgenAvailable] = useState(false)
+  const [mockgenLoading, setMockgenLoading] = useState(false)
+
+  useEffect(() => {
+    fetch(`${MOCKGEN_BASE}/health`).then(r => {
+      if (r.ok) {
+        setMockgenAvailable(true)
+        fetch(`${MOCKGEN_BASE}/specs`).then(r => r.json()).then(setMockgenSpecs).catch(() => {})
+      }
+    }).catch(() => {})
+  }, [])
+
+  const generateFromSpec = useCallback(async (specId: number, entityName: string, count: number, profile: string) => {
+    setMockgenLoading(true)
+    try {
+      const res = await fetch(`${MOCKGEN_BASE}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specId, count, profile, entityName }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data: MockgenResult = await res.json()
+      if (data.records.length === 1) {
+        try { setValue(JSON.stringify(JSON.parse(data.records[0]), null, 2)) } catch { setValue(data.records[0]) }
+      } else {
+        setValue(data.records.map(r => { try { return JSON.stringify(JSON.parse(r), null, 2) } catch { return r } }).join('\n\n'))
+      }
+      setShowMockgen(false)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Mock generation failed')
+    } finally { setMockgenLoading(false) }
+  }, [])
 
   const handleSend = useCallback(async () => {
     setSending(true)
@@ -164,8 +203,22 @@ export default function ProduceModal({ topic, onClose, onProduced }: ProduceModa
                   fontSize: 10, color: 'var(--accent)', fontWeight: 500,
                   padding: '2px 6px', borderRadius: 4,
                 }}>Upload File</button>
+                {mockgenAvailable && (
+                  <button onClick={() => setShowMockgen(!showMockgen)} style={{
+                    fontSize: 10, color: '#10b981', fontWeight: 500,
+                    padding: '2px 6px', borderRadius: 4,
+                  }}>Generate payload</button>
+                )}
               </div>
             </div>
+            {showMockgen && (
+              <MockgenPicker
+                specs={mockgenSpecs}
+                loading={mockgenLoading}
+                onGenerate={generateFromSpec}
+                onClose={() => setShowMockgen(false)}
+              />
+            )}
             <textarea
               value={value}
               onChange={e => setValue(e.target.value)}
@@ -234,6 +287,84 @@ export default function ProduceModal({ topic, onClose, onProduced }: ProduceModa
             {sending ? 'Sending...' : 'Send'}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function MockgenPicker({ specs, loading, onGenerate, onClose }: {
+  specs: MockgenSpec[]
+  loading: boolean
+  onGenerate: (specId: number, entity: string, count: number, profile: string) => void
+  onClose: () => void
+}) {
+  const [specId, setSpecId] = useState(specs[0]?.id ?? 0)
+  const [entity, setEntity] = useState('')
+  const [count, setCount] = useState(1)
+  const [profile, setProfile] = useState('valid')
+
+  const selectedSpec = specs.find(s => s.id === specId)
+  const entities = selectedSpec?.spec.entities ?? []
+
+  useEffect(() => {
+    if (entities.length > 0 && !entity) setEntity(entities[0].name)
+  }, [entities, entity])
+
+  if (specs.length === 0) {
+    return (
+      <div style={{
+        padding: '10px 12px', marginBottom: 8, borderRadius: 6,
+        background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+        fontSize: 11, color: 'var(--text-muted)',
+      }}>
+        No specs available. Create one in Mock Data Generator first.
+        <button onClick={onClose} style={{ marginLeft: 8, color: 'var(--text-dim)', fontSize: 12 }}>×</button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      padding: '10px 12px', marginBottom: 8, borderRadius: 6,
+      background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+    }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div>
+          <label style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Spec</label>
+          <select value={specId} onChange={e => { setSpecId(Number(e.target.value)); setEntity('') }}
+            style={{ fontSize: 11, padding: '4px 6px', width: 140 }}>
+            {specs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Entity</label>
+          <select value={entity} onChange={e => setEntity(e.target.value)}
+            style={{ fontSize: 11, padding: '4px 6px', width: 120 }}>
+            {entities.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Count</label>
+          <input type="number" min={1} max={100} value={count} onChange={e => setCount(Number(e.target.value))}
+            style={{ fontSize: 11, padding: '4px 6px', width: 50 }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', display: 'block' }}>Profile</label>
+          <select value={profile} onChange={e => setProfile(e.target.value)}
+            style={{ fontSize: 11, padding: '4px 6px', width: 80 }}>
+            <option value="valid">Valid</option>
+            <option value="invalid">Invalid</option>
+            <option value="edge">Edge</option>
+          </select>
+        </div>
+        <button onClick={() => onGenerate(specId, entity, count, profile)} disabled={loading} style={{
+          padding: '5px 10px', fontSize: 10, fontWeight: 600,
+          background: '#10b981', color: '#fff', borderRadius: 5,
+          opacity: loading ? 0.6 : 1,
+        }}>
+          {loading ? '...' : 'Generate'}
+        </button>
+        <button onClick={onClose} style={{ color: 'var(--text-dim)', fontSize: 14, padding: '0 4px' }}>×</button>
       </div>
     </div>
   )

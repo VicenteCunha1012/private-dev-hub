@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10408
+  application:
+    modules:
+      - pt.cunha.mockgen.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://mock-data-generator-db:5432/mockgen"
+  user: "mockgen"
+  password: "mockgen"

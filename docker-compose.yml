@@ -105,6 +105,40 @@ services:
     environment:
       - JAVA_OPTS=-Xmx128m
 
+  mock-data-generator-frontend:
+    build: ./mock-data-generator/frontend
+    ports:
+      - "127.0.0.1:10308:80"
+    depends_on:
+      - mock-data-generator-backend
+
+  mock-data-generator-backend:
+    build: ./mock-data-generator/backend
+    ports:
+      - "127.0.0.1:10408:10408"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    depends_on:
+      mock-data-generator-db:
+        condition: service_healthy
+
+  mock-data-generator-db:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:10508:5432"
+    environment:
+      POSTGRES_DB: mockgen
+      POSTGRES_USER: mockgen
+      POSTGRES_PASSWORD: mockgen
+    volumes:
+      - mock-data-generator-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mockgen -d mockgen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
+  mock-data-generator-db-data:
