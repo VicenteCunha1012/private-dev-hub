@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10412
+  application:
+    modules:
+      - pt.cunha.todo.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://todo-db:5432/todo"
+  user: "todo"
+  password: "todo"

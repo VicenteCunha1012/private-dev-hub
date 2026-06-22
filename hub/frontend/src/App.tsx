@@ -1,17 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { api, ttydApi } from './api/hubApi'
 import ConfigPage from './components/ConfigPage'
 import HomeScreen from './components/HomeScreen'
 import IframeArea, { type DropZone, type Layout } from './components/IframeArea'
 import Sidebar from './components/Sidebar'
 import Spotlight from './components/Spotlight'
+import { ToastProvider, useToasts, type Toast } from './components/ToastContainer'
 import { useKeybinds } from './hooks/useKeybinds'
 import { applyPalette } from './palettes'
 import type { Entry, Folder, KeybindsConfig, PaletteConfig } from './types'
 import { DEFAULT_KEYBINDS, DEFAULT_PALETTE } from './types'
 
+declare global {
+  interface Window {
+    addToast?: (toast: Omit<Toast, 'id'> & { id?: string }) => void
+  }
+}
+
 
 export default function App() {
+  const handleToastActionRef = useRef<((entryLabel: string) => void) | null>(null)
+
+  return (
+    <ToastProvider onAction={(entryLabel) => handleToastActionRef.current?.(entryLabel)}>
+      <AppInner onActionRef={handleToastActionRef} />
+    </ToastProvider>
+  )
+}
+
+function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel: string) => void) | null> }) {
   const [folders, setFolders] = useState<Folder[]>([])
   const [layout, setLayout] = useState<Layout>({ type: 'single', panes: [null] })
   const [showConfig, setShowConfig] = useState(false)
@@ -77,6 +94,40 @@ export default function App() {
       .catch(() => {})
   }, [loadFolders])
 
+  // ── Toast system ──────────────────────────────────────────────────────────
+  const { addToast } = useToasts()
+  const lastToastTimestampRef = useRef(Date.now())
+
+  // Expose addToast globally so iframes/external calls can trigger toasts
+  useEffect(() => {
+    window.addToast = addToast
+    return () => { delete window.addToast }
+  }, [addToast])
+
+  // Poll backend for new toasts every 2 seconds
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch(`http://localhost:10303/toasts?since=${lastToastTimestampRef.current}`)
+        if (!res.ok) return
+        const toasts: { id: string; type: string; message: string; action?: { label: string; entryLabel: string }; timestamp: number }[] = await res.json()
+        for (const t of toasts) {
+          addToast({
+            id: t.id,
+            type: t.type as Toast['type'],
+            message: t.message,
+            action: t.action,
+          })
+          if (t.timestamp > lastToastTimestampRef.current) {
+            lastToastTimestampRef.current = t.timestamp
+          }
+        }
+      } catch { /* backend unreachable, ignore */ }
+    }
+    const interval = setInterval(poll, 2000)
+    return () => clearInterval(interval)
+  }, [addToast])
+
   const [reloadKey, setReloadKey] = useState(0)
 
   const handleSelectEntry = useCallback(async (entry: Entry, reload?: boolean) => {
@@ -97,6 +148,14 @@ export default function App() {
     setShowConfig(false)
     if (reload) setReloadKey(k => k + 1)
   }, [focusedPane])
+
+  // Wire toast action to navigate to entries
+  useEffect(() => {
+    onActionRef.current = (entryLabel: string) => {
+      const entry = allEntries.find(e => e.label.toLowerCase() === entryLabel.toLowerCase())
+      if (entry) handleSelectEntry(entry)
+    }
+  })
 
   const handleDropEntry = useCallback(async (entryId: number, zone: DropZone) => {
     const currentPanes = layout.panes.filter(p => p !== null)

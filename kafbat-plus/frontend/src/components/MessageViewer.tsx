@@ -115,7 +115,7 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
           </svg>
-          Produce
+          Produce<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>p</kbd>
         </button>
         <button onClick={onDeleteTopic} style={{
           padding: '7px 10px', fontSize: 12,

@@ -1,3 +1,4 @@
+import type { RefObject } from 'react'
 import type { SessionSummary } from '../api/sessionsApi'
 
 interface SessionListProps {
@@ -12,6 +13,7 @@ interface SessionListProps {
   onToolChange: (tool: string) => void
   modelFilter: string
   onModelFilterChange: (model: string) => void
+  searchRef?: RefObject<HTMLInputElement | null>
 }
 
 const selectStyle: React.CSSProperties = {
@@ -34,7 +36,7 @@ const selectStyle: React.CSSProperties = {
 
 export default function SessionList({
   sessions, selectedId, onSelect, search, onSearchChange, loading, error,
-  tool, onToolChange, modelFilter, onModelFilterChange,
+  tool, onToolChange, modelFilter, onModelFilterChange, searchRef,
 }: SessionListProps) {
   const availableModels = [...new Set(sessions.map(s => s.model).filter(Boolean))] as string[]
 
@@ -77,6 +79,7 @@ export default function SessionList({
       {/* Search & Filters */}
       <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <input
+          ref={searchRef}
           type="search"
           placeholder="Search sessions..."
           value={search}

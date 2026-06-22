@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10413
+  application:
+    modules:
+      - pt.cunha.arcade.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://arcade-db:5432/arcade"
+  user: "arcade"
+  password: "arcade"

@@ -199,8 +199,76 @@ services:
     environment:
       - JAVA_OPTS=-Xmx128m
 
+  todo-frontend:
+    build: ./todo/frontend
+    ports:
+      - "127.0.0.1:10312:80"
+    depends_on:
+      - todo-backend
+
+  todo-backend:
+    build: ./todo/backend
+    ports:
+      - "127.0.0.1:10412:10412"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    depends_on:
+      todo-db:
+        condition: service_healthy
+
+  todo-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: todo
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+    ports:
+      - "127.0.0.1:10512:5432"
+    volumes:
+      - todo-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  arcade-frontend:
+    build: ./arcade/frontend
+    ports:
+      - "127.0.0.1:10313:80"
+    depends_on:
+      - arcade-backend
+
+  arcade-backend:
+    build: ./arcade/backend
+    ports:
+      - "127.0.0.1:10413:10413"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    depends_on:
+      arcade-db:
+        condition: service_healthy
+
+  arcade-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: arcade
+      POSTGRES_USER: arcade
+      POSTGRES_PASSWORD: arcade
+    ports:
+      - "127.0.0.1:10513:5432"
+    volumes:
+      - arcade-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcade"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
   mock-data-generator-db-data:
   command-vault-db-data:
+  todo-data:
+  arcade-data:

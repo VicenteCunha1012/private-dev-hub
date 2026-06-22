@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import type { ClusterConfig, TopicInfo } from '../api/kafkaApi'
 
 interface TopicListProps {
@@ -12,11 +12,12 @@ interface TopicListProps {
   clusters: ClusterConfig[]
   selectedClusterId: number | null
   onClusterChange: (id: number) => void
+  searchRef?: RefObject<HTMLInputElement | null>
 }
 
 export default function TopicList({
   topics, selectedTopic, onSelect, loading, error, onRefresh, onCreateTopic,
-  clusters, selectedClusterId, onClusterChange,
+  clusters, selectedClusterId, onClusterChange, searchRef,
 }: TopicListProps) {
   const [search, setSearch] = useState('')
 
@@ -66,6 +67,7 @@ export default function TopicList({
             <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0115.82-5.84L21 8" />
             <path d="M3 22v-6h6" /><path d="M21 12a9 9 0 01-15.82 5.84L3 16" />
           </svg>
+          <kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 2, lineHeight: 1.5 }}>r</kbd>
         </button>
       </div>
 
@@ -113,6 +115,7 @@ export default function TopicList({
             <path d="M6.5 11a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM13 13l-3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
           <input
+            ref={searchRef}
             type="search"
             placeholder="Search topics..."
             value={search}
@@ -133,7 +136,7 @@ export default function TopicList({
           fontSize: 10.5, color: 'var(--accent)', fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 3,
         }}>
-          <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New
+          <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>n</kbd>
         </button>
       </div>
 

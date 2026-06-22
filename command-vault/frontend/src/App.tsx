@@ -473,6 +473,39 @@ export default function App() {
     })
   }, [selected, variables, varValues])
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'f') { e.preventDefault(); searchRef.current?.focus() }
+      if (e.key === 'n') { e.preventDefault(); setShowCreate(true) }
+      if (e.key === 'e') { e.preventDefault(); handleExpand() }
+      if (e.key === 'Escape') { e.preventDefault(); if (showVarForm) { setShowVarForm(false) } else { setSelectedId(null) } }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedId(prev => {
+          const idx = snippets.findIndex(s => s.id === prev)
+          if (idx < snippets.length - 1) return snippets[idx + 1].id
+          if (idx === -1 && snippets.length > 0) return snippets[0].id
+          return prev
+        })
+        setShowVarForm(false); setExecResult(null)
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedId(prev => {
+          const idx = snippets.findIndex(s => s.id === prev)
+          if (idx > 0) return snippets[idx - 1].id
+          return prev
+        })
+        setShowVarForm(false); setExecResult(null)
+      }
+    }
+    document.addEventListener('keydown', handle, true)
+    return () => document.removeEventListener('keydown', handle, true)
+  }, [snippets, showVarForm, handleExpand])
+
   const [terminalUrl, setTerminalUrl] = useState<string | null>(null)
 
   const handleRun = useCallback(async () => {
@@ -552,7 +585,7 @@ export default function App() {
             width: 28, height: 28, borderRadius: 6, background: 'var(--accent-solid)',
             color: '#fff', fontWeight: 700, fontSize: 16, display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-          }}>+</button>
+          }} title="New snippet (n)">+</button>
         </div>
 
         {/* Search */}
@@ -680,7 +713,7 @@ export default function App() {
                   background: showVarForm ? 'var(--text-dim)' : 'var(--accent-solid)',
                   color: '#fff', fontSize: 12, fontWeight: 500,
                 }}>
-                  {showVarForm ? 'Expanded' : 'Expand'}
+                  {showVarForm ? 'Expanded' : 'Expand'}<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>e</kbd>
                 </button>
               </div>
               <pre style={{

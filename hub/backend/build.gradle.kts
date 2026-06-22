@@ -27,6 +27,7 @@ dependencies {
     implementation(ktorLibs.server.statusPages)
     implementation(ktorLibs.client.core)
     implementation(ktorLibs.client.cio)
+    implementation(ktorLibs.client.contentNegotiation)
     implementation(libs.logback.classic)
     implementation(libs.postgresql)
 

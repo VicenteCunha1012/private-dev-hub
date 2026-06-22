@@ -59,7 +59,22 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'OC: sessions={d[\\\\\"totalSessions\\\\\"]}, cost=\\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'All: sessions={d[\\\\\"totalSessions\\\\\"]}, cost=\\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\)\")",
       "mcp__playwright__browser_select_option",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0], indent=2\\)\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0], indent=2\\)\\)\")",
+      "Bash(sed -i 's|<title>frontend</title>|<title>Port Radar</title>|' /home/cunvic/private-dev-hub/port-radar/frontend/index.html)",
+      "Bash(sed -i 's|<title>frontend</title>|<title>Kafbat+</title>|' /home/cunvic/private-dev-hub/kafbat-plus/frontend/index.html)",
+      "Bash(sed -i 's|<title>frontend</title>|<title>Command Vault</title>|' /home/cunvic/private-dev-hub/command-vault/frontend/index.html)",
+      "Bash(sed -i 's|<title>frontend</title>|<title>JSON Tools</title>|' /home/cunvic/private-dev-hub/json-tools/frontend/index.html)",
+      "Bash(sed -i 's|<title>frontend</title>|<title>Mock Generator</title>|' /home/cunvic/private-dev-hub/mock-data-generator/frontend/index.html)",
+      "Bash(cp /home/cunvic/private-dev-hub/command-vault/backend/gradle/wrapper/gradle-wrapper.properties /home/cunvic/private-dev-hub/todo/backend/gradle/wrapper/)",
+      "Bash(chmod +x /home/cunvic/private-dev-hub/todo/backend/gradlew)",
+      "Bash(npm install *)",
+      "Bash(python3 -c \"import sys,json; [print\\(f'{f[\\\\\"id\\\\\"]}: {f[\\\\\"name\\\\\"]}'\\) for f in json.load\\(sys.stdin\\)]\")",
+      "Bash(cp -r /home/cunvic/private-dev-hub/command-vault/backend/gradle /home/cunvic/private-dev-hub/arcade/backend/)",
+      "Bash(chmod +x /home/cunvic/private-dev-hub/arcade/backend/gradlew)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} games'\\); [print\\(f' {g[\\\\\"icon\\\\\"]} {g[\\\\\"name\\\\\"]}'\\) for g in d]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'balance: {d[\\\\\"balance\\\\\"]}'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); played=[g for g in d if g['timesPlayed']>0]; print\\(f'{len\\(played\\)} games played, {len\\(d\\)} total'\\)\")",
+      "Bash(git config *)"
     ]
   }
 }

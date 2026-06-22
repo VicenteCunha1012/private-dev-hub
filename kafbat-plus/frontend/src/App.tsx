@@ -17,6 +17,7 @@ export default function App() {
   const [produceInitialValue, setProduceInitialValue] = useState<string | null>(null)
   const [mainDragOver, setMainDragOver] = useState(false)
   const dragCounter = useRef(0)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   // Spotlight deep-link
   useEffect(() => {
@@ -70,6 +71,37 @@ export default function App() {
       loadTopics()
     }
   }, [selectedClusterId, loadTopics])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'f') { e.preventDefault(); searchRef.current?.focus() }
+      if (e.key === 'n') { e.preventDefault(); setShowCreateTopic(true) }
+      if (e.key === 'p' && selectedTopic) { e.preventDefault(); setShowProduce(true) }
+      if (e.key === 'r') { e.preventDefault(); loadTopics() }
+      if (e.key === 'Escape') { e.preventDefault(); setSelectedTopic(null) }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        const idx = topics.findIndex(t => t.name === selectedTopic)
+        if (idx < topics.length - 1) setSelectedTopic(topics[idx + 1].name)
+        else if (idx === -1 && topics.length > 0) setSelectedTopic(topics[0].name)
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        const idx = topics.findIndex(t => t.name === selectedTopic)
+        if (idx > 0) setSelectedTopic(topics[idx - 1].name)
+      }
+      const num = parseInt(e.key)
+      if (num >= 1 && num <= 9 && num <= topics.length) {
+        e.preventDefault()
+        setSelectedTopic(topics[num - 1].name)
+      }
+    }
+    document.addEventListener('keydown', handle, true)
+    return () => document.removeEventListener('keydown', handle, true)
+  }, [topics, selectedTopic, loadTopics])
 
   const handleClusterChange = useCallback((id: number) => {
     setSelectedClusterId(id)
@@ -147,6 +179,7 @@ export default function App() {
         clusters={clusters}
         selectedClusterId={selectedClusterId}
         onClusterChange={handleClusterChange}
+        searchRef={searchRef}
       />
 
       <main

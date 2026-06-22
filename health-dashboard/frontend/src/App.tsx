@@ -39,6 +39,17 @@ function App() {
     fetchStatus();
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'r') { e.preventDefault(); handleRefresh(); }
+    };
+    document.addEventListener('keydown', handle, true);
+    return () => document.removeEventListener('keydown', handle, true);
+  }, [fetchStatus]);
+
   if (loading && !data) {
     return (
       <div className="loading">
@@ -78,7 +89,7 @@ function App() {
             <span className="timestamp">Last: {formatTime(data.checkedAt)}</span>
           )}
           <button type="button" onClick={handleRefresh}>
-            Refresh
+            Refresh<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>r</kbd>
           </button>
           <select
             value={refreshInterval}

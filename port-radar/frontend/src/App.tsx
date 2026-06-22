@@ -53,6 +53,18 @@ function App() {
 
   const isClickable = (p: PortInfo): boolean => p.state === 'LISTEN';
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'r') { e.preventDefault(); void fetchPorts(); }
+      if (e.key === 'p') { e.preventDefault(); setPortalOnly(prev => !prev); }
+    };
+    document.addEventListener('keydown', handle, true);
+    return () => document.removeEventListener('keydown', handle, true);
+  }, [fetchPorts]);
+
   const handlePortClick = (p: PortInfo) => {
     if (isClickable(p)) {
       window.open(`http://localhost:${p.port}`, '_blank');
@@ -109,10 +121,10 @@ function App() {
             className={portalOnly ? 'active' : ''}
             onClick={() => setPortalOnly(prev => !prev)}
           >
-            {portalOnly ? 'Portal only' : 'Show all'}
+            {portalOnly ? 'Portal only' : 'Show all'}<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>p</kbd>
           </button>
           <button onClick={() => void fetchPorts()} disabled={loading}>
-            {loading ? 'Scanning...' : 'Refresh'}
+            {loading ? 'Scanning...' : 'Refresh'}<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>r</kbd>
           </button>
         </div>
       </header>

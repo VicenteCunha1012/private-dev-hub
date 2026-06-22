@@ -72,6 +72,28 @@ if [ -f "$TTYD_PID_FILE" ]; then
     rm -f "$TTYD_PID_FILE"
 fi
 
+# ── Global git pre-push hook ────────────────────────────────────────────────
+HOOKS_DIR="$HOME/.git-hooks"
+HOOK_FILE="$HOOKS_DIR/pre-push"
+CURRENT_HOOKS_PATH=$(git config --global core.hooksPath 2>/dev/null || echo "")
+
+if [ -n "$CURRENT_HOOKS_PATH" ] && [ "$CURRENT_HOOKS_PATH" != "$HOOKS_DIR" ]; then
+    warn "core.hooksPath already set to '$CURRENT_HOOKS_PATH' — skipping hook install"
+else
+    mkdir -p "$HOOKS_DIR"
+    cat > "$HOOK_FILE" << 'HOOK_EOF'
+#!/usr/bin/env bash
+# Dev Hub: notify hub of git push (non-blocking, never fails the push)
+(curl -sS -m 2 -X POST http://localhost:10303/events/git-push \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"git-push"}' >/dev/null 2>&1 &)
+exit 0
+HOOK_EOF
+    chmod +x "$HOOK_FILE"
+    git config --global core.hooksPath "$HOOKS_DIR"
+    log "Git pre-push hook installed ($HOOKS_DIR)"
+fi
+
 # ── Docker Compose ────────────────────────────────────────────────────────────
 log "Starting Docker Compose services..."
 docker compose up --build -d

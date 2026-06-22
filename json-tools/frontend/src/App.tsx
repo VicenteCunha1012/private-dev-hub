@@ -6,6 +6,30 @@ type Tab = 'format' | 'compact' | 'diff'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('format')
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        // Allow Ctrl+Enter even inside textarea
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          // Let the existing per-tab handler deal with it
+        }
+        return
+      }
+      if (e.key === '1') { e.preventDefault(); setTab('format') }
+      if (e.key === '2') { e.preventDefault(); setTab('compact') }
+      if (e.key === '3') { e.preventDefault(); setTab('diff') }
+      if (e.key === 'f') {
+        e.preventDefault()
+        // Focus the first textarea in the current view
+        const ta = document.querySelector('main textarea') as HTMLTextAreaElement | null
+        ta?.focus()
+      }
+    }
+    document.addEventListener('keydown', handle, true)
+    return () => document.removeEventListener('keydown', handle, true)
+  }, [])
 
   // Spotlight deep-link
   useEffect(() => {
@@ -48,7 +72,7 @@ export default function App() {
         <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.3 }}>JSON Tools</span>
 
         <div style={{ display: 'flex', gap: 2, marginLeft: 24, background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3 }}>
-          {(['format', 'compact', 'diff'] as const).map(t => (
+          {(['format', 'compact', 'diff'] as const).map((t, i) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -61,7 +85,7 @@ export default function App() {
                 textTransform: 'capitalize',
               }}
             >
-              {t}
+              {t}<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>{i + 1}</kbd>
             </button>
           ))}
         </div>

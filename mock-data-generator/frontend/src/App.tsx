@@ -10,6 +10,37 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'n') { e.preventDefault(); setShowUpload(true); setSelectedId(null) }
+      if (e.key === 'Escape') { e.preventDefault(); setSelectedId(null) }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedId(prev => {
+          const idx = specs.findIndex(s => s.id === prev)
+          if (idx < specs.length - 1) return specs[idx + 1].id
+          if (idx === -1 && specs.length > 0) return specs[0].id
+          return prev
+        })
+        setShowUpload(false)
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedId(prev => {
+          const idx = specs.findIndex(s => s.id === prev)
+          if (idx > 0) return specs[idx - 1].id
+          return prev
+        })
+        setShowUpload(false)
+      }
+    }
+    document.addEventListener('keydown', handle, true)
+    return () => document.removeEventListener('keydown', handle, true)
+  }, [specs])
+
   const loadSpecs = useCallback(async () => {
     try {
       const data = await mockgenApi.getSpecs()
@@ -65,7 +96,7 @@ export default function App() {
             background: 'var(--accent)', color: '#fff', borderRadius: 6,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           }}>
-            <span style={{ fontSize: 16 }}>+</span> New Spec
+            <span style={{ fontSize: 16 }}>+</span> New Spec<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>n</kbd>
           </button>
         </div>
 
