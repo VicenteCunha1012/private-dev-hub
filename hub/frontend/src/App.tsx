@@ -2,25 +2,34 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ttydApi } from './api/hubApi'
 import ConfigPage from './components/ConfigPage'
 import HomeScreen from './components/HomeScreen'
-import IframeArea from './components/IframeArea'
+import IframeArea, { type DropZone, type Layout } from './components/IframeArea'
 import Sidebar from './components/Sidebar'
+import Spotlight from './components/Spotlight'
 import { useKeybinds } from './hooks/useKeybinds'
 import { applyPalette } from './palettes'
 import type { Entry, Folder, KeybindsConfig, PaletteConfig } from './types'
 import { DEFAULT_KEYBINDS, DEFAULT_PALETTE } from './types'
 
+
 export default function App() {
   const [folders, setFolders] = useState<Folder[]>([])
-  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
+  const [layout, setLayout] = useState<Layout>({ type: 'single', panes: [null] })
   const [showConfig, setShowConfig] = useState(false)
   const [keybinds, setKeybinds] = useState<KeybindsConfig>(DEFAULT_KEYBINDS)
   const [palette, setPalette] = useState<PaletteConfig>(DEFAULT_PALETTE)
   const [error, setError] = useState<string | null>(null)
   const [showAddEntry, setShowAddEntry] = useState(false)
+  const [focusedPane, setFocusedPane] = useState(0)
+  const [showSpotlight, setShowSpotlight] = useState(false)
+  const lastShiftRef = useRef(0)
   const searchRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
   const allEntries = useMemo(() => folders.flatMap(f => f.entries), [folders])
+  const selectedEntry = useMemo(() => {
+    const firstPane = layout.panes.find(p => p !== null)
+    return firstPane != null ? allEntries.find(e => e.id === firstPane) ?? null : null
+  }, [layout, allEntries])
 
   const reconcileTuis = useCallback(async (folders: Folder[], attempt = 0) => {
     const tuiEntries = folders.flatMap(f => f.entries).filter(e => e.type === 'tui')
@@ -70,23 +79,67 @@ export default function App() {
   const handleSelectEntry = useCallback(async (entry: Entry, reload?: boolean) => {
     if (entry.type === 'tui' && entry.command) {
       try {
-        const session = await ttydApi.create(entry.label, entry.workdir || '/root', entry.command)
-        const updated = { ...entry, url: session.url }
+        const session = await ttydApi.create(entry.label, entry.workdir || '/home/cunvic', entry.command)
         await api.updateEntry(entry.id, { url: session.url })
-        setSelectedEntry(updated)
-        setShowConfig(false)
-        setReloadKey(k => k + 1)
-        return
-      } catch { /* fall through to normal select */ }
+      } catch { /* continue with normal select */ }
     }
-    setSelectedEntry(entry)
+    setLayout(prev => {
+      if (prev.type !== 'single' && prev.panes.some(p => p !== null)) {
+        const newPanes = [...prev.panes]
+        newPanes[focusedPane] = entry.id
+        return { ...prev, panes: newPanes }
+      }
+      return { type: 'single', panes: [entry.id] }
+    })
     setShowConfig(false)
     if (reload) setReloadKey(k => k + 1)
-  }, [])
+  }, [focusedPane])
+
+  const handleDropEntry = useCallback(async (entryId: number, zone: DropZone) => {
+    const currentPanes = layout.panes.filter(p => p !== null)
+    const existing = currentPanes[0]
+
+    // Resolve TUI entry if needed
+    const entry = allEntries.find(e => e.id === entryId)
+    if (entry?.type === 'tui' && entry.command) {
+      try {
+        const session = await ttydApi.create(entry.label, entry.workdir || '/home/cunvic', entry.command)
+        await api.updateEntry(entry.id, { url: session.url })
+      } catch { /* continue anyway */ }
+    }
+
+    if (zone.startsWith('replace-')) {
+      const idx = parseInt(zone.split('-')[1], 10)
+      const newPanes = [...layout.panes]
+      newPanes[idx] = entryId
+      setLayout({ ...layout, panes: newPanes })
+    } else if (zone === 'left' || zone === 'right') {
+      const panes = zone === 'left'
+        ? [entryId, existing ?? null]
+        : [existing ?? null, entryId]
+      setLayout({ type: 'hsplit', panes })
+    } else {
+      const quadMap: Record<string, number> = { 'top-left': 0, 'top-right': 1, 'bottom-left': 2, 'bottom-right': 3 }
+      const panes: (number | null)[] = [null, null, null, null]
+      currentPanes.forEach((p) => {
+        if (p !== null && p !== entryId) {
+          const emptyIdx = panes.findIndex(slot => slot === null && slot !== quadMap[zone])
+          if (emptyIdx !== -1) panes[emptyIdx] = p
+        }
+      })
+      panes[quadMap[zone]] = entryId
+      if (existing != null && existing !== entryId && !panes.includes(existing)) {
+        const opposite = 3 - quadMap[zone]
+        panes[opposite] = existing
+      }
+      setLayout({ type: 'quad', panes })
+    }
+    setShowConfig(false)
+  }, [layout, allEntries])
 
   const handleConfigClick = useCallback(() => {
     setShowConfig(true)
-    setSelectedEntry(null)
+    setLayout({ type: 'single', panes: [null] })
   }, [])
 
   const handleMoveEntry = useCallback(async (entryId: number, newFolderId: number | undefined, newPosition: number) => {
@@ -104,29 +157,33 @@ export default function App() {
 
   const keybindHandlers = useMemo(() => ({
     goHome: () => {
-      setSelectedEntry(null)
+      setLayout({ type: 'single', panes: [null] })
       setShowConfig(false)
       focusSidebar()
     },
     focusSearch: () => {
-      setSelectedEntry(null)
+      setLayout({ type: 'single', panes: [null] })
       setShowConfig(false)
       setTimeout(() => searchRef.current?.focus(), 50)
     },
     navUp: () => {
       setShowConfig(false)
-      setSelectedEntry(prev => {
-        if (!prev) return allEntries[allEntries.length - 1] ?? null
-        const idx = allEntries.findIndex(e => e.id === prev.id)
-        return idx > 0 ? allEntries[idx - 1] : prev
+      setLayout(prev => {
+        const currentId = prev.panes.find(p => p !== null)
+        const current = currentId != null ? allEntries.find(e => e.id === currentId) : null
+        if (!current) return { type: 'single', panes: [allEntries[allEntries.length - 1]?.id ?? null] }
+        const idx = allEntries.findIndex(e => e.id === current.id)
+        return idx > 0 ? { type: 'single', panes: [allEntries[idx - 1].id] } : prev
       })
     },
     navDown: () => {
       setShowConfig(false)
-      setSelectedEntry(prev => {
-        if (!prev) return allEntries[0] ?? null
-        const idx = allEntries.findIndex(e => e.id === prev.id)
-        return idx < allEntries.length - 1 ? allEntries[idx + 1] : prev
+      setLayout(prev => {
+        const currentId = prev.panes.find(p => p !== null)
+        const current = currentId != null ? allEntries.find(e => e.id === currentId) : null
+        if (!current) return { type: 'single', panes: [allEntries[0]?.id ?? null] }
+        const idx = allEntries.findIndex(e => e.id === current.id)
+        return idx < allEntries.length - 1 ? { type: 'single', panes: [allEntries[idx + 1].id] } : prev
       })
     },
     openSettings: () => handleConfigClick(),
@@ -138,9 +195,48 @@ export default function App() {
   const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => { rootRef.current?.focus() }, [])
 
+  // Double-Shift detection
+  useEffect(() => {
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        const now = Date.now()
+        if (now - lastShiftRef.current < 400) {
+          setShowSpotlight(true)
+          lastShiftRef.current = 0
+        } else {
+          lastShiftRef.current = now
+        }
+      }
+    }
+    window.addEventListener('keyup', onKeyUp, true)
+    document.addEventListener('keyup', onKeyUp, true)
+    return () => { window.removeEventListener('keyup', onKeyUp, true); document.removeEventListener('keyup', onKeyUp, true) }
+  }, [])
 
-  const showIframe = selectedEntry !== null && !showConfig
-  const showHome = !showConfig && selectedEntry === null
+  const handleSpotlightSelect = useCallback((result: { id: string; category: string; data?: unknown }) => {
+    setShowSpotlight(false)
+    if (result.id.startsWith('entry-')) {
+      const entry = result.data as Entry
+      handleSelectEntry(entry)
+    } else if (result.id.startsWith('topic-')) {
+      // Navigate to Kafbat+ and it'll show the topic
+      const kafbat = allEntries.find(e => e.label.toLowerCase().includes('kafbat'))
+      if (kafbat) handleSelectEntry(kafbat)
+    } else if (result.id.startsWith('json-')) {
+      const jsonTools = allEntries.find(e => e.label.toLowerCase().includes('json'))
+      if (jsonTools) handleSelectEntry(jsonTools)
+    } else if (result.id.startsWith('cmd-')) {
+      const vault = allEntries.find(e => e.label.toLowerCase().includes('command') || e.label.toLowerCase().includes('vault'))
+      if (vault) handleSelectEntry(vault)
+    } else if (result.id.startsWith('spec-')) {
+      const mock = allEntries.find(e => e.label.toLowerCase().includes('mock'))
+      if (mock) handleSelectEntry(mock)
+    }
+  }, [allEntries, handleSelectEntry])
+
+  const hasIframe = layout.panes.some(p => p !== null)
+  const showIframe = hasIframe && !showConfig
+  const showHome = !showConfig && !hasIframe
 
   return (
     <div ref={rootRef} tabIndex={-1} onKeyDown={handleKeyDown} style={{ display: 'flex', height: '100%', width: '100%', outline: 'none' }}>
@@ -152,7 +248,7 @@ export default function App() {
         keybinds={keybinds}
         onSelect={handleSelectEntry}
         onConfigClick={handleConfigClick}
-        onGoHome={() => { setSelectedEntry(null); setShowConfig(false) }}
+        onGoHome={() => { setLayout({ type: 'single', panes: [null] }); setShowConfig(false) }}
         onAddEntry={() => setShowAddEntry(true)}
         onMoveEntry={handleMoveEntry}
       />
@@ -194,7 +290,14 @@ export default function App() {
           display: showIframe ? 'flex' : 'none',
           flexDirection: 'column',
         }}>
-          <IframeArea entries={allEntries} selectedId={selectedEntry?.id ?? null} reloadKey={reloadKey} />
+          <IframeArea
+            entries={allEntries}
+            layout={layout}
+            reloadKey={reloadKey}
+            onLayoutChange={setLayout}
+            onDropEntry={handleDropEntry}
+            onFocusPane={setFocusedPane}
+          />
         </div>
       </main>
 
@@ -203,6 +306,14 @@ export default function App() {
           folders={folders}
           onClose={() => setShowAddEntry(false)}
           onSaved={() => { setShowAddEntry(false); loadFolders() }}
+        />
+      )}
+
+      {showSpotlight && (
+        <Spotlight
+          entries={allEntries}
+          onSelect={handleSpotlightSelect}
+          onClose={() => setShowSpotlight(false)}
         />
       )}
 
@@ -226,8 +337,8 @@ function AddEntryModal({ folders, onClose, onSaved }: { folders: Folder[]; onClo
     setError(null)
     try {
       if (type === 'tui') {
-        const session = await ttydApi.create(label, workdir || '/root', command)
-        await api.createEntry({ label, url: session.url, type, folderId, position: 0, workdir: workdir || '/root', command })
+        const session = await ttydApi.create(label, workdir || '/home/cunvic', command)
+        await api.createEntry({ label, url: session.url, type, folderId, position: 0, workdir: workdir || '/home/cunvic', command })
       } else {
         await api.createEntry({ label, url: url || undefined, type, folderId, position: 0 })
       }
@@ -290,7 +401,7 @@ function AddEntryModal({ folders, onClose, onSaved }: { folders: Folder[]; onClo
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Working directory</label>
-                <input value={workdir} onChange={e => setWorkdir(e.target.value)} placeholder="/root" />
+                <input value={workdir} onChange={e => setWorkdir(e.target.value)} placeholder="/home/cunvic" />
               </div>
             </>
           )}

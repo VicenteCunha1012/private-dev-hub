@@ -36,7 +36,15 @@
       "Bash(rtk tsc *)",
       "Bash(rtk npx *)",
       "Bash(chmod +x /home/cunvic/.local/bin/ttyd)",
-      "Bash(rtk ps *)"
+      "Bash(rtk ps *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} topics'\\); [print\\(f' {t[\\\\\"name\\\\\"]}'\\) for t in d[:5]]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} commands'\\); [print\\(f' {c[\\\\\"name\\\\\"]}'\\) for c in d[:5]]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(type\\(d\\).__name__, len\\(d\\) if isinstance\\(d, list\\) else 'obj'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(type\\(d\\).__name__, len\\(d\\) if isinstance\\(d,list\\) else list\\(d.keys\\(\\)\\)[:5]\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} snippets'\\); [print\\(f' {c[\\\\\"name\\\\\"]}: {c[\\\\\"command\\\\\"][:50]}'\\) for c in d[:5]]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(list\\(c.keys\\(\\)\\)\\) for c in d[:1]]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f' {c[\\\\\"title\\\\\"]}: {c[\\\\\"command\\\\\"][:60]}'\\) for c in d]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d\\)\")"
     ]
   }
 }

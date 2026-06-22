@@ -182,7 +182,7 @@ function SidebarEntry({ entry, selected, shortcut, onSelect, onDragStart }: Side
   return (
     <button
       draggable
-      onDragStart={() => onDragStart(entry)}
+      onDragStart={e => { e.dataTransfer.setData('text/entry-id', String(entry.id)); onDragStart(entry) }}
       onClick={() => onSelect(entry, selected)}
       style={{
         width: '100%', textAlign: 'left',

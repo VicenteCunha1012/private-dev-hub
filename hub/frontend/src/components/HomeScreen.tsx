@@ -109,6 +109,8 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry, rel
 
   return (
     <button
+      draggable
+      onDragStart={e => e.dataTransfer.setData('text/entry-id', String(entry.id))}
       onClick={() => onSelect(entry, true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
