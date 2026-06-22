@@ -15,7 +15,9 @@ export interface Folder {
   id: number
   name: string
   position: number
+  parentId?: number | null
   entries: Entry[]
+  children?: Folder[]
 }
 
 export interface EntryShortcut {

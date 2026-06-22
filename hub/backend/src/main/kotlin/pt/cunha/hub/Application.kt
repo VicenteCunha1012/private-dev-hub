@@ -33,7 +33,7 @@ fun Application.module() {
     backupService.startScheduler()
 
     install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = true; prettyPrint = false })
+        json(Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true })
     }
 
     install(CORS) {

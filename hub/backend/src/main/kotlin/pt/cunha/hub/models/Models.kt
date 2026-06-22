@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 data class Folder(
     val id: Int,
     val name: String,
-    val position: Int
+    val position: Int,
+    val parentId: Int? = null
 )
 
 @Serializable
@@ -14,14 +15,16 @@ data class FolderWithEntries(
     val id: Int,
     val name: String,
     val position: Int,
-    val entries: List<Entry>
+    val parentId: Int? = null,
+    val entries: List<Entry>,
+    val children: List<FolderWithEntries> = emptyList()
 )
 
 @Serializable
-data class CreateFolderRequest(val name: String)
+data class CreateFolderRequest(val name: String, val parentId: Int? = null)
 
 @Serializable
-data class UpdateFolderRequest(val name: String? = null, val position: Int? = null)
+data class UpdateFolderRequest(val name: String? = null, val position: Int? = null, val parentId: Int? = null)
 
 @Serializable
 data class Entry(

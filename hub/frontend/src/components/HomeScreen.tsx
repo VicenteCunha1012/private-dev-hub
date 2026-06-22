@@ -13,7 +13,8 @@ interface HomeScreenProps {
 export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onAddEntry }: HomeScreenProps) {
   const [search, setSearch] = useState('')
 
-  const allEntries = folders.flatMap(f => f.entries)
+  const collectEntries = (fs: Folder[]): Entry[] => fs.flatMap(f => [...f.entries, ...collectEntries(f.children ?? [])])
+  const allEntries = collectEntries(folders)
   const filtered = search
     ? allEntries.filter(e => e.label.toLowerCase().includes(search.toLowerCase()))
     : allEntries

@@ -11,10 +11,11 @@ class FolderService(private val conn: Connection) {
 
     suspend fun getAll(): List<FolderWithEntries> = withContext(Dispatchers.IO) {
         val folders = mutableListOf<Folder>()
-        conn.prepareStatement("SELECT id, name, position FROM folders ORDER BY position, id")
+        conn.prepareStatement("SELECT id, name, position, parent_id FROM folders ORDER BY position, id")
             .executeQuery().use { rs ->
                 while (rs.next()) {
-                    folders.add(Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position")))
+                    val parentId = rs.getInt("parent_id").let { if (rs.wasNull()) null else it }
+                    folders.add(Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"), parentId))
                 }
             }
 
@@ -22,7 +23,7 @@ class FolderService(private val conn: Connection) {
         folders.forEach { entryMap[it.id] = mutableListOf() }
 
         conn.prepareStatement(
-            "SELECT id, label, url, type, folder_id, position FROM entries WHERE folder_id IS NOT NULL ORDER BY position, id"
+            "SELECT id, label, url, type, folder_id, position, workdir, command FROM entries WHERE folder_id IS NOT NULL ORDER BY position, id"
         ).executeQuery().use { rs ->
             while (rs.next()) {
                 val fid = rs.getInt("folder_id")
@@ -34,40 +35,62 @@ class FolderService(private val conn: Connection) {
                             url = rs.getString("url"),
                             type = rs.getString("type"),
                             folderId = fid,
-                            position = rs.getInt("position")
+                            position = rs.getInt("position"),
+                            workdir = rs.getString("workdir"),
+                            command = rs.getString("command")
                         )
                     )
                 }
             }
         }
 
-        folders.map { f ->
-            FolderWithEntries(f.id, f.name, f.position, entryMap[f.id] ?: emptyList())
+        val flatFolders = folders.map { f ->
+            FolderWithEntries(f.id, f.name, f.position, f.parentId, entryMap[f.id] ?: emptyList())
+        }
+
+        buildTree(flatFolders, null)
+    }
+
+    private fun buildTree(all: List<FolderWithEntries>, parentId: Int?): List<FolderWithEntries> {
+        return all.filter { it.parentId == parentId }.map { folder ->
+            folder.copy(children = buildTree(all, folder.id))
         }
     }
 
-    suspend fun create(name: String): Folder = withContext(Dispatchers.IO) {
+    suspend fun create(name: String, parentId: Int? = null): Folder = withContext(Dispatchers.IO) {
         val nextPos = conn.createStatement().executeQuery(
             "SELECT COALESCE(MAX(position) + 1, 0) FROM folders"
         ).use { rs -> rs.next(); rs.getInt(1) }
 
-        conn.prepareStatement("INSERT INTO folders (name, position) VALUES (?, ?) RETURNING id, name, position")
-            .also { it.setString(1, name); it.setInt(2, nextPos) }
+        conn.prepareStatement("INSERT INTO folders (name, position, parent_id) VALUES (?, ?, ?) RETURNING id, name, position, parent_id")
+            .also {
+                it.setString(1, name)
+                it.setInt(2, nextPos)
+                if (parentId != null) it.setInt(3, parentId) else it.setNull(3, java.sql.Types.INTEGER)
+            }
             .executeQuery().use { rs ->
                 rs.next()
-                Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"))
+                val pid = rs.getInt("parent_id").let { if (rs.wasNull()) null else it }
+                Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"), pid)
             }
     }
 
-    suspend fun update(id: Int, name: String?, position: Int?): Folder = withContext(Dispatchers.IO) {
+    suspend fun update(id: Int, name: String?, position: Int?, parentId: Int? = null): Folder = withContext(Dispatchers.IO) {
         val current = findById(id) ?: throw NoSuchElementException("Folder $id not found")
         val newName = name ?: current.name
         val newPos = position ?: current.position
-        conn.prepareStatement("UPDATE folders SET name = ?, position = ? WHERE id = ? RETURNING id, name, position")
-            .also { it.setString(1, newName); it.setInt(2, newPos); it.setInt(3, id) }
+        val newParent = parentId ?: current.parentId
+        conn.prepareStatement("UPDATE folders SET name = ?, position = ?, parent_id = ? WHERE id = ? RETURNING id, name, position, parent_id")
+            .also {
+                it.setString(1, newName)
+                it.setInt(2, newPos)
+                if (newParent != null) it.setInt(3, newParent) else it.setNull(3, java.sql.Types.INTEGER)
+                it.setInt(4, id)
+            }
             .executeQuery().use { rs ->
                 rs.next()
-                Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"))
+                val pid = rs.getInt("parent_id").let { if (rs.wasNull()) null else it }
+                Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"), pid)
             }
     }
 
@@ -78,10 +101,13 @@ class FolderService(private val conn: Connection) {
     }
 
     private fun findById(id: Int): Folder? =
-        conn.prepareStatement("SELECT id, name, position FROM folders WHERE id = ?")
+        conn.prepareStatement("SELECT id, name, position, parent_id FROM folders WHERE id = ?")
             .also { it.setInt(1, id) }
             .executeQuery().use { rs ->
-                if (rs.next()) Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"))
+                if (rs.next()) {
+                    val pid = rs.getInt("parent_id").let { if (rs.wasNull()) null else it }
+                    Folder(rs.getInt("id"), rs.getString("name"), rs.getInt("position"), pid)
+                }
                 else null
             }
 }

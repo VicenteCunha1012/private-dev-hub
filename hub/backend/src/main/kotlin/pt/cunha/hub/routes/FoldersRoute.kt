@@ -15,13 +15,13 @@ fun Routing.foldersRoutes(service: FolderService) {
         }
         post {
             val req = call.receive<CreateFolderRequest>()
-            val folder = service.create(req.name)
+            val folder = service.create(req.name, req.parentId)
             call.respond(HttpStatusCode.Created, folder)
         }
         put("/{id}") {
             val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid id")
             val req = call.receive<UpdateFolderRequest>()
-            call.respond(service.update(id, req.name, req.position))
+            call.respond(service.update(id, req.name, req.position, req.parentId))
         }
         delete("/{id}") {
             val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid id")

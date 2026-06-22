@@ -473,6 +473,8 @@ export default function App() {
     })
   }, [selected, variables, varValues])
 
+  const [terminalUrl, setTerminalUrl] = useState<string | null>(null)
+
   const handleRun = useCallback(async () => {
     if (!selected) return
     const cmd = variables.length > 0
@@ -481,6 +483,36 @@ export default function App() {
     if (variables.length > 0) saveVarHistory(varValues)
     setExecRunning(true)
     setExecResult(null)
+    setTerminalUrl(null)
+    try {
+      const res = await fetch('http://localhost:10600/tuis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: `run-${selected.title}`, workdir: workdir || '/home/cunvic', command: cmd }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        setTerminalUrl(data.url)
+        setShowVarForm(false)
+      } else {
+        setExecResult({ exitCode: -1, stdout: '', stderr: data.error || 'Failed to create terminal' })
+      }
+    } catch (e) {
+      setExecResult({ exitCode: -1, stdout: '', stderr: `Failed to connect to ttyd: ${e instanceof Error ? e.message : 'unknown'}` })
+    } finally {
+      setExecRunning(false)
+    }
+  }, [selected, variables, varValues, workdir])
+
+  const handleQuickRun = useCallback(async () => {
+    if (!selected) return
+    const cmd = variables.length > 0
+      ? substituteVariables(selected.command, varValues)
+      : selected.command
+    if (variables.length > 0) saveVarHistory(varValues)
+    setExecRunning(true)
+    setExecResult(null)
+    setTerminalUrl(null)
     try {
       const res = await fetch('http://localhost:10600/exec', {
         method: 'POST',
@@ -491,7 +523,7 @@ export default function App() {
       setExecResult(data)
       setShowVarForm(false)
     } catch (e) {
-      setExecResult({ exitCode: -1, stdout: '', stderr: `Failed to connect to executor: ${e instanceof Error ? e.message : 'unknown'}` })
+      setExecResult({ exitCode: -1, stdout: '', stderr: `Failed to connect: ${e instanceof Error ? e.message : 'unknown'}` })
     } finally {
       setExecRunning(false)
     }
@@ -720,23 +752,55 @@ export default function App() {
                       padding: '6px 14px', borderRadius: 6,
                       border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
                     }}>Collapse</button>
+                    <button onClick={handleQuickRun} disabled={execRunning} style={{
+                      padding: '6px 14px', borderRadius: 6,
+                      background: execRunning ? 'var(--text-dim)' : '#0ea5e9',
+                      color: '#fff', fontSize: 12, fontWeight: 500,
+                      opacity: execRunning ? 0.6 : 1,
+                    }} title="Run and capture output (30s timeout)">{execRunning ? 'Running...' : 'Quick Run'}</button>
                     <button onClick={handleRun} disabled={execRunning} style={{
                       padding: '6px 14px', borderRadius: 6,
                       background: execRunning ? 'var(--text-dim)' : '#22c55e',
                       color: '#fff', fontSize: 12, fontWeight: 500,
                       opacity: execRunning ? 0.6 : 1,
-                    }}>{execRunning ? 'Running...' : 'Run'}</button>
+                    }} title="Run in interactive terminal">Terminal</button>
                     <button onClick={handleCopy} style={{
                       padding: '6px 14px', borderRadius: 6,
                       background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
                       color: '#fff', fontSize: 12, fontWeight: 500,
-                    }}>{copyFeedback ? 'Copied!' : 'Copy'}</button>
+                    }}>{copyFeedback ? 'Copied!' : 'Copy Command'}</button>
                   </div>
                 </div>
               )
             })()}
 
-            {/* Execution output */}
+            {/* Terminal output */}
+            {terminalUrl && (
+              <div style={{
+                marginTop: 12, background: '#0a0914', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)', overflow: 'hidden',
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 14px', borderBottom: '1px solid var(--border)',
+                  background: 'var(--card-bg)',
+                }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Terminal
+                  </span>
+                  <button onClick={() => setTerminalUrl(null)} style={{
+                    fontSize: 14, color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer',
+                  }}>×</button>
+                </div>
+                <iframe
+                  src={terminalUrl}
+                  style={{ width: '100%', height: 350, border: 'none' }}
+                  allow="fullscreen"
+                />
+              </div>
+            )}
+
+            {/* Execution error output */}
             {execResult && (
               <div style={{
                 marginTop: 12, background: '#0a0914', border: '1px solid var(--border)',
@@ -753,10 +817,17 @@ export default function App() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span style={{
                       fontSize: 11, fontWeight: 600,
-                      color: execResult.timedOut ? 'var(--warning)' : execResult.exitCode === 0 ? 'var(--success)' : 'var(--danger)',
+                      color: execResult.exitCode === 0 ? 'var(--success)' : 'var(--danger)',
                     }}>
-                      {execResult.timedOut ? 'Timed out' : `exit ${execResult.exitCode}`}
+                      exit {execResult.exitCode}
                     </span>
+                    <button onClick={() => {
+                      navigator.clipboard.writeText(execResult.stdout + (execResult.stderr ? '\n' + execResult.stderr : ''))
+                    }} style={{
+                      padding: '2px 8px', borderRadius: 4,
+                      background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)',
+                      fontSize: 10, cursor: 'pointer',
+                    }}>Copy Output</button>
                     <button onClick={() => setExecResult(null)} style={{
                       fontSize: 14, color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer',
                     }}>×</button>

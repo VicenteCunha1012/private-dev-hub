@@ -24,7 +24,11 @@ export default function App() {
   const searchRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
-  const allEntries = useMemo(() => folders.flatMap(f => f.entries), [folders])
+  const allEntries = useMemo(() => {
+    const collect = (folders: Folder[]): Entry[] =>
+      folders.flatMap(f => [...f.entries, ...collect(f.children ?? [])])
+    return collect(folders)
+  }, [folders])
   const selectedEntry = useMemo(() => {
     const firstPane = layout.panes.find(p => p !== null)
     return firstPane != null ? allEntries.find(e => e.id === firstPane) ?? null : null

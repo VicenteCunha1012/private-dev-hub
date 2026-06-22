@@ -25,8 +25,8 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
   const toggleFolder = (id: number) =>
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
 
-  // Build shortcut label map: entryId → shortcut string
-  const allEntries = folders.flatMap(f => f.entries)
+  const collectEntries = (fs: Folder[]): Entry[] => fs.flatMap(f => [...f.entries, ...collectEntries(f.children ?? [])])
+  const allEntries = collectEntries(folders)
   const shortcutMap: Record<number, string> = {}
   keybinds.entryShortcuts.forEach(s => { shortcutMap[s.entryId] = s.shortcut })
   // Fill remaining slots with default digit positions
@@ -88,55 +88,25 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       {/* Folders */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
         {folders.map(folder => (
-          <div
+          <SidebarFolder
             key={folder.id}
-            onDragOver={e => { e.preventDefault(); setDragOverFolder(folder.id) }}
-            onDragLeave={() => setDragOverFolder(null)}
-            onDrop={e => {
-              e.preventDefault()
-              if (dragEntry) onMoveEntry(dragEntry.id, folder.id, folder.entries.length)
+            folder={folder}
+            depth={0}
+            collapsed={collapsed}
+            toggleFolder={toggleFolder}
+            selectedId={selectedId}
+            showConfig={showConfig}
+            shortcutMap={shortcutMap}
+            dragOverFolder={dragOverFolder}
+            onSelect={onSelect}
+            onDragStart={setDragEntry}
+            onDragOverFolder={setDragOverFolder}
+            onDropEntry={(folderId, count) => {
+              if (dragEntry) onMoveEntry(dragEntry.id, folderId, count)
               setDragOverFolder(null)
               setDragEntry(null)
             }}
-            style={{
-              borderRadius: 6,
-              background: dragOverFolder === folder.id ? 'var(--accent-glow)' : undefined,
-              transition: 'background 0.15s',
-              marginBottom: 2,
-            }}
-          >
-            <button
-              onClick={() => toggleFolder(folder.id)}
-              style={{
-                width: '100%', textAlign: 'left',
-                padding: '5px 8px',
-                display: 'flex', alignItems: 'center', gap: 5,
-                color: 'var(--text-muted)',
-                fontSize: 10.5, fontWeight: 700,
-                textTransform: 'uppercase', letterSpacing: 1,
-                borderRadius: 5,
-              }}
-            >
-              <svg
-                width="10" height="10" viewBox="0 0 10 10"
-                style={{ transition: 'transform 0.15s', transform: collapsed[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', flexShrink: 0 }}
-              >
-                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-              </svg>
-              {folder.name}
-            </button>
-
-            {!collapsed[folder.id] && folder.entries.map(entry => (
-              <SidebarEntry
-                key={entry.id}
-                entry={entry}
-                selected={selectedId === entry.id && !showConfig}
-                shortcut={shortcutMap[entry.id]}
-                onSelect={onSelect}
-                onDragStart={setDragEntry}
-              />
-            ))}
-          </div>
+          />
         ))}
       </div>
 
@@ -169,6 +139,94 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
 })
 
 export default Sidebar
+
+interface SidebarFolderProps {
+  folder: Folder
+  depth: number
+  collapsed: Record<number, boolean>
+  toggleFolder: (id: number) => void
+  selectedId: number | null
+  showConfig: boolean
+  shortcutMap: Record<number, string>
+  dragOverFolder: number | null
+  onSelect: (entry: Entry, reload?: boolean) => void
+  onDragStart: (entry: Entry) => void
+  onDragOverFolder: (id: number) => void
+  onDropEntry: (folderId: number, count: number) => void
+}
+
+function SidebarFolder({
+  folder, depth, collapsed, toggleFolder, selectedId, showConfig,
+  shortcutMap, dragOverFolder, onSelect, onDragStart, onDragOverFolder, onDropEntry,
+}: SidebarFolderProps) {
+  return (
+    <div
+      onDragOver={e => { e.preventDefault(); e.stopPropagation(); onDragOverFolder(folder.id) }}
+      onDragLeave={() => onDragOverFolder(-1)}
+      onDrop={e => { e.preventDefault(); e.stopPropagation(); onDropEntry(folder.id, folder.entries.length) }}
+      style={{
+        borderRadius: 6,
+        background: dragOverFolder === folder.id ? 'var(--accent-glow)' : undefined,
+        transition: 'background 0.15s',
+        marginBottom: 2,
+        marginLeft: depth > 0 ? 10 : 0,
+      }}
+    >
+      <button
+        onClick={() => toggleFolder(folder.id)}
+        style={{
+          width: '100%', textAlign: 'left',
+          padding: '5px 8px',
+          display: 'flex', alignItems: 'center', gap: 5,
+          color: 'var(--text-muted)',
+          fontSize: depth > 0 ? 10 : 10.5, fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: 1,
+          borderRadius: 5,
+        }}
+      >
+        <svg
+          width="10" height="10" viewBox="0 0 10 10"
+          style={{ transition: 'transform 0.15s', transform: collapsed[folder.id] ? 'rotate(-90deg)' : 'rotate(0deg)', flexShrink: 0 }}
+        >
+          <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+        </svg>
+        {folder.name}
+      </button>
+
+      {!collapsed[folder.id] && (
+        <>
+          {folder.entries.map(entry => (
+            <SidebarEntry
+              key={entry.id}
+              entry={entry}
+              selected={selectedId === entry.id && !showConfig}
+              shortcut={shortcutMap[entry.id]}
+              onSelect={onSelect}
+              onDragStart={onDragStart}
+            />
+          ))}
+          {(folder.children ?? []).map(child => (
+            <SidebarFolder
+              key={child.id}
+              folder={child}
+              depth={depth + 1}
+              collapsed={collapsed}
+              toggleFolder={toggleFolder}
+              selectedId={selectedId}
+              showConfig={showConfig}
+              shortcutMap={shortcutMap}
+              dragOverFolder={dragOverFolder}
+              onSelect={onSelect}
+              onDragStart={onDragStart}
+              onDragOverFolder={onDragOverFolder}
+              onDropEntry={onDropEntry}
+            />
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
 
 interface SidebarEntryProps {
   entry: Entry
