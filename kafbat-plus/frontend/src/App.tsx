@@ -18,6 +18,23 @@ export default function App() {
   const [mainDragOver, setMainDragOver] = useState(false)
   const dragCounter = useRef(0)
 
+  // Spotlight deep-link
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'spotlight-navigate' && e.data.action === 'open-topic') {
+        setSelectedTopic(e.data.value)
+      }
+    }
+    const onHash = () => {
+      const m = window.location.hash.match(/spotlight=open-topic:(.+)/)
+      if (m) { setSelectedTopic(decodeURIComponent(m[1])); window.location.hash = '' }
+    }
+    window.addEventListener('message', onMsg)
+    window.addEventListener('hashchange', onHash)
+    onHash()
+    return () => { window.removeEventListener('message', onMsg); window.removeEventListener('hashchange', onHash) }
+  }, [])
+
   // Cluster state
   const [clusters, setClusters] = useState<ClusterConfig[]>([])
   const [selectedClusterId, setSelectedClusterId] = useState<number | null>(null)

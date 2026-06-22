@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { DiffEntry, DiffResponse } from './api/jsonApi'
 import { jsonApi } from './api/jsonApi'
 
@@ -6,6 +6,27 @@ type Tab = 'format' | 'compact' | 'diff'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('format')
+
+  // Spotlight deep-link
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'spotlight-navigate' && e.data.action === 'open-tab') {
+        const t = e.data.value as Tab
+        if (['format', 'compact', 'diff'].includes(t)) setTab(t)
+      }
+    }
+    const onHash = () => {
+      const m = window.location.hash.match(/spotlight=open-tab:(\w+)/)
+      if (m && ['format', 'compact', 'diff'].includes(m[1])) {
+        setTab(m[1] as Tab)
+        window.location.hash = ''
+      }
+    }
+    window.addEventListener('message', onMsg)
+    window.addEventListener('hashchange', onHash)
+    onHash()
+    return () => { window.removeEventListener('message', onMsg); window.removeEventListener('hashchange', onHash) }
+  }, [])
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

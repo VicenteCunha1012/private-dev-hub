@@ -21,7 +21,6 @@ export default function App() {
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [focusedPane, setFocusedPane] = useState(0)
   const [showSpotlight, setShowSpotlight] = useState(false)
-  const lastShiftRef = useRef(0)
   const searchRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
@@ -195,22 +194,35 @@ export default function App() {
   const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => { rootRef.current?.focus() }, [])
 
-  // Double-Shift detection
+  // Shift to open spotlight
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        const now = Date.now()
-        if (now - lastShiftRef.current < 400) {
-          setShowSpotlight(true)
-          lastShiftRef.current = 0
-        } else {
-          lastShiftRef.current = now
-        }
+      if (e.key === 'Shift' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        setShowSpotlight(true)
       }
     }
     window.addEventListener('keyup', onKeyUp, true)
-    document.addEventListener('keyup', onKeyUp, true)
-    return () => { window.removeEventListener('keyup', onKeyUp, true); document.removeEventListener('keyup', onKeyUp, true) }
+    return () => window.removeEventListener('keyup', onKeyUp, true)
+  }, [])
+
+  const postToIframe = useCallback((entryUrl: string, message: Record<string, unknown>) => {
+    const send = () => {
+      const iframes = document.querySelectorAll('iframe')
+      for (const iframe of iframes) {
+        const src = iframe.getAttribute('src') || ''
+        if (src.startsWith(entryUrl)) {
+          iframe.contentWindow?.postMessage(message, '*')
+          return true
+        }
+      }
+      return false
+    }
+    // Retry multiple times to handle React re-render delay
+    send()
+    setTimeout(send, 100)
+    setTimeout(send, 300)
+    setTimeout(send, 600)
+    setTimeout(send, 1000)
   }, [])
 
   const handleSpotlightSelect = useCallback((result: { id: string; category: string; data?: unknown }) => {
@@ -219,15 +231,26 @@ export default function App() {
       const entry = result.data as Entry
       handleSelectEntry(entry)
     } else if (result.id.startsWith('topic-')) {
-      // Navigate to Kafbat+ and it'll show the topic
       const kafbat = allEntries.find(e => e.label.toLowerCase().includes('kafbat'))
-      if (kafbat) handleSelectEntry(kafbat)
+      if (kafbat) {
+        handleSelectEntry(kafbat)
+        const topicName = (result.data as { name: string }).name
+        postToIframe(kafbat.url!, { type: 'spotlight-navigate', action: 'open-topic', value: topicName })
+      }
     } else if (result.id.startsWith('json-')) {
       const jsonTools = allEntries.find(e => e.label.toLowerCase().includes('json'))
-      if (jsonTools) handleSelectEntry(jsonTools)
+      if (jsonTools) {
+        handleSelectEntry(jsonTools)
+        const tab = result.id.replace('json-', '')
+        postToIframe(jsonTools.url!, { type: 'spotlight-navigate', action: 'open-tab', value: tab })
+      }
     } else if (result.id.startsWith('cmd-')) {
       const vault = allEntries.find(e => e.label.toLowerCase().includes('command') || e.label.toLowerCase().includes('vault'))
-      if (vault) handleSelectEntry(vault)
+      if (vault) {
+        handleSelectEntry(vault)
+        const cmdId = (result.data as { id: number }).id
+        postToIframe(vault.url!, { type: 'spotlight-navigate', action: 'open-command', value: cmdId })
+      }
     } else if (result.id.startsWith('spec-')) {
       const mock = allEntries.find(e => e.label.toLowerCase().includes('mock'))
       if (mock) handleSelectEntry(mock)

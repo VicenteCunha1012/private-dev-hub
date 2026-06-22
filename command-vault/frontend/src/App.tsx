@@ -366,6 +366,19 @@ export default function App() {
   const [allTags, setAllTags] = useState<string[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
+
+  // Spotlight deep-link
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'spotlight-navigate' && e.data.action === 'open-command') {
+        const id = e.data.value as number
+        setSelectedId(id)
+        setShowVarForm(true)
+      }
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
   const [tagFilter, setTagFilter] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
