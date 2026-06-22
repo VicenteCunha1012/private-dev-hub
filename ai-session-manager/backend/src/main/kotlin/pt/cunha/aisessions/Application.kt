@@ -90,9 +90,32 @@ fun Application.module() {
         }
 
         get("/spending") {
-            val tool = call.request.queryParameters["tool"] ?: "claude-code"
+            val tool = call.request.queryParameters["tool"]
             val spending = when (tool) {
                 "opencode" -> openCodeScanner.getOpenCodeSpending()
+                null, "", "all" -> {
+                    val cc = sessionScanner.getSpending("claude-code")
+                    val oc = openCodeScanner.getOpenCodeSpending()
+                    cc.copy(
+                        tool = "all",
+                        totalSessions = cc.totalSessions + oc.totalSessions,
+                        totalInputTokens = cc.totalInputTokens + oc.totalInputTokens,
+                        totalOutputTokens = cc.totalOutputTokens + oc.totalOutputTokens,
+                        totalCacheReadTokens = cc.totalCacheReadTokens + oc.totalCacheReadTokens,
+                        totalCacheCreationTokens = cc.totalCacheCreationTokens + oc.totalCacheCreationTokens,
+                        estimatedCostUsd = cc.estimatedCostUsd + oc.estimatedCostUsd,
+                        byModel = (cc.byModel.toList() + oc.byModel.toList())
+                            .groupBy({ it.first }, { it.second })
+                            .mapValues { (_, v) -> v.reduce { a, b -> a.copy(
+                                inputTokens = a.inputTokens + b.inputTokens,
+                                outputTokens = a.outputTokens + b.outputTokens,
+                                estimatedCostUsd = a.estimatedCostUsd + b.estimatedCostUsd
+                            ) } },
+                        byProject = (cc.byProject.toList() + oc.byProject.toList())
+                            .groupBy({ it.first }, { it.second })
+                            .mapValues { (_, v) -> v.sum() }
+                    )
+                }
                 else -> sessionScanner.getSpending(tool)
             }
             call.respond(spending)
@@ -104,19 +127,44 @@ fun Application.module() {
         }
 
         get("/spending/timeline") {
-            val tool = call.request.queryParameters["tool"] ?: "claude-code"
+            val tool = call.request.queryParameters["tool"]
             val period = call.request.queryParameters["period"] ?: "daily"
             val timeline = when (tool) {
                 "opencode" -> openCodeScanner.getOpenCodeTimeline(period)
+                null, "", "all" -> {
+                    val cc = sessionScanner.getSpendingTimeline("claude-code", period)
+                    val oc = openCodeScanner.getOpenCodeTimeline(period)
+                    val merged = (cc.points + oc.points)
+                        .groupBy { it.date }
+                        .map { (date, pts) -> pts.reduce { a, b -> a.copy(
+                            costUsd = a.costUsd + b.costUsd,
+                            inputTokens = a.inputTokens + b.inputTokens,
+                            outputTokens = a.outputTokens + b.outputTokens,
+                            sessions = a.sessions + b.sessions
+                        ) } }
+                        .sortedBy { it.date }
+                    cc.copy(tool = "all", points = merged)
+                }
                 else -> sessionScanner.getSpendingTimeline(tool, period)
             }
             call.respond(timeline)
         }
 
         get("/spending/projection") {
-            val tool = call.request.queryParameters["tool"] ?: "claude-code"
+            val tool = call.request.queryParameters["tool"]
             val projection = when (tool) {
                 "opencode" -> openCodeScanner.getOpenCodeProjection()
+                null, "", "all" -> {
+                    val cc = sessionScanner.getProjection("claude-code")
+                    val oc = openCodeScanner.getOpenCodeProjection()
+                    cc.copy(
+                        tool = "all",
+                        dailyAvgCostUsd = cc.dailyAvgCostUsd + oc.dailyAvgCostUsd,
+                        projectedMonthlyCostUsd = cc.projectedMonthlyCostUsd + oc.projectedMonthlyCostUsd,
+                        daysOfData = maxOf(cc.daysOfData, oc.daysOfData),
+                        totalCostUsd = cc.totalCostUsd + oc.totalCostUsd
+                    )
+                }
                 else -> sessionScanner.getProjection(tool)
             }
             call.respond(projection)

@@ -248,6 +248,8 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
               <MessageRow
                 key={`${msg.partition}-${msg.offset}`}
                 msg={msg}
+                topic={topic}
+                clusterId={clusterId}
                 expanded={expandedMsg === i}
                 onToggle={() => setExpandedMsg(expandedMsg === i ? null : i)}
               />
@@ -327,8 +329,25 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
   )
 }
 
-function MessageRow({ msg, expanded, onToggle }: { msg: KafkaMessage; expanded: boolean; onToggle: () => void }) {
+function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
+  msg: KafkaMessage; topic: string; clusterId?: number | null; expanded: boolean; onToggle: () => void
+}) {
   const ts = new Date(msg.timestamp)
+  const [fullValue, setFullValue] = useState<string | null>(null)
+  const [loadingValue, setLoadingValue] = useState(false)
+
+  useEffect(() => {
+    if (expanded && fullValue === null && !loadingValue) {
+      setLoadingValue(true)
+      kafkaApi.getMessage(topic, msg.partition, msg.offset, clusterId)
+        .then(full => setFullValue(full.value))
+        .catch(() => setFullValue(msg.valuePreview || '(failed to load)'))
+        .finally(() => setLoadingValue(false))
+    }
+  }, [expanded, fullValue, loadingValue, topic, msg.partition, msg.offset, clusterId, msg.valuePreview])
+
+  const preview = msg.valuePreview ?? msg.value?.slice(0, 200)
+  const sizeLabel = msg.valueSize > 1024 ? `${(msg.valueSize / 1024).toFixed(0)}KB` : `${msg.valueSize}B`
 
   return (
     <div style={{
@@ -337,7 +356,6 @@ function MessageRow({ msg, expanded, onToggle }: { msg: KafkaMessage; expanded: 
       background: expanded ? 'var(--card-hover)' : 'var(--card-bg)',
       transition: 'background 0.1s',
     }}>
-      {/* Row header */}
       <button onClick={onToggle} style={{
         width: '100%', textAlign: 'left',
         padding: '10px 14px',
@@ -378,7 +396,14 @@ function MessageRow({ msg, expanded, onToggle }: { msg: KafkaMessage; expanded: 
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           fontFamily: 'monospace',
         }}>
-          {msg.value?.slice(0, 120)}
+          {preview?.slice(0, 120)}
+        </span>
+
+        <span style={{
+          fontSize: 9, color: 'var(--text-dim)', padding: '1px 5px',
+          background: 'rgba(255,255,255,0.04)', borderRadius: 3, flexShrink: 0,
+        }}>
+          {sizeLabel}
         </span>
 
         <span style={{ fontSize: 10, color: 'var(--text-dim)', flexShrink: 0, whiteSpace: 'nowrap' }}>
@@ -386,7 +411,6 @@ function MessageRow({ msg, expanded, onToggle }: { msg: KafkaMessage; expanded: 
         </span>
       </button>
 
-      {/* Expanded content */}
       {expanded && (
         <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', gap: 20, marginTop: 10, marginBottom: 10 }}>
@@ -394,6 +418,7 @@ function MessageRow({ msg, expanded, onToggle }: { msg: KafkaMessage; expanded: 
             <Detail label="Offset" value={String(msg.offset)} />
             <Detail label="Key" value={msg.key || '—'} />
             <Detail label="Timestamp" value={ts.toISOString()} />
+            <Detail label="Size" value={sizeLabel} />
           </div>
           {Object.keys(msg.headers).length > 0 && (
             <div style={{ marginBottom: 10 }}>
@@ -413,7 +438,11 @@ function MessageRow({ msg, expanded, onToggle }: { msg: KafkaMessage; expanded: 
             marginTop: 4, padding: '10px 12px',
             background: 'rgba(0,0,0,0.2)', borderRadius: 6,
           }}>
-            <JsonViewer data={msg.value} />
+            {loadingValue ? (
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading value...</span>
+            ) : (
+              <JsonViewer data={fullValue} />
+            )}
           </div>
         </div>
       )}

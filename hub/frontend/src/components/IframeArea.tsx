@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Entry } from '../types'
 
+const CACHE_BUST = `_cb=${Date.now()}`
+
 function normalizeUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url
-  return 'https://' + url
+  if (!/^https?:\/\//i.test(url)) return 'https://' + url
+  const sep = url.includes('?') ? '&' : '?'
+  return url + sep + CACHE_BUST
 }
 
 function isLocalHttps(url: string): boolean {

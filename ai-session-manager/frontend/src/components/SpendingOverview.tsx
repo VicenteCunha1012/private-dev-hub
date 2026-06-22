@@ -8,7 +8,7 @@ export default function SpendingOverview({ tool }: { tool: string }) {
 
   useEffect(() => {
     setSpending(null)
-    sessionsApi.getSpending(tool || 'claude-code')
+    sessionsApi.getSpending(tool)
       .then(setSpending)
       .catch(e => setError(e.message))
   }, [tool])

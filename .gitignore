@@ -20,3 +20,6 @@
 
 # Runtime
 .ttyd-manager.pid
+
+# Playwright
+.playwright-mcp/

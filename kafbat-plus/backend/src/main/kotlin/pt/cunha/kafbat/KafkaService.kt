@@ -57,6 +57,8 @@ data class KafkaMessage(
     val timestamp: Long,
     val key: String?,
     val value: String?,
+    val valuePreview: String? = null,
+    val valueSize: Int = 0,
     val headers: Map<String, String> = emptyMap()
 )
 
@@ -211,14 +213,12 @@ class KafkaService() {
     ): List<KafkaMessage> {
         val props = Properties().apply {
             put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
-            put(ConsumerConfig.GROUP_ID_CONFIG, "kafbat-plus-${UUID.randomUUID()}")
             put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
             put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
             put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
             put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
             put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "500")
-            put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, "10000")
-            put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000")
+            put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
         }
 
         val consumer = KafkaConsumer<String, String>(props)
@@ -254,27 +254,30 @@ class KafkaService() {
             }
 
             val messages = mutableListOf<KafkaMessage>()
-            val maxPollAttempts = 3
             var emptyPolls = 0
+            var gotData = false
 
-            while (messages.size < limit * 2 && emptyPolls < maxPollAttempts) {
-                val records = c.poll(Duration.ofMillis(2000))
+            while (messages.size < limit * 2 && emptyPolls < 1) {
+                val records = c.poll(Duration.ofMillis(if (gotData) 500 else 1500))
                 if (records.isEmpty) {
                     emptyPolls++
                     continue
                 }
-                emptyPolls = 0
+                gotData = true
 
                 for (record in records) {
                     if (toTimestamp != null && record.timestamp() > toTimestamp) continue
                     if (fromTimestamp != null && record.timestamp() < fromTimestamp) continue
 
+                    val fullValue = record.value()
                     val msg = KafkaMessage(
                         partition = record.partition(),
                         offset = record.offset(),
                         timestamp = record.timestamp(),
                         key = record.key(),
-                        value = record.value(),
+                        value = null,
+                        valuePreview = fullValue?.take(200),
+                        valueSize = fullValue?.length ?: 0,
                         headers = record.headers().associate { it.key() to String(it.value() ?: ByteArray(0)) }
                     )
 
@@ -286,6 +289,33 @@ class KafkaService() {
             }
 
             messages.sortedByDescending { it.timestamp }.take(limit)
+        }
+    }
+
+    fun getMessage(brokers: String, topicName: String, partition: Int, offset: Long): KafkaMessage? {
+        val props = Properties().apply {
+            put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
+            put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
+            put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.name)
+            put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none")
+            put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 1)
+        }
+        return KafkaConsumer<String, String>(props).use { c ->
+            val tp = TopicPartition(topicName, partition)
+            c.assign(listOf(tp))
+            c.seek(tp, offset)
+            val records = c.poll(Duration.ofMillis(1500))
+            records.firstOrNull()?.let { record ->
+                KafkaMessage(
+                    partition = record.partition(),
+                    offset = record.offset(),
+                    timestamp = record.timestamp(),
+                    key = record.key(),
+                    value = record.value(),
+                    valueSize = record.value()?.length ?: 0,
+                    headers = record.headers().associate { it.key() to String(it.value() ?: ByteArray(0)) }
+                )
+            }
         }
     }
 

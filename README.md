@@ -116,12 +116,13 @@ The shell. Everything else lives inside it.
 
 **What you can do:**
 - Sidebar with collapsible folders, drag-and-drop entries between folders
-- All iframes mounted simultaneously — switching never loses state
-- Home screen with search and icon grid
+- All iframes pre-loaded on page load — switching is instant with zero state loss
+- **Tiling window manager**: drag an entry onto an open iframe to split the view. Drop on left/right half for side-by-side, drop on a corner for 2×2 grid. Close panes with X. Drag to center of a pane to replace it. Clicking sidebar entries replaces the focused pane
+- **Spotlight search** (press `Shift`): global quick-switcher that searches all entries, Kafka topics, JSON tools (format/compact/diff), Command Vault snippets. Deep-links into sub-views via `postMessage`
+- Home screen with search and icon grid (cards are draggable too)
 - Settings page: CRUD for entries/folders, module config (Kafbat+ clusters), keybinds, multi-palette themes (5 presets + custom colors), backup & restore
-- Home screen icons reload iframes to their home page on click
-- Click "Dev Hub" logo in sidebar to go home
-- TUI entry creation spawns a ttyd session automatically
+- Add entries from home screen or sidebar (+) — supports redirect URLs and TUI terminals
+- TUI sessions auto-recreate on page load if ttyd-manager is running (survives stop/start)
 - Backup scheduler: auto-backup hub DB on configurable interval with retention policy
 
 **Entry types:**
@@ -158,8 +159,9 @@ Visual dashboard for Claude Code and OpenCode session usage and spending.
 - Spending breakdown by model and by project with proportional bars
 - Click a session: token summary, distribution bar, duration, cost, turn-by-turn view, MCP tools
 - **Cost Tracker tab**: daily/weekly/monthly spending bar chart, daily average, monthly projection, detail table by date
+- **AI Config tab**: read-only unified view of Claude Code + OpenCode configuration — commands, skills, MCPs, rules, agents, plugins. Shows sync status (green = shared between tools, grey = single tool only). Click any item to view its full content
 
-**How it works:** reads `~/.claude/projects/` for Claude Code (JSONL files, mounted read-only) and `~/.local/share/opencode/opencode.db` for OpenCode (SQLite). No database of its own.
+**How it works:** reads `~/.claude/projects/` for Claude Code (JSONL files, mounted read-only) and `~/.local/share/opencode/opencode.db` for OpenCode (SQLite). AI Config reads `~/.claude/` (commands, skills, CLAUDE.md), `~/.claude.json` (MCP servers), and `~/.config/opencode/` (opencode.json, AGENTS.md, plugins). No database of its own.
 
 ---
 
@@ -276,6 +278,7 @@ Manages terminal sessions and command execution. Runs natively on the host (not 
 
 | Default key | Action |
 |---|---|
+| `Shift` | Open Spotlight search (global quick-switcher) |
 | `Escape` | Go home + focus sidebar |
 | `/` | Focus search bar |
 | `↑` / `↓` | Cycle through entries |
@@ -283,6 +286,8 @@ Manages terminal sessions and command execution. Runs natively on the host (not 
 | `1` – `9` | Open entry by slot (configurable) |
 
 All configurable in **Settings → Keyboard Shortcuts**. Supports modifiers (`ctrl+k`, `alt+1`). Quick slots 1–9 remappable to any entry. Custom shortcuts take priority.
+
+> **Note**: If you use Vimium or similar keyboard extensions, exclude `localhost:10300` from them — they intercept keys before the page can handle them.
 
 ---
 
@@ -352,7 +357,11 @@ cd <module>/backend && ./gradlew shadowJar
 - [x] Command Vault — snippet manager with `{variable}` substitution
 - [x] Port Radar — live port scanner with conflict detection
 - [x] Health Dashboard — traffic-light health checks
-- [x] ttyd Manager — dynamic TUI spawning on host
+- [x] ttyd Manager — dynamic TUI spawning on host, TUI session auto-recovery on restart
+- [x] Tiling window manager — drag entries to split into side-by-side or 2×2 grid
+- [x] Spotlight global search — Shift to search entries, Kafka topics, JSON tools, commands with deep-linking
+- [x] AI Config viewer — unified read-only view of Claude Code + OpenCode configuration
+- [ ] Todo List — full CRUD todo app with lists, subtasks, priorities, tags
 - [ ] RTK Helper — `filters.toml` editor with versioned backups
 - [ ] GitLab MR Dashboard — personal MR overview
 - [ ] Hub-level aggregated backup (all modules in one zip)

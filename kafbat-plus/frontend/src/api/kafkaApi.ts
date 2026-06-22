@@ -55,6 +55,8 @@ export interface KafkaMessage {
   timestamp: number
   key: string | null
   value: string | null
+  valuePreview: string | null
+  valueSize: number
   headers: Record<string, string>
 }
 
@@ -134,6 +136,11 @@ export const kafkaApi = {
     if (opts?.partition !== undefined) params.set('partition', String(opts.partition))
     return req(`/topics/${encodeURIComponent(topic)}/messages${clusterQs(clusterId, params)}`)
   },
+
+  getMessage: (
+    topic: string, partition: number, offset: number, clusterId?: number | null
+  ): Promise<KafkaMessage> =>
+    req(`/topics/${encodeURIComponent(topic)}/messages/${partition}/${offset}${clusterQs(clusterId)}`),
 
   // Produce
   produce: (topic: string, data: { key?: string; value: string; headers?: Record<string, string>; partition?: number }, clusterId?: number | null): Promise<ProduceResult> =>

@@ -174,6 +174,15 @@ fun Routing.topicRoutes(kafkaService: KafkaService, configService: ConfigService
                 }
             }
 
+            get("/messages/{partition}/{offset}") {
+                val topic = call.parameters["topic"] ?: throw IllegalArgumentException("Topic required")
+                val partition = call.parameters["partition"]?.toIntOrNull() ?: throw IllegalArgumentException("Partition required")
+                val offset = call.parameters["offset"]?.toLongOrNull() ?: throw IllegalArgumentException("Offset required")
+                val brokers = call.resolveBrokers(configService)
+                val msg = kafkaService.getMessage(brokers, topic, partition, offset)
+                if (msg != null) call.respond(msg) else call.respond(HttpStatusCode.NotFound, mapOf("error" to "Message not found"))
+            }
+
             post("/produce") {
                 val topic = call.parameters["topic"] ?: throw IllegalArgumentException("Topic required")
                 val req = call.receive<ProduceRequest>()

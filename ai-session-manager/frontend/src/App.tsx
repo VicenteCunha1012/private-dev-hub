@@ -22,7 +22,7 @@ export default function App() {
   const loadSessions = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await sessionsApi.getSessions(tool || 'claude-code')
+      const data = await sessionsApi.getSessions(tool)
       setSessions(data)
       setError(null)
     } catch (e: unknown) {

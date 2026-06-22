@@ -54,7 +54,11 @@
       "mcp__playwright__browser_fill_form",
       "mcp__playwright__browser_type",
       "mcp__playwright__browser_close",
-      "mcp__playwright__browser_navigate"
+      "mcp__playwright__browser_navigate",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'CC: sessions={d[\\\\\"totalSessions\\\\\"]}, cost=\\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'OC: sessions={d[\\\\\"totalSessions\\\\\"]}, cost=\\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'All: sessions={d[\\\\\"totalSessions\\\\\"]}, cost=\\\\${d[\\\\\"estimatedCostUsd\\\\\"]:.2f}'\\)\")",
+      "mcp__playwright__browser_select_option"
     ]
   }
 }

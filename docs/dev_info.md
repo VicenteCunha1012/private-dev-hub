@@ -66,7 +66,7 @@ dev-hub/
 ├── hub/
 │   ├── frontend/                   # React + Vite
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Main layout: sidebar + iframe area + home/config
+│   │   │   ├── App.tsx             # Main layout: sidebar + tiling iframe area + spotlight + home/config
 │   │   │   ├── main.tsx            # Entry point
 │   │   │   ├── types.ts            # Entry, Folder, KeybindsConfig, PaletteConfig, HubConfig, ExportedConfig
 │   │   │   ├── palettes.ts         # Theme presets (midnight, ocean, forest, ember, mono) + custom builder
@@ -75,7 +75,8 @@ dev-hub/
 │   │   │   └── components/
 │   │   │       ├── Sidebar.tsx     # Collapsible folders, entry list, drag-and-drop
 │   │   │       ├── HomeScreen.tsx  # Search + icon grid
-│   │   │       ├── IframeArea.tsx  # All iframes mounted simultaneously, show/hide via CSS
+│   │   │       ├── IframeArea.tsx  # Tiling layout: single/hsplit/quad, drag-to-split, persistent iframes
+│   │   │       ├── Spotlight.tsx   # Global quick-switcher: entries + Kafka topics + JSON tools + commands
 │   │   │       ├── ConfigPage.tsx  # Full settings: entries CRUD, module config (Kafbat+), themes, keybinds, backup/restore
 │   │   │       ├── EntryIcon.tsx   # Renders favicons (from backend cache or fallback)
 │   │   │       └── Modal.tsx       # Reusable modal wrapper
@@ -134,20 +135,22 @@ dev-hub/
 ├── ai-session-manager/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Session list + detail/spending view + tool/model filter state
-│   │   │   ├── api/sessionsApi.ts
+│   │   │   ├── App.tsx             # Session list + detail/spending/config view + tool/model filter state
+│   │   │   ├── api/sessionsApi.ts # + AiConfigResult, AiConfigCategory, AiConfigItem types
 │   │   │   └── components/
 │   │   │       ├── SessionList.tsx       # Sidebar: search, tool selector, model filter, cost, message count
 │   │   │       ├── SessionDetailView.tsx # Token cards, distribution bar, turns timeline, MCP tools
-│   │   │       └── SpendingOverview.tsx  # Home: total stats, by-model, by-project bars
+│   │   │       ├── SpendingOverview.tsx  # Home: total stats, by-model, by-project bars
+│   │   │       └── AiConfigView.tsx     # Read-only config viewer: categories, sync status, file preview
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
 │   │
 │   └── backend/
 │       ├── src/main/kotlin/pt/cunha/aisessions/
-│       │   ├── Application.kt     # Module setup + all routes inline
+│       │   ├── Application.kt     # Module setup + all routes inline (sessions, spending, aiconfig)
 │       │   ├── SessionScanner.kt  # Filesystem scanner for ~/.claude/projects/ JSONL files
-│       │   └── OpenCodeScanner.kt # SQLite reader for ~/.local/share/opencode/opencode.db
+│       │   ├── OpenCodeScanner.kt # SQLite reader for ~/.local/share/opencode/opencode.db
+│       │   └── AiConfigScanner.kt # Reads Claude Code + OpenCode config files (commands, MCPs, rules, etc.)
 │       ├── build.gradle.kts       # + sqlite-jdbc
 │       └── Dockerfile
 │
@@ -365,9 +368,11 @@ Tags are stored as comma-separated strings. Search uses ILIKE on title, command,
 | GET | /sessions | List sessions `?tool=claude-code\|opencode\|` (empty = all tools merged) |
 | GET | /sessions/{id} | Session detail with turns and MCP tools |
 | GET | /spending | Spending report `?tool=claude-code` |
-| GET | /spending/timeline | Time series `?tool=&period=daily\|weekly` → points with date, cost, tokens, sessions |
+| GET | /spending/timeline | Time series `?tool=&period=daily\|weekly\|monthly` → points with date, cost, tokens, sessions |
 | GET | /spending/projection | Monthly projection `?tool=` → dailyAvg, projectedMonthly, daysOfData |
 | GET | /projects | List projects with session counts |
+| GET | /aiconfig | Scan all Claude Code + OpenCode config files → `{categories, scanPaths}` |
+| GET | /aiconfig/file | Read config file content `?path=` (restricted to scanned dirs) |
 
 ### JSON Tools Backend (10406)
 
@@ -451,8 +456,14 @@ Tags are stored as comma-separated strings. Search uses ILIKE on title, command,
 
 ## Key Design Decisions
 
-### Iframe State Preservation
-All iframes for all entries are mounted in the DOM at all times (IframeArea.tsx). Navigation only toggles `display:none`/`display:block`. This means switching to ArgoCD after being in Kafbat+ for an hour doesn't lose your ArgoCD session.
+### Iframe State Preservation & Tiling
+All iframes for all entries with URLs are mounted in the DOM on page load. Navigation toggles `display:none`/`display:block` and uses absolute positioning for tiling layouts. The tiling system supports single, horizontal split (2 panes), and quad (2×2) layouts. Drag entries from the sidebar onto the iframe area to split; drag to pane center to replace. Iframes are never destroyed when switching layouts — they just get repositioned. Each pane tracks focus; sidebar clicks replace the focused pane.
+
+### Spotlight Search
+Global quick-switcher activated by pressing Shift. Searches hub entries, Kafka topics (fetched from Kafbat+ backend), Command Vault snippets, JSON tool tabs, and Mock Generator specs. Selecting a result navigates to the parent module's iframe and sends a `postMessage` with `{type: 'spotlight-navigate', action, value}` for deep navigation. Each module listens for these messages to navigate internally (e.g., select a topic, switch to diff tab, expand a command).
+
+### TUI Session Recovery
+On page load, the hub frontend checks all TUI entries against live ttyd sessions (`GET /tuis`). Dead sessions are recreated automatically via `POST /tuis` with the stored command and workdir. Retries 3 times with 3s delay if ttyd-manager isn't up yet.
 
 ### Hub is Pure Infra
 The hub backend only manages entries, folders, icons, and config. It never contains business logic for other modules. Module auto-registration happens via DB seed in `Database.kt` — the seed inserts `tool` entries pointing to each module's frontend URL.
@@ -506,6 +517,8 @@ Hub Frontend (10300)
 Dependencies between modules are unidirectional and optional:
 - Kafbat+ → Mock Generator: "Generate payload" button in produce modal. If Mock Generator is down, button is hidden.
 - Hub → ttyd Manager: creating TUI entries calls ttyd-manager API. If ttyd-manager is down, TUI creation fails but everything else works.
+- Hub → Kafbat+/JSON Tools/Command Vault: Spotlight deep-links via `postMessage`. Modules listen for `spotlight-navigate` messages and `hashchange` events (fallback).
+- Hub → all module backends: Spotlight fetches Kafka topics (`GET :10401/topics`), snippets (`GET :10409/snippets`), specs (`GET :10408/specs`) on open.
 
 ---
 
@@ -752,10 +765,13 @@ API key is stored in `mockgen_config` table, set via `POST /config`, masked in `
 - No hub-level aggregated backup (export all modules in one zip) — each module's backup is separate.
 - `X-Frame-Options` / CSP headers on external services can block iframes. No strip-headers nginx proxy is set up.
 - FolderService doesn't return `workdir`/`command` fields in its entry query (only `EntryService` does). This doesn't affect the UI because those fields are only needed for TUI entries, which go through EntryService.
-- The ttyd-manager doesn't persist sessions across restarts. If the process dies, all TUI sessions are lost and ports are reclaimed.
+- ttyd-manager doesn't persist sessions across restarts, but the hub frontend auto-recreates them on page load from stored entry data (command + workdir).
 - Mock Generator's Python subprocess has no timeout — a malformed spec could hang the generation.
 - Kafbat+ consumer uses ephemeral consumer groups (random UUID per request), so it doesn't track offsets.
 - Port Radar requires `/proc` to be mounted from the host (`/proc:/host/proc:ro` in docker-compose). Without this, it only sees the container's own ports.
 - Health Dashboard uses Docker service names to reach backends — `host.docker.internal` for ttyd-manager (host-native). On Linux, `extra_hosts: host.docker.internal:host-gateway` is configured in docker-compose.
 - Backup Scheduler runs as a coroutine in the hub backend process. If the process restarts, the scheduler restarts from config but any in-flight backup is lost.
 - AI Session Manager Cost Tracker timeline aggregation is done at query time (no pre-computed rollups). May be slow with thousands of sessions.
+- Spotlight deep-linking uses `postMessage` across cross-origin iframes. Works in Chromium; Firefox may require a hard refresh after first deploy for module listeners to register.
+- Portainer login fails in Chromium-based browsers (Edge/Chrome) due to third-party storage partitioning blocking session cookies in cross-origin iframes. Works in Firefox.
+- Keyboard shortcuts require excluding `localhost:10300` from Vimium or similar browser extensions.

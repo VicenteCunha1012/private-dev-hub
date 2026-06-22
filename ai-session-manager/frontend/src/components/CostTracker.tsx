@@ -8,11 +8,10 @@ export default function CostTracker({ tool }: { tool: string }) {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily')
 
   useEffect(() => {
-    const t = tool || 'claude-code'
     setTimeline(null)
     setProjection(null)
-    sessionsApi.getTimeline(t, period).then(setTimeline).catch(() => {})
-    sessionsApi.getProjection(t).then(setProjection).catch(() => {})
+    sessionsApi.getTimeline(tool, period).then(setTimeline).catch(() => {})
+    sessionsApi.getProjection(tool).then(setProjection).catch(() => {})
   }, [period, tool])
 
   if (!timeline || !projection) {
