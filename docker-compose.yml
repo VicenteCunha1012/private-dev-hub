@@ -265,6 +265,39 @@ services:
       timeout: 5s
       retries: 5
 
+  secrets-vault-frontend:
+    build: ./secrets-vault/frontend
+    ports:
+      - "127.0.0.1:10314:80"
+    depends_on:
+      - secrets-vault-backend
+
+  secrets-vault-backend:
+    build: ./secrets-vault/backend
+    ports:
+      - "127.0.0.1:10414:10414"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+    depends_on:
+      secrets-vault-db:
+        condition: service_healthy
+
+  secrets-vault-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: secretsvault
+      POSTGRES_USER: secretsvault
+      POSTGRES_PASSWORD: secretsvault
+    ports:
+      - "127.0.0.1:10514:5432"
+    volumes:
+      - secrets-vault-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secretsvault -d secretsvault"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
@@ -272,3 +305,4 @@ volumes:
   command-vault-db-data:
   todo-data:
   arcade-data:
+  secrets-vault-db-data:

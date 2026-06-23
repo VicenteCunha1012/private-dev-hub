@@ -155,6 +155,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const gameStartTime = useRef<number>(0);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   /* ---- fetch initial data ---- */
   useEffect(() => {
@@ -213,27 +215,41 @@ export default function App() {
 
   const handleGameOver = useCallback(
     async (score: number, won?: boolean, durationSeconds?: number) => {
-      if (state.view !== "playing") return;
+      const cur = stateRef.current;
+      if (cur.view !== "playing") return;
       const elapsed =
         durationSeconds ?? Math.round((Date.now() - gameStartTime.current) / 1000);
       try {
         const result = await submitScore({
-          gameId: state.gameId,
+          gameId: cur.gameId,
           score,
           durationSeconds: elapsed,
           won,
         });
-        setState({ view: "gameover", gameId: state.gameId, score, result });
+        setState({ view: "gameover", gameId: cur.gameId, score, result });
       } catch {
         setState({ view: "dashboard" });
       }
     },
-    [state],
+    [],
   );
 
   const backToDashboard = useCallback(() => {
     setState({ view: "dashboard" });
+    getCoins().then(r => setBalance(r.balance)).catch(() => {});
+    getScores().then(setScores).catch(() => {});
   }, []);
+
+  // Auto-reset from gameover when page regains visibility
+  useEffect(() => {
+    const onVis = () => {
+      if (!document.hidden && state.view === 'gameover') {
+        backToDashboard();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [state.view, backToDashboard]);
 
   /* ================================================================
      Render

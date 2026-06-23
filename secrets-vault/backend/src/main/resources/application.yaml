@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10414
+  application:
+    modules:
+      - pt.cunha.secretsvault.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://secrets-vault-db:5432/secretsvault"
+  user: "secretsvault"
+  password: "secretsvault"

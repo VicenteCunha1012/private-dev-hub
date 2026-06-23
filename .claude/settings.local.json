@@ -74,7 +74,8 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} games'\\); [print\\(f' {g[\\\\\"icon\\\\\"]} {g[\\\\\"name\\\\\"]}'\\) for g in d]\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'balance: {d[\\\\\"balance\\\\\"]}'\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); played=[g for g in d if g['timesPlayed']>0]; print\\(f'{len\\(played\\)} games played, {len\\(d\\)} total'\\)\")",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(npm list *)"
     ]
   }
 }

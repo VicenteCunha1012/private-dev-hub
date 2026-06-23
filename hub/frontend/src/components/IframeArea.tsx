@@ -168,6 +168,30 @@ export default function IframeArea({ entries, layout, reloadKey, onLayoutChange,
       {dragOver && <DropOverlay zone={dragOver} layout={layout} />}
 
 
+      {/* Open-in-window button for single pane HTTPS entries */}
+      {layout.type === 'single' && layout.panes[0] != null && (() => {
+        const entry = entries.find(e => e.id === layout.panes[0])
+        if (!entry?.url || !isLocalHttps(entry.url)) return null
+        return (
+          <button
+            title="Open in new window (accept certificate)"
+            onClick={() => window.open(normalizeUrl(entry.url!), '_blank', 'width=800,height=600')}
+            style={{
+              position: 'absolute', top: 6, right: 6, zIndex: 10,
+              width: 28, height: 28, borderRadius: 6,
+              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
+              color: '#94a3b8', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 14, fontFamily: 'monospace',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.3)'; e.currentTarget.style.color = '#c4b5fd' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94a3b8' }}
+          >
+            {'↗'}
+          </button>
+        )
+      })()}
+
       {/* All iframes — always mounted, positioned by layout */}
       {iframeEntries.map(entry => {
         const paneIdx = layout.panes.indexOf(entry.id)
@@ -226,19 +250,37 @@ export default function IframeArea({ entries, layout, reloadKey, onLayoutChange,
             <span style={{ fontSize: 10, color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {entry?.label}
             </span>
-            <button
-              onClick={() => closePane(idx)}
-              style={{
-                width: 16, height: 16, borderRadius: 3,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, color: '#64748b', background: 'rgba(255,255,255,0.06)',
-                cursor: 'pointer', flexShrink: 0,
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
-            >
-              x
-            </button>
+            <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+              {entry?.url && isLocalHttps(entry.url) && (
+                <button
+                  title="Open in new window (accept certificate)"
+                  onClick={() => window.open(normalizeUrl(entry.url!), '_blank', 'width=800,height=600')}
+                  style={{
+                    width: 16, height: 16, borderRadius: 3,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9, color: '#64748b', background: 'rgba(255,255,255,0.06)',
+                    cursor: 'pointer', flexShrink: 0, fontFamily: 'monospace',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#c4b5fd')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
+                >
+                  {'↗'}
+                </button>
+              )}
+              <button
+                onClick={() => closePane(idx)}
+                style={{
+                  width: 16, height: 16, borderRadius: 3,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, color: '#64748b', background: 'rgba(255,255,255,0.06)',
+                  cursor: 'pointer', flexShrink: 0,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
+              >
+                x
+              </button>
+            </div>
           </div>
         )
       })}
