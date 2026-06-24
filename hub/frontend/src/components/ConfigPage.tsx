@@ -122,6 +122,35 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
     }
   }
 
+  const fullExport = async () => {
+    try {
+      const data = await api.fullExport()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `devhub-full-backup-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('Full backup exported')
+    } catch (e) {
+      showToast('Full export failed: ' + (e as Error).message)
+    }
+  }
+
+  const fullImport = async (file: File) => {
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const result = await api.fullImport(data)
+      const summary = Object.entries(result.results).map(([k, v]) => `${k}: ${v}`).join(', ')
+      showToast(`Full import done — ${summary}`)
+      onRefresh()
+    } catch (e) {
+      showToast('Full import failed: ' + (e as Error).message)
+    }
+  }
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
@@ -420,6 +449,19 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
               </div>
               <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>
                 Importing a database will replace all current data. Make sure to export first as a backup.
+              </p>
+            </div>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <SectionLabel>Full Backup (all modules — hub, commands, flows, secrets, arcade, todo, kafbat, mock generator)</SectionLabel>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <PrimaryBtn onClick={fullExport}>Export everything</PrimaryBtn>
+                <label style={{ display: 'inline-block' }}>
+                  <GhostBtn as="span">Import everything</GhostBtn>
+                  <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) fullImport(f) }} />
+                </label>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>
+                Exports and imports ALL data from every module in one file. Use this to migrate to another machine.
               </p>
             </div>
           </div>

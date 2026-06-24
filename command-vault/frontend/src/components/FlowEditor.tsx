@@ -47,7 +47,17 @@ interface DisplayNodeData {
   [key: string]: unknown
 }
 
-type FlowNode = Node<ConstantNodeData | CommandNodeData | StartNodeData | DisplayNodeData>
+interface SubflowNodeData {
+  flowId: number
+  flowName: string
+  color?: string
+  inputs: string[]
+  _status?: 'idle' | 'running' | 'done' | 'error'
+  _stdout?: string
+  [key: string]: unknown
+}
+
+type FlowNode = Node<ConstantNodeData | CommandNodeData | StartNodeData | DisplayNodeData | SubflowNodeData>
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -263,6 +273,74 @@ function CommandNode({ id, data }: { id: string; data: CommandNodeData }) {
   )
 }
 
+// ── Subflow Node ─────────────────────────────────────────────────────────
+
+function SubflowNode({ data }: { id: string; data: SubflowNodeData }) {
+  const color = data.color || '#a78bfa'
+  const statusColor = data._status === 'running' ? '#fbbf24' : data._status === 'done' ? '#4ade80' : data._status === 'error' ? '#f87171' : '#7a7395'
+
+  return (
+    <div style={{ ...nodeBox, minWidth: 220, borderColor: color, borderWidth: 2 }}>
+      <Handle type="target" position={Position.Top} id="flow-in" className="flow-handle" />
+      <Handle type="source" position={Position.Bottom} id="flow-out" className="flow-handle" />
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          ⚡ {data.flowName}
+        </span>
+        {data._status && data._status !== 'idle' && (
+          <span style={{ fontSize: 9, color: statusColor, fontWeight: 600 }}>
+            {data._status === 'running' ? 'Running...' : data._status === 'done' ? 'Done' : 'Error'}
+          </span>
+        )}
+      </div>
+
+      {data.inputs.map(name => (
+        <div key={name} style={{ marginTop: 4, position: 'relative', paddingLeft: 16, fontSize: 11, color: '#7a7395' }}>
+          {name}
+          <Handle type="target" position={Position.Left} id={`in-${name}`} className="data-handle" />
+        </div>
+      ))}
+
+      <div style={{ marginTop: 8, position: 'relative', paddingRight: 16, fontSize: 11, color: '#7a7395', textAlign: 'right' }}>
+        stdout
+        <Handle type="source" position={Position.Right} id="out-stdout" className="data-handle" />
+      </div>
+
+      {data._stdout != null && (
+        <div style={{ marginTop: 6, padding: '4px 6px', background: '#0e0c15', borderRadius: 4, fontSize: 10, color: '#7a7395', maxHeight: 60, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          {data._stdout.slice(0, 500)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Helper: analyze a flow's graph to find exposed inputs
+function analyzeFlowInputs(graphJson: string): string[] {
+  try {
+    const graph = JSON.parse(graphJson)
+    const nodes: Array<{ id: string; type: string; data: Record<string, unknown> }> = graph.nodes ?? []
+    const edges: Array<{ target: string; targetHandle: string }> = graph.edges ?? []
+
+    const connectedTargets = new Set(edges.map(e => `${e.target}:${e.targetHandle}`))
+    const inputs: string[] = []
+
+    for (const node of nodes) {
+      if (node.type === 'command') {
+        const cmd = (node.data.command as string) || ''
+        const vars = parseVariables(cmd)
+        for (const v of vars) {
+          if (!connectedTargets.has(`${node.id}:in-${v.name}`)) inputs.push(v.name)
+        }
+        if (!connectedTargets.has(`${node.id}:in-workdir`)) inputs.push('workdir')
+      }
+    }
+
+    return [...new Set(inputs)]
+  } catch { return [] }
+}
+
 // ── Edge helpers ─────────────────────────────────────────────────────────────
 
 function isFlowHandle(handleId: string | null | undefined): boolean {
@@ -327,7 +405,8 @@ async function executeFlow(
       return
     }
     visited.add(current)
-    if (nodes.find(n => n.id === current)?.type === 'command') {
+    const curNode = nodes.find(n => n.id === current)
+    if (curNode?.type === 'command' || curNode?.type === 'subflow') {
       order.push(current)
     }
     current = adj.get(current)
@@ -359,13 +438,67 @@ async function executeFlow(
     return ''
   }
 
-  // Reset all command nodes
-  setNodes(nds => nds.map(n => n.type === 'command' ? { ...n, data: { ...n.data, _status: 'idle', _stdout: undefined, _stderr: undefined, _exitCode: undefined } } : n))
+  // Reset command + subflow nodes
+  setNodes(nds => nds.map(n => (n.type === 'command' || n.type === 'subflow') ? { ...n, data: { ...n.data, _status: 'idle', _stdout: undefined, _stderr: undefined, _exitCode: undefined } } : n))
   await new Promise(r => setTimeout(r, 50))
 
   for (const nodeId of order) {
     const node = nodes.find(n => n.id === nodeId) as FlowNode | undefined
-    if (!node || node.type !== 'command') continue
+    if (!node) continue
+
+    // Handle subflow nodes
+    if (node.type === 'subflow') {
+      const sfData = node.data as SubflowNodeData
+      updateNode(nodeId, { _status: 'running' })
+      await new Promise(r => setTimeout(r, 50))
+
+      try {
+        const flow = await vaultApi.getFlow(sfData.flowId)
+        const innerGraph = JSON.parse(flow.graphJson)
+        const innerNodes: FlowNode[] = innerGraph.nodes ?? []
+        const innerEdges: Edge[] = innerGraph.edges ?? []
+
+        // Inject external inputs as constants into the inner graph
+        for (const inputName of sfData.inputs) {
+          const extEdge = dataEdges.find(e => e.target === nodeId && e.targetHandle === `in-${inputName}`)
+          if (extEdge) {
+            const val = resolveSource(extEdge.source, extEdge.sourceHandle)
+            // Find command nodes with unconnected in-{inputName} and create a constant for them
+            for (const iNode of innerNodes) {
+              if (iNode.type !== 'command') continue
+              const iVars = parseVariables((iNode.data as CommandNodeData).command || '')
+              if (iVars.some(v => v.name === inputName)) {
+                const constId = `injected-${inputName}-${iNode.id}`
+                const handleId = `out-${inputName}`
+                innerNodes.push({ id: constId, type: 'constant', position: { x: 0, y: 0 }, data: { outputs: [{ id: handleId, name: inputName, value: val }] } })
+                innerEdges.push({ id: `edge-${constId}`, source: constId, sourceHandle: handleId, target: iNode.id, targetHandle: `in-${inputName}` } as Edge)
+              }
+            }
+          }
+        }
+
+        // Execute inner flow
+        let innerStdout = ''
+        const innerSetNodes = (updater: (nds: FlowNode[]) => FlowNode[]) => {
+          const updated = updater(innerNodes)
+          const lastCmd = updated.filter(n => n.type === 'command').pop()
+          if (lastCmd) {
+            const s = (lastCmd.data as CommandNodeData)._stdout
+            if (s) innerStdout = s
+          }
+        }
+        await executeFlow(innerNodes, innerEdges, innerSetNodes, () => {}, signal)
+
+        outputMap.set(nodeId, innerStdout)
+        updateNode(nodeId, { _status: 'done', _stdout: innerStdout })
+      } catch (e) {
+        updateNode(nodeId, { _status: 'error', _stdout: e instanceof Error ? e.message : 'Subflow failed' })
+        break
+      }
+      continue
+    }
+
+    if (node.type !== 'command') continue
     const cmdData = node.data as CommandNodeData
 
     updateNode(nodeId, { _status: 'running' })
@@ -481,13 +614,19 @@ function stripRuntime(nodes: FlowNode[]): FlowNode[] {
       const { _onRun, _onStop, _running, ...rest } = n.data as StartNodeData & Record<string, unknown>
       return { ...n, data: rest }
     }
+    if (n.type === 'subflow') {
+      const { _status, _stdout, ...rest } = n.data as SubflowNodeData & Record<string, unknown>
+      return { ...n, data: rest }
+    }
     return n
   })
 }
 
 // ── Inner editor (needs ReactFlowProvider parent) ────────────────────────────
 
-function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCommand?: { title: string; command: string } }) {
+interface FlowSummary { id: number; name: string; graphJson: string }
+
+function FlowEditorInner({ flowId, initialCommand, allFlows, onNavigateFlow }: { flowId: number; initialCommand?: { title: string; command: string }; allFlows: FlowSummary[]; onNavigateFlow?: (id: number) => void }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [running, setRunning] = useState(false)
@@ -559,7 +698,7 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
     }, 50)
   }, [setEdges, updateNodeInternals])
 
-  const addNode = useCallback((type: 'constant' | 'command' | 'display') => {
+  const addNode = useCallback((type: string, extra?: Record<string, unknown>) => {
     const pos = screenToFlowPosition({ x: 350, y: 200 })
     const dataMap: Record<string, Record<string, unknown>> = {
       constant: { outputs: [{ id: crypto.randomUUID(), name: 'value', value: '' }] },
@@ -570,7 +709,7 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
       id: crypto.randomUUID(),
       type,
       position: pos,
-      data: dataMap[type],
+      data: extra || dataMap[type] || {},
     }
     setNodes(nds => [...nds, newNode])
   }, [setNodes, screenToFlowPosition])
@@ -609,6 +748,7 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
     constant: ConstantNode as NodeTypes['constant'],
     command: CommandNode as NodeTypes['command'],
     display: DisplayNode as NodeTypes['display'],
+    subflow: SubflowNode as NodeTypes['subflow'],
   }), [])
 
   return (
@@ -631,7 +771,8 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
         <Controls showInteractive={false} />
 
         <Panel position="top-left">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#7a7395', textTransform: 'uppercase', letterSpacing: 1, padding: '2px 4px' }}>Built-in</div>
             <button onClick={() => addNode('constant')} style={paletteBtnStyle}>
               <span style={{ color: '#4ade80' }}>■</span> Constant
             </button>
@@ -641,6 +782,22 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
             <button onClick={() => addNode('display')} style={paletteBtnStyle}>
               <span style={{ color: '#38bdf8' }}>■</span> Display
             </button>
+            {allFlows.filter(f => f.id !== flowId).length > 0 && (
+              <>
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#7a7395', textTransform: 'uppercase', letterSpacing: 1, padding: '2px 4px' }}>Flows</div>
+                {allFlows.filter(f => f.id !== flowId).map(f => {
+                  const inputs = analyzeFlowInputs(f.graphJson)
+                  return (
+                    <button key={f.id} onClick={() => addNode('subflow', {
+                      flowId: f.id, flowName: f.name, inputs, color: '#a78bfa',
+                    })} style={paletteBtnStyle} onDoubleClick={() => onNavigateFlow?.(f.id)}>
+                      <span style={{ color: '#a78bfa' }}>⚡</span> {f.name}
+                    </button>
+                  )
+                })}
+              </>
+            )}
           </div>
         </Panel>
 
@@ -679,10 +836,14 @@ const paletteBtnStyle: React.CSSProperties = {
 
 // ── Exported wrapper ─────────────────────────────────────────────────────────
 
-export default function FlowEditor({ flowId, initialCommand }: { flowId: number; initialCommand?: { title: string; command: string } }) {
+export default function FlowEditor({ flowId, initialCommand, allFlows, onNavigateFlow }: {
+  flowId: number; initialCommand?: { title: string; command: string };
+  allFlows?: Array<{ id: number; name: string; graphJson: string }>;
+  onNavigateFlow?: (id: number) => void;
+}) {
   return (
     <ReactFlowProvider>
-      <FlowEditorInner flowId={flowId} initialCommand={initialCommand} />
+      <FlowEditorInner flowId={flowId} initialCommand={initialCommand} allFlows={allFlows ?? []} onNavigateFlow={onNavigateFlow} />
     </ReactFlowProvider>
   )
 }

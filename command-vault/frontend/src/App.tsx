@@ -829,7 +829,7 @@ export default function App() {
 
         {view === 'flows' && selectedFlowId && (
           <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>Loading editor...</div>}>
-            <FlowEditor flowId={selectedFlowId} initialCommand={pendingFlowCommand} />
+            <FlowEditor flowId={selectedFlowId} initialCommand={pendingFlowCommand} allFlows={flows} onNavigateFlow={(id) => setSelectedFlowId(id)} />
           </Suspense>
         )}
 
