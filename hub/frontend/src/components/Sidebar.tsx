@@ -12,10 +12,11 @@ interface SidebarProps {
   onGoHome: () => void
   onAddEntry: () => void
   onMoveEntry: (entryId: number, newFolderId: number | undefined, newPosition: number) => void
+  onEntryContextMenu?: (e: React.MouseEvent, entry: Entry) => void
 }
 
 const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
-  { folders, selectedId, showConfig, keybinds, onSelect, onConfigClick, onGoHome, onAddEntry, onMoveEntry },
+  { folders, selectedId, showConfig, keybinds, onSelect, onConfigClick, onGoHome, onAddEntry, onMoveEntry, onEntryContextMenu },
   ref
 ) {
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
@@ -106,6 +107,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
               setDragOverFolder(null)
               setDragEntry(null)
             }}
+            onEntryContextMenu={onEntryContextMenu}
           />
         ))}
       </div>
@@ -153,11 +155,12 @@ interface SidebarFolderProps {
   onDragStart: (entry: Entry) => void
   onDragOverFolder: (id: number) => void
   onDropEntry: (folderId: number, count: number) => void
+  onEntryContextMenu?: (e: React.MouseEvent, entry: Entry) => void
 }
 
 function SidebarFolder({
   folder, depth, collapsed, toggleFolder, selectedId, showConfig,
-  shortcutMap, dragOverFolder, onSelect, onDragStart, onDragOverFolder, onDropEntry,
+  shortcutMap, dragOverFolder, onSelect, onDragStart, onDragOverFolder, onDropEntry, onEntryContextMenu,
 }: SidebarFolderProps) {
   return (
     <div
@@ -203,6 +206,7 @@ function SidebarFolder({
               shortcut={shortcutMap[entry.id]}
               onSelect={onSelect}
               onDragStart={onDragStart}
+              onContextMenu={onEntryContextMenu}
             />
           ))}
           {(folder.children ?? []).map(child => (
@@ -220,6 +224,7 @@ function SidebarFolder({
               onDragStart={onDragStart}
               onDragOverFolder={onDragOverFolder}
               onDropEntry={onDropEntry}
+              onEntryContextMenu={onEntryContextMenu}
             />
           ))}
         </>
@@ -234,14 +239,16 @@ interface SidebarEntryProps {
   shortcut?: string
   onSelect: (entry: Entry, reload?: boolean) => void
   onDragStart: (entry: Entry) => void
+  onContextMenu?: (e: React.MouseEvent, entry: Entry) => void
 }
 
-function SidebarEntry({ entry, selected, shortcut, onSelect, onDragStart }: SidebarEntryProps) {
+function SidebarEntry({ entry, selected, shortcut, onSelect, onDragStart, onContextMenu }: SidebarEntryProps) {
   return (
     <button
       draggable
       onDragStart={e => { e.dataTransfer.setData('text/entry-id', String(entry.id)); onDragStart(entry) }}
       onClick={() => onSelect(entry, selected)}
+      onContextMenu={onContextMenu ? e => { e.preventDefault(); onContextMenu(e, entry) } : undefined}
       style={{
         width: '100%', textAlign: 'left',
         padding: '6px 10px 6px 20px',

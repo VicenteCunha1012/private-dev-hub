@@ -3,6 +3,7 @@ import { api, ttydApi } from './api/hubApi'
 import ConfigPage from './components/ConfigPage'
 import HomeScreen from './components/HomeScreen'
 import IframeArea, { type DropZone, type Layout } from './components/IframeArea'
+import ContextMenu, { type ContextMenuState } from './components/ContextMenu'
 import Sidebar from './components/Sidebar'
 import Spotlight from './components/Spotlight'
 import { ToastProvider, useToasts, type Toast } from './components/ToastContainer'
@@ -40,6 +41,7 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
   const [showSpotlight, setShowSpotlight] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null)
 
   const allEntries = useMemo(() => {
     const collect = (folders: Folder[]): Entry[] =>
@@ -57,6 +59,7 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
     try {
       const liveSessions = await ttydApi.list()
       const liveUrls = new Set(liveSessions.map(s => s.url))
+      let updated = false
       for (const entry of tuiEntries) {
         if (entry.url && liveUrls.has(entry.url)) continue
         try {
@@ -64,7 +67,12 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
           const cmd = entry.command || 'bash'
           const session = await ttydApi.create(entry.label, workdir, cmd)
           await api.updateEntry(entry.id, { url: session.url })
+          updated = true
         } catch { /* individual create failed */ }
+      }
+      if (updated) {
+        const refreshed = await api.getFolders()
+        setFolders(refreshed)
       }
     } catch {
       if (attempt < 3) setTimeout(() => reconcileTuis(folders, attempt + 1), 3000)
@@ -217,6 +225,28 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
     setTimeout(() => sidebarRef.current?.focus(), 30)
   }, [])
 
+  const handleEntryContextMenu = useCallback((e: React.MouseEvent, entry: Entry) => {
+    const items = [
+      { label: 'Open', icon: '↗', onClick: () => handleSelectEntry(entry, false) },
+      { label: 'Open in new pane', icon: '◫', onClick: () => {
+        const panes = [...layout.panes]
+        const emptyIdx = panes.indexOf(null)
+        if (emptyIdx >= 0) { panes[emptyIdx] = entry.id } else if (layout.type === 'single') {
+          setLayout({ type: 'hsplit', panes: [layout.panes[0], entry.id] }); return
+        }
+        setLayout({ ...layout, panes })
+      }},
+      { label: 'Reload', icon: '↻', onClick: () => handleSelectEntry(entry, true) },
+      { label: '', icon: '', divider: true, onClick: () => {} },
+      { label: 'Edit in settings', icon: '⚙', onClick: () => setShowConfig(true) },
+      { label: 'Refresh icon', icon: '🖼', onClick: () => { api.refreshIcon(entry.id) } },
+      { label: '', icon: '', divider: true, onClick: () => {} },
+      { label: 'Copy URL', icon: '📋', disabled: !entry.url, onClick: () => { if (entry.url) navigator.clipboard.writeText(entry.url) } },
+      ...(entry.url ? [{ label: 'Open in browser tab', icon: '🌐', onClick: () => window.open(entry.url!, '_blank') }] : []),
+    ]
+    setCtxMenu({ x: e.clientX, y: e.clientY, items })
+  }, [handleSelectEntry, layout])
+
   const keybindHandlers = useMemo(() => ({
     goHome: () => {
       setLayout({ type: 'single', panes: [null] })
@@ -320,8 +350,15 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
     } else if (result.id.startsWith('spec-')) {
       const mock = allEntries.find(e => e.label.toLowerCase().includes('mock'))
       if (mock) handleSelectEntry(mock)
+    } else if (result.id.startsWith('flow-')) {
+      const vault = allEntries.find(e => e.label.toLowerCase().includes('command') || e.label.toLowerCase().includes('vault'))
+      if (vault) {
+        handleSelectEntry(vault)
+        const flowId = (result.data as { id: number }).id
+        postToIframe(vault.url!, { type: 'spotlight-navigate', action: 'open-flow', value: flowId })
+      }
     }
-  }, [allEntries, handleSelectEntry])
+  }, [allEntries, handleSelectEntry, postToIframe])
 
   const hasIframe = layout.panes.some(p => p !== null)
   const showIframe = hasIframe && !showConfig
@@ -340,6 +377,7 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
         onGoHome={() => { setLayout({ type: 'single', panes: [null] }); setShowConfig(false) }}
         onAddEntry={() => setShowAddEntry(true)}
         onMoveEntry={handleMoveEntry}
+        onEntryContextMenu={handleEntryContextMenu}
       />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
@@ -359,6 +397,7 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
             searchRef={searchRef}
             onSelect={handleSelectEntry}
             onAddEntry={() => setShowAddEntry(true)}
+            onEntryContextMenu={handleEntryContextMenu}
           />
         )}
         {showConfig && (
@@ -405,6 +444,8 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
           onClose={() => setShowSpotlight(false)}
         />
       )}
+
+      {ctxMenu && <ContextMenu menu={ctxMenu} onClose={() => setCtxMenu(null)} />}
 
     </div>
   )

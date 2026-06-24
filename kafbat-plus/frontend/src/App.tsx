@@ -116,7 +116,7 @@ export default function App() {
       setSelectedTopic(null)
       loadTopics()
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Failed to delete')
+      setError(e instanceof Error ? e.message : 'Failed to delete topic')
     }
   }, [selectedTopic, selectedClusterId, loadTopics])
 

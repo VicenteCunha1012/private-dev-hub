@@ -8,9 +8,10 @@ interface HomeScreenProps {
   searchRef: RefObject<HTMLInputElement | null>
   onSelect: (entry: Entry, reload?: boolean) => void
   onAddEntry: () => void
+  onEntryContextMenu?: (e: React.MouseEvent, entry: Entry) => void
 }
 
-export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onAddEntry }: HomeScreenProps) {
+export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onAddEntry, onEntryContextMenu }: HomeScreenProps) {
   const [search, setSearch] = useState('')
 
   const collectEntries = (fs: Folder[]): Entry[] => fs.flatMap(f => [...f.entries, ...collectEntries(f.children ?? [])])
@@ -84,11 +85,11 @@ export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onA
               </h2>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
                 gap: 10,
               }}>
                 {entries.map(entry => (
-                  <EntryCard key={entry.id} entry={entry} onSelect={onSelect} />
+                  <EntryCard key={entry.id} entry={entry} onSelect={onSelect} onContextMenu={onEntryContextMenu} />
                 ))}
               </div>
             </div>
@@ -105,7 +106,7 @@ export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onA
   )
 }
 
-function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry, reload?: boolean) => void }) {
+function EntryCard({ entry, onSelect, onContextMenu }: { entry: Entry; onSelect: (e: Entry, reload?: boolean) => void; onContextMenu?: (e: React.MouseEvent, entry: Entry) => void }) {
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -113,11 +114,12 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry, rel
       draggable
       onDragStart={e => e.dataTransfer.setData('text/entry-id', String(entry.id))}
       onClick={() => onSelect(entry, true)}
+      onContextMenu={onContextMenu ? e => { e.preventDefault(); onContextMenu(e, entry) } : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 10, padding: '18px 10px 14px',
+        gap: 10, padding: '22px 12px 16px',
         background: hovered ? 'var(--card-hover)' : 'var(--card-bg)',
         border: `1px solid ${hovered ? 'var(--accent)' : 'var(--border)'}`,
         borderRadius: 12,
@@ -128,16 +130,16 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry, rel
       }}
     >
       <div style={{
-        width: 36, height: 36,
+        width: 48, height: 48,
         background: hovered ? 'rgba(167,139,250,0.1)' : 'rgba(255,255,255,0.04)',
-        borderRadius: 10,
+        borderRadius: 12,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 0.15s',
       }}>
-        <EntryIcon entry={entry} size={20} />
+        <EntryIcon entry={entry} size={28} />
       </div>
       <span style={{
-        fontSize: 12, fontWeight: 500, textAlign: 'center',
+        fontSize: 13, fontWeight: 500, textAlign: 'center',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         width: '100%', color: hovered ? 'var(--active-text)' : 'var(--text)',
         transition: 'color 0.15s',

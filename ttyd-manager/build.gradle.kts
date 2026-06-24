@@ -24,6 +24,7 @@ dependencies {
     implementation(ktorLibs.server.defaultHeaders)
     implementation(ktorLibs.server.netty)
     implementation(ktorLibs.server.statusPages)
+    implementation(ktorLibs.server.sse)
     implementation(libs.logback.classic)
 
     testImplementation(kotlin("test"))

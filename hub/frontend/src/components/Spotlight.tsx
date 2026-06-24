@@ -151,38 +151,40 @@ export default function Spotlight({ entries, onSelect, onClose }: SpotlightProps
     setAllItems(items)
     setResults(items.slice(0, 12))
 
-    // Fetch async sources
-    Promise.allSettled([
-      fetch('http://localhost:10401/topics').then(r => r.json()),
-      fetch('http://localhost:10409/snippets').then(r => r.json()),
-      fetch('http://localhost:10408/specs').then(r => r.json()),
-    ]).then(([topicsRes, snippetsRes, specsRes]) => {
-      const extra: SpotlightResult[] = []
+    // Fetch async sources independently with timeouts — each adds results as it arrives
+    const fetchWithTimeout = (url: string, ms = 3000): Promise<unknown> =>
+      Promise.race([
+        fetch(url).then(r => r.json()),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+      ])
 
-      if (topicsRes.status === 'fulfilled' && Array.isArray(topicsRes.value)) {
-        topicsRes.value.forEach((t: { name: string }) => {
-          extra.push({ id: `topic-${t.name}`, label: t.name, category: 'Kafka Topics', icon: '⚡', data: t })
-        })
-      }
-
-      if (snippetsRes.status === 'fulfilled' && Array.isArray(snippetsRes.value)) {
-        snippetsRes.value.forEach((s: { id: number; title: string; command: string }) => {
-          extra.push({ id: `cmd-${s.id}`, label: s.title, category: 'Commands', icon: '>', data: s })
-        })
-      }
-
-      if (specsRes.status === 'fulfilled' && Array.isArray(specsRes.value)) {
-        specsRes.value.forEach((s: { id: number; name: string }) => {
-          extra.push({ id: `spec-${s.id}`, label: s.name, category: 'Specs', icon: '◈', data: s })
-        })
-      }
-
+    const addItems = (newItems: SpotlightResult[]) => {
       setAllItems(prev => {
-        const all = [...prev, ...extra]
+        const all = [...prev, ...newItems]
         setResults(all.slice(0, 12))
         return all
       })
-    })
+    }
+
+    fetchWithTimeout('http://localhost:10409/snippets').then(data => {
+      if (Array.isArray(data)) addItems(data.map((s: { id: number; title: string; command: string }) =>
+        ({ id: `cmd-${s.id}`, label: s.title, category: 'Commands', icon: '💻', data: s })))
+    }).catch(() => {})
+
+    fetchWithTimeout('http://localhost:10409/flows').then(data => {
+      if (Array.isArray(data)) addItems(data.map((f: { id: number; name: string }) =>
+        ({ id: `flow-${f.id}`, label: f.name, category: 'Flows', icon: '⚡', data: f })))
+    }).catch(() => {})
+
+    fetchWithTimeout('http://localhost:10408/specs').then(data => {
+      if (Array.isArray(data)) addItems(data.map((s: { id: number; name: string }) =>
+        ({ id: `spec-${s.id}`, label: s.name, category: 'Specs', icon: '🎲', data: s })))
+    }).catch(() => {})
+
+    fetchWithTimeout('http://localhost:10401/topics', 5000).then(data => {
+      if (Array.isArray(data)) addItems(data.map((t: { name: string }) =>
+        ({ id: `topic-${t.name}`, label: t.name, category: 'Kafka Topics', icon: '📨', data: t })))
+    }).catch(() => {})
 
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [entries])

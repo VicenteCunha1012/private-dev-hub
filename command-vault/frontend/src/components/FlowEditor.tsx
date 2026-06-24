@@ -36,6 +36,8 @@ interface CommandNodeData {
 
 interface StartNodeData {
   _onRun?: () => void
+  _onStop?: () => void
+  _running?: boolean
   [key: string]: unknown
 }
 
@@ -60,6 +62,7 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid #2a2440', borderRadius: 4, color: '#e8e3f5',
   fontFamily: 'var(--mono, monospace)', outline: 'none',
 }
+const NODRAG = 'nodrag nowheel'
 const smallBtnStyle: React.CSSProperties = {
   background: 'rgba(236,72,153,0.15)', color: '#ec4899', border: 'none',
   padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer',
@@ -68,13 +71,21 @@ const smallBtnStyle: React.CSSProperties = {
 // ── Start Node ───────────────────────────────────────────────────────────────
 
 function StartNode({ data }: { data: StartNodeData }) {
+  const isRunning = !!data._running
   return (
     <div
-      onClick={() => data._onRun?.()}
-      style={{ ...nodeBox, minWidth: 100, textAlign: 'center', borderColor: '#fbbf24', cursor: 'pointer' }}
+      onClick={() => isRunning ? data._onStop?.() : data._onRun?.()}
+      style={{
+        ...nodeBox, minWidth: 100, textAlign: 'center', cursor: 'pointer',
+        borderColor: isRunning ? '#f87171' : '#fbbf24',
+        background: isRunning ? 'rgba(248,113,113,0.08)' : '#171425',
+      }}
     >
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        ▶ Start
+      <div style={{
+        fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+        color: isRunning ? '#f87171' : '#fbbf24',
+      }}>
+        {isRunning ? '■ Stop' : '▶ Start'}
       </div>
       <Handle type="source" position={Position.Right} id="flow-out" className="flow-handle" />
     </div>
@@ -108,7 +119,7 @@ function DisplayNode({ id, data }: { id: string; data: DisplayNodeData }) {
 
       <div style={labelStyle}>Filter regex (lines to hide)</div>
       <input value={data.filterRegex ?? ''} onChange={e => updateFilter(e.target.value)}
-        style={inputStyle} placeholder="e.g. ^\\s*$" />
+        className={NODRAG} style={inputStyle} placeholder="e.g. ^\\s*$" />
 
       <div style={{ marginTop: 8, padding: '6px 8px', background: '#0e0c15', borderRadius: 4, fontSize: 11, color: '#e8e3f5', fontFamily: 'var(--mono, monospace)', minHeight: 40, maxHeight: 200, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
         {displayText || <span style={{ color: '#4a4560', fontStyle: 'italic' }}>No input received</span>}
@@ -170,9 +181,9 @@ function ConstantNode({ id, data }: { id: string; data: ConstantNodeData }) {
         <div key={out.id} style={{ marginBottom: 6, position: 'relative', paddingRight: 16 }}>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <input value={out.name} onChange={e => updateOutput(out.id, 'name', e.target.value)}
-              style={{ ...inputStyle, width: '35%' }} placeholder="name" />
+              className={NODRAG} style={{ ...inputStyle, width: '35%' }} placeholder="name" />
             <input value={out.value} onChange={e => updateOutput(out.id, 'value', e.target.value)}
-              style={{ ...inputStyle, flex: 1 }} placeholder="value" />
+              className={NODRAG} style={{ ...inputStyle, flex: 1 }} placeholder="value" />
             {data.outputs.length > 1 && (
               <button onClick={() => removeOutput(out.id)} style={{ ...smallBtnStyle, color: '#f87171', background: 'rgba(248,113,113,0.1)', padding: '0 4px' }}>x</button>
             )}
@@ -226,7 +237,7 @@ function CommandNode({ id, data }: { id: string; data: CommandNodeData }) {
 
       <div style={labelStyle}>Command</div>
       <textarea value={data.command || ''} onChange={e => updateCommand(e.target.value)}
-        rows={2} style={{ ...inputStyle, resize: 'vertical' }} placeholder="echo {msg}" />
+        className={NODRAG} rows={2} style={{ ...inputStyle, resize: 'vertical' }} placeholder="echo {msg}" />
 
       {allLeftHandles.map((name, i) => {
         const isVar = name !== 'workdir'
@@ -290,29 +301,29 @@ async function executeFlow(
   nodes: FlowNode[],
   edges: Edge[],
   setNodes: (updater: (nds: FlowNode[]) => FlowNode[]) => void,
+  setError: (msg: string | null) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
+  setError(null)
   const flowEdges = edges.filter(e => isFlowHandle(e.sourceHandle))
 
-  // Find start node
   const startNode = nodes.find(n => n.type === 'start')
   if (!startNode) {
-    alert('No Start node found. Add a Start node to define execution order.')
+    setError('No Start node found. Add a Start node to define execution order.')
     return
   }
 
-  // Build adjacency from flow edges
   const adj = new Map<string, string>()
   for (const e of flowEdges) {
     adj.set(e.source, e.target)
   }
 
-  // Walk from start node following flow edges
   const order: string[] = []
   const visited = new Set<string>()
   let current: string | undefined = startNode.id
   while (current) {
     if (visited.has(current)) {
-      alert('Cycle detected in flow edges. Cannot execute.')
+      setError('Cycle detected in flow edges. Cannot execute.')
       return
     }
     visited.add(current)
@@ -323,14 +334,14 @@ async function executeFlow(
   }
 
   if (order.length === 0) {
-    alert('No command nodes connected to the Start node.')
+    setError('No command nodes connected to the Start node.')
     return
   }
 
   const dataEdges = edges.filter(e => !isFlowHandle(e.sourceHandle))
   const outputMap = new Map<string, string>()
 
-  const updateNode = (nodeId: string, patch: Partial<CommandNodeData>) => {
+  const updateNode = (nodeId: string, patch: Record<string, unknown>) => {
     setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n))
   }
 
@@ -375,36 +386,81 @@ async function executeFlow(
     }
 
     const finalCmd = substituteVariables(cmdData.command || '', values)
+    const timeout = cmdData.timeoutSeconds ?? 30
+
+    // Find display nodes connected to this command's stdout
+    const connectedDisplays = dataEdges
+      .filter(e => e.source === nodeId && e.sourceHandle === 'out-stdout')
+      .map(e => e.target)
+
+    const updateDisplays = (text: string) => {
+      for (const did of connectedDisplays) {
+        updateNode(did, { _text: text })
+      }
+    }
+
+    if (signal?.aborted) break
 
     try {
-      const res = await fetch('http://localhost:10600/exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: finalCmd, workdir, timeoutSeconds: cmdData.timeoutSeconds ?? 30 }),
+      const sseUrl = `http://localhost:10600/exec/stream?command=${encodeURIComponent(finalCmd)}&workdir=${encodeURIComponent(workdir)}&timeout=${timeout}`
+      const result = await new Promise<{ exitCode: number; stdout: string }>((resolve, reject) => {
+        const evtSource = new EventSource(sseUrl)
+        let stdout = ''
+        let exitCode = 0
+
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            evtSource.close()
+            reject(new Error('Stopped'))
+          }, { once: true })
+        }
+
+        evtSource.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data)
+            if (msg.type === 'stdout') {
+              stdout += (stdout ? '\n' : '') + msg.line
+              updateNode(nodeId, { _stdout: stdout })
+              updateDisplays(stdout)
+            } else if (msg.type === 'done') {
+              exitCode = msg.exitCode
+              evtSource.close()
+              resolve({ exitCode, stdout })
+            } else if (msg.type === 'error') {
+              evtSource.close()
+              reject(new Error(msg.message))
+            }
+          } catch { /* ignore parse errors */ }
+        }
+
+        evtSource.onerror = () => {
+          evtSource.close()
+          if (stdout) resolve({ exitCode: 0, stdout })
+          else reject(new Error('SSE connection failed'))
+        }
       })
-      const result = await res.json()
-      const stdout = (result.stdout ?? '').trim()
-      outputMap.set(nodeId, stdout)
+
+      outputMap.set(nodeId, result.stdout)
       updateNode(nodeId, {
         _status: result.exitCode === 0 ? 'done' : 'error',
-        _stdout: stdout,
-        _stderr: result.stderr,
+        _stdout: result.stdout,
         _exitCode: result.exitCode,
       })
+      updateDisplays(result.stdout)
       if (result.exitCode !== 0) break
-    } catch {
-      updateNode(nodeId, { _status: 'error', _stdout: 'Failed to reach ttyd-manager' })
+    } catch (e) {
+      updateNode(nodeId, { _status: 'error', _stdout: e instanceof Error ? e.message : 'Failed to reach ttyd-manager' })
       break
     }
   }
 
-  // Resolve Display nodes — push data from connected sources
+  // Resolve Display nodes connected to constants (no execution needed)
   const displayNodes = nodes.filter(n => n.type === 'display')
   for (const dn of displayNodes) {
     const textEdge = dataEdges.find(e => e.target === dn.id && e.targetHandle === 'in-text')
-    if (textEdge) {
+    if (textEdge && nodes.find(n => n.id === textEdge.source)?.type === 'constant') {
       const text = resolveSource(textEdge.source, textEdge.sourceHandle)
-      setNodes(nds => nds.map(n => n.id === dn.id ? { ...n, data: { ...n.data, _text: text } } : n))
+      updateNode(dn.id, { _text: text })
     }
   }
 }
@@ -422,7 +478,7 @@ function stripRuntime(nodes: FlowNode[]): FlowNode[] {
       return { ...n, data: rest }
     }
     if (n.type === 'start') {
-      const { _onRun, ...rest } = n.data as StartNodeData & Record<string, unknown>
+      const { _onRun, _onStop, _running, ...rest } = n.data as StartNodeData & Record<string, unknown>
       return { ...n, data: rest }
     }
     return n
@@ -435,6 +491,7 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [running, setRunning] = useState(false)
+  const [flowError, setFlowError] = useState<string | null>(null)
   const loadedRef = useRef(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null)
   const flowIdRef = useRef(flowId)
@@ -492,10 +549,15 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
     }, 800)
   }, [nodes, edges])
 
+  const updateNodeInternals = useUpdateNodeInternals()
   const onConnect: OnConnect = useCallback((connection) => {
     const edgeProps = makeEdge(connection)
     setEdges(eds => addEdge({ ...connection, ...edgeProps }, eds))
-  }, [setEdges])
+    setTimeout(() => {
+      if (connection.source) updateNodeInternals(connection.source)
+      if (connection.target) updateNodeInternals(connection.target)
+    }, 50)
+  }, [setEdges, updateNodeInternals])
 
   const addNode = useCallback((type: 'constant' | 'command' | 'display') => {
     const pos = screenToFlowPosition({ x: 350, y: 200 })
@@ -513,23 +575,34 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
     setNodes(nds => [...nds, newNode])
   }, [setNodes, screenToFlowPosition])
 
+  const abortRef = useRef<AbortController | null>(null)
+
   const handleRun = useCallback(async () => {
+    if (running) return
+    const ac = new AbortController()
+    abortRef.current = ac
     setRunning(true)
-    try { await executeFlow(nodes, edges, setNodes as (updater: (nds: FlowNode[]) => FlowNode[]) => void) }
-    finally { setRunning(false) }
-  }, [nodes, edges, setNodes])
+    setFlowError(null)
+    try { await executeFlow(nodes, edges, setNodes as (updater: (nds: FlowNode[]) => FlowNode[]) => void, setFlowError, ac.signal) }
+    finally { setRunning(false); abortRef.current = null }
+  }, [nodes, edges, setNodes, running])
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort()
+  }, [])
 
   const handleRunRef = useRef(handleRun)
   handleRunRef.current = handleRun
 
-  // Inject _onRun into start nodes
+  const handleStopRef = useRef(handleStop)
+  handleStopRef.current = handleStop
+
+  // Inject _onRun/_onStop/_running into start nodes
   useEffect(() => {
-    setNodes(nds => {
-      const needsUpdate = nds.some(n => n.type === 'start' && !(n.data as StartNodeData)._onRun)
-      if (!needsUpdate) return nds
-      return nds.map(n => n.type === 'start' ? { ...n, data: { ...n.data, _onRun: () => handleRunRef.current() } } : n)
-    })
-  }, [setNodes])
+    setNodes(nds => nds.map(n => n.type === 'start' ? {
+      ...n, data: { ...n.data, _onRun: () => handleRunRef.current(), _onStop: () => handleStopRef.current(), _running: running }
+    } : n))
+  }, [setNodes, running])
 
   const nodeTypes: NodeTypes = useMemo(() => ({
     start: StartNode as NodeTypes['start'],
@@ -572,12 +645,26 @@ function FlowEditorInner({ flowId, initialCommand }: { flowId: number; initialCo
         </Panel>
 
         <Panel position="top-right">
-          <button onClick={handleRun} disabled={running} style={{
-            ...paletteBtnStyle, background: running ? '#1a1730' : 'rgba(74,222,128,0.15)',
-            color: running ? '#7a7395' : '#4ade80', fontWeight: 700,
-          }}>
-            {running ? '⏳ Running...' : '▶ Run Flow'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            <button onClick={running ? handleStop : handleRun} style={{
+              ...paletteBtnStyle,
+              background: running ? 'rgba(248,113,113,0.15)' : 'rgba(74,222,128,0.15)',
+              color: running ? '#f87171' : '#4ade80', fontWeight: 700,
+            }}>
+              {running ? '■ Stop' : '▶ Run Flow'}
+            </button>
+            {flowError && (
+              <div style={{
+                background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)',
+                borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#f87171',
+                display: 'flex', alignItems: 'center', gap: 6, maxWidth: 280,
+              }}>
+                <span>⚠</span>
+                <span>{flowError}</span>
+                <button onClick={() => setFlowError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 13, padding: 0, marginLeft: 4 }}>×</button>
+              </div>
+            )}
+          </div>
         </Panel>
       </ReactFlow>
     </div>

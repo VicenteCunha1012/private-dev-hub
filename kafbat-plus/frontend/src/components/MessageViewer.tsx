@@ -224,11 +224,16 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
             {error && (
               <div style={{
-                margin: '8px 20px', padding: '10px 14px',
-                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                margin: '8px 20px', padding: '12px 14px',
+                background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)',
                 borderRadius: 8, fontSize: 12, color: 'var(--danger)',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
               }}>
-                {error}
+                <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>⚠</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 2 }}>Connection Error</div>
+                  <div style={{ color: 'rgba(248,113,113,0.8)', fontSize: 11, lineHeight: 1.5 }}>{error}</div>
+                </div>
               </div>
             )}
 

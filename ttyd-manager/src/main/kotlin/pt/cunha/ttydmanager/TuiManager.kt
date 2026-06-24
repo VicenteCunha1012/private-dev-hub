@@ -56,6 +56,9 @@ class TuiManager {
     @Synchronized
     fun create(name: String, workdir: String, command: String): TuiSession {
         cleanup()
+        // Kill existing sessions with the same name to prevent port exhaustion
+        val dupes = sessions.filter { it.value.first.name == name }.keys.toList()
+        for (id in dupes) delete(id)
         if (portPool.isEmpty()) error("No available ports in range 10604–10620 (max 17 sessions)")
         val port = portPool.removeFirst()
         val id = (nextId++).toString()

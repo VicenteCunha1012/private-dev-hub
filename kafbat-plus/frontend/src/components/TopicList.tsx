@@ -143,11 +143,13 @@ export default function TopicList({
       {/* Error */}
       {error && (
         <div style={{
-          margin: '0 14px 8px', padding: '8px 10px',
-          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-          borderRadius: 6, fontSize: 11, color: 'var(--danger)',
+          margin: '0 14px 8px', padding: '10px 12px',
+          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)',
+          borderRadius: 8, fontSize: 11, color: 'var(--danger)',
+          display: 'flex', alignItems: 'flex-start', gap: 8,
         }}>
-          {error}
+          <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1 }}>⚠</span>
+          <span style={{ flex: 1, lineHeight: 1.4 }}>{error}</span>
         </div>
       )}
 

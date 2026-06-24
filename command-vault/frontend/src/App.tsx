@@ -4,6 +4,27 @@ import { parseVariables, substituteVariables, type VarDef } from './lib/variable
 
 const FlowEditor = lazy(() => import('./components/FlowEditor'))
 
+const NODE_COLORS: Record<string, string> = { start: '#fbbf24', command: '#ec4899', constant: '#4ade80', display: '#38bdf8' }
+
+function flowThumbnail(graphJson: string): Array<{ x: number; y: number; color: string }> {
+  try {
+    const graph = JSON.parse(graphJson)
+    const nodes: Array<{ type?: string; position?: { x: number; y: number } }> = graph.nodes ?? []
+    if (nodes.length === 0) return []
+    const xs = nodes.map(n => n.position?.x ?? 0)
+    const ys = nodes.map(n => n.position?.y ?? 0)
+    const minX = Math.min(...xs), maxX = Math.max(...xs)
+    const minY = Math.min(...ys), maxY = Math.max(...ys)
+    const rangeX = maxX - minX || 1
+    const rangeY = maxY - minY || 1
+    return nodes.map(n => ({
+      x: ((n.position?.x ?? 0) - minX) / rangeX * 46 + 3,
+      y: ((n.position?.y ?? 0) - minY) / rangeY * 30 + 3,
+      color: NODE_COLORS[n.type ?? ''] ?? '#7a7395',
+    }))
+  } catch { return [] }
+}
+
 const VAR_HISTORY_KEY = 'command-vault-var-history'
 
 function loadVarHistory(): Record<string, string[]> {
@@ -341,14 +362,24 @@ export default function App() {
   const [selectedFlowId, setSelectedFlowId] = useState<number | null>(null)
   const [pendingFlowCommand, setPendingFlowCommand] = useState<{ title: string; command: string } | undefined>(undefined)
   const [hoveredSnippetId, setHoveredSnippetId] = useState<number | null>(null)
+  const [editingFlowId, setEditingFlowId] = useState<number | null>(null)
+  const [editingFlowName, setEditingFlowName] = useState('')
+  const [ctxMenu, setCtxMenu] = useState<{x: number, y: number, items: any[]} | null>(null)
 
   // Spotlight deep-link
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.data?.type === 'spotlight-navigate' && e.data.action === 'open-command') {
-        const id = e.data.value as number
-        setSelectedId(id)
-        setShowVarForm(true)
+      if (e.data?.type === 'spotlight-navigate') {
+        if (e.data.action === 'open-command') {
+          const id = e.data.value as number
+          setSelectedId(id)
+          setView('commands')
+          setShowVarForm(true)
+        } else if (e.data.action === 'open-flow') {
+          const id = e.data.value as number
+          setSelectedFlowId(id)
+          setView('flows')
+        }
       }
     }
     window.addEventListener('message', onMsg)
@@ -592,50 +623,6 @@ export default function App() {
           </select>
         </div>
 
-        {/* Flows toggle */}
-        <div style={{ padding: '0 8px 4px' }}>
-          <div
-            onClick={() => { setView(v => v === 'flows' ? 'commands' : 'flows'); if (view === 'commands') setSelectedId(null) }}
-            style={{
-              padding: '8px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
-              background: view === 'flows' ? 'var(--active-bg)' : 'transparent',
-              borderLeft: view === 'flows' ? '3px solid var(--accent)' : '3px solid transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              fontWeight: 600, fontSize: 13, color: view === 'flows' ? 'var(--active-text)' : 'var(--text-muted)',
-            }}
-          >
-            <span>⚡ Flows</span>
-            {view === 'flows' && (
-              <button onClick={(e) => { e.stopPropagation(); vaultApi.createFlow({ name: 'New Flow' }).then(() => loadFlows()) }}
-                style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--accent-solid)', color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-            )}
-          </div>
-        </div>
-
-        {/* Flow list */}
-        {view === 'flows' && (
-          <div style={{ padding: '0 8px 4px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
-            {flows.map(f => (
-              <div key={f.id} onClick={() => setSelectedFlowId(f.id)}
-                style={{
-                  padding: '6px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
-                  marginBottom: 2, fontSize: 12,
-                  background: f.id === selectedFlowId ? 'var(--active-bg)' : 'transparent',
-                  borderLeft: f.id === selectedFlowId ? '3px solid var(--accent-2)' : '3px solid transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  color: f.id === selectedFlowId ? 'var(--active-text)' : 'var(--text)',
-                }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this flow?')) { vaultApi.deleteFlow(f.id).then(() => { loadFlows(); if (selectedFlowId === f.id) setSelectedFlowId(null) }) } }}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 11, cursor: 'pointer', padding: '0 2px', flexShrink: 0 }}>✕</button>
-              </div>
-            ))}
-            {flows.length === 0 && (
-              <div style={{ padding: 8, textAlign: 'center', color: 'var(--text-dim)', fontSize: 11 }}>No flows yet</div>
-            )}
-          </div>
-        )}
-
         {/* Snippet list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
           {snippets.map(s => {
@@ -646,6 +633,35 @@ export default function App() {
               <div
                 key={s.id}
                 onClick={() => { setSelectedId(s.id); setShowVarForm(false); setExecResult(null); setView('commands') }}
+                onContextMenu={e => {
+                  e.preventDefault()
+                  setCtxMenu({
+                    x: e.clientX, y: e.clientY,
+                    items: [
+                      { label: 'Expand', icon: '📖', onClick: () => { setSelectedId(s.id); setShowVarForm(true) } },
+                      { label: 'Edit', icon: '✏️', onClick: () => { setSelectedId(s.id); setShowEdit(true) } },
+                      { label: 'Quick Run', icon: '⚡', onClick: () => { setSelectedId(s.id) } },
+                      { label: 'Run in Terminal', icon: '🖥️', onClick: () => { setSelectedId(s.id) } },
+                      { label: 'Add to Flow', icon: '⚡', onClick: () => {
+                        if (!selectedFlowId) {
+                          vaultApi.createFlow({ name: `Flow: ${s.title}` }).then(flow => {
+                            loadFlows()
+                            setSelectedFlowId(flow.id)
+                            setPendingFlowCommand({ title: s.title, command: s.command })
+                            setView('flows')
+                          })
+                        } else {
+                          setPendingFlowCommand({ title: s.title, command: s.command })
+                          setView('flows')
+                        }
+                      }},
+                      { label: '', icon: '', divider: true, onClick: () => {} },
+                      { label: 'Copy command', icon: '📋', onClick: () => navigator.clipboard.writeText(s.command) },
+                      { label: '', icon: '', divider: true, onClick: () => {} },
+                      { label: 'Delete', icon: '🗑', danger: true, onClick: () => { if (confirm('Delete snippet?')) { vaultApi.deleteSnippet(s.id).then(() => { loadSnippets(); loadTags(); if (selectedId === s.id) setSelectedId(null) }) } } },
+                    ]
+                  })
+                }}
                 onMouseEnter={() => setHoveredSnippetId(s.id)}
                 onMouseLeave={() => setHoveredSnippetId(null)}
                 style={{
@@ -701,6 +717,102 @@ export default function App() {
               No snippets found
             </div>
           )}
+        </div>
+
+        {/* Flows section */}
+        <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{
+            padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
+              ⚡ Flows
+            </span>
+            <button onClick={() => vaultApi.createFlow({ name: 'New Flow' }).then(() => loadFlows())}
+              style={{ width: 18, height: 18, borderRadius: 4, background: 'var(--accent-solid)', color: '#fff', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+          </div>
+          <div style={{ maxHeight: 300, overflowY: 'auto', padding: '0 8px 8px' }}>
+            {flows.map(f => {
+              const isActive = f.id === selectedFlowId && view === 'flows'
+              const isEditing = f.id === editingFlowId
+              const thumb = flowThumbnail(f.graphJson)
+              return (
+                <div key={f.id}
+                  onClick={() => { if (!isEditing) { setSelectedFlowId(f.id); setView('flows'); setSelectedId(null) } }}
+                  onDoubleClick={() => { setEditingFlowId(f.id); setEditingFlowName(f.name) }}
+                  onContextMenu={e => {
+                    e.preventDefault()
+                    setCtxMenu({
+                      x: e.clientX, y: e.clientY,
+                      items: [
+                        { label: 'Rename', icon: '✏️', onClick: () => { setEditingFlowId(f.id); setEditingFlowName(f.name) } },
+                        { label: 'Delete', icon: '🗑', danger: true, onClick: () => { if (confirm('Delete this flow?')) { vaultApi.deleteFlow(f.id).then(() => { loadFlows(); if (selectedFlowId === f.id) setSelectedFlowId(null) }) } } },
+                      ]
+                    })
+                  }}
+                  style={{
+                    padding: '12px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
+                    marginBottom: 4,
+                    background: isActive ? 'var(--active-bg)' : 'transparent',
+                    borderLeft: isActive ? '3px solid var(--accent-2)' : '3px solid transparent',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                  }}>
+                  {/* Mini thumbnail */}
+                  <div style={{
+                    width: 56, height: 40, flexShrink: 0, borderRadius: 5,
+                    background: '#0a0914', border: '1px solid var(--border)',
+                    position: 'relative', overflow: 'hidden',
+                  }}>
+                    {thumb.map((dot, i) => (
+                      <div key={i} style={{
+                        position: 'absolute', left: dot.x, top: dot.y,
+                        width: 6, height: 4, borderRadius: 1.5,
+                        background: dot.color,
+                      }} />
+                    ))}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {isEditing ? (
+                      <input value={editingFlowName}
+                        onChange={e => setEditingFlowName(e.target.value)}
+                        onBlur={() => {
+                          if (editingFlowName.trim() && editingFlowName !== f.name) {
+                            vaultApi.updateFlow(f.id, { name: editingFlowName.trim() }).then(() => loadFlows())
+                          }
+                          setEditingFlowId(null)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                          if (e.key === 'Escape') setEditingFlowId(null)
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        autoFocus
+                        style={{ fontSize: 13, padding: '2px 6px', width: '100%', minWidth: 0 }}
+                      />
+                    ) : (
+                      <>
+                        <div style={{
+                          fontSize: 14, fontWeight: isActive ? 600 : 500,
+                          color: isActive ? 'var(--active-text)' : 'var(--text)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>{f.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 3 }}>
+                          {thumb.length} node{thumb.length !== 1 ? 's' : ''}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this flow?')) { vaultApi.deleteFlow(f.id).then(() => { loadFlows(); if (selectedFlowId === f.id) setSelectedFlowId(null) }) } }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 10, cursor: 'pointer', padding: '0 2px', flexShrink: 0, opacity: 0.4 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
+                  >✕</button>
+                </div>
+              )
+            })}
+            {flows.length === 0 && (
+              <div style={{ padding: 12, textAlign: 'center', color: 'var(--text-dim)', fontSize: 11, fontStyle: 'italic' }}>No flows yet</div>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -961,6 +1073,8 @@ export default function App() {
         )}
       </main>
 
+      {ctxMenu && <ContextMenu menu={ctxMenu} onClose={() => setCtxMenu(null)} />}
+
       {/* ── Modals ──────────────────────────────────────────────────────── */}
       {showCreate && (
         <Modal title="New Snippet" onClose={() => setShowCreate(false)}>
@@ -973,6 +1087,69 @@ export default function App() {
           <SnippetForm initial={selected} onSubmit={handleUpdate} onCancel={() => setShowEdit(false)} submitLabel="Save" />
         </Modal>
       )}
+    </div>
+  )
+}
+
+function ContextMenu({ menu, onClose }: {
+  menu: { x: number, y: number, items: Array<{label: string, icon?: string, shortcut?: string, danger?: boolean, disabled?: boolean, divider?: boolean, onClick: () => void}> },
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x: menu.x, y: menu.y })
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (ref.current) {
+        const rect = ref.current.getBoundingClientRect()
+        let x = menu.x, y = menu.y
+        if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 8
+        if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 8
+        setPos({ x, y })
+      }
+      setVisible(true)
+    })
+  }, [menu.x, menu.y])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', onClick, true)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick, true) }
+  }, [onClose])
+
+  return (
+    <div ref={ref} style={{
+      position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999,
+      background: '#1a1730', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8,
+      boxShadow: '0 8px 30px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)',
+      backdropFilter: 'blur(12px)', padding: '4px 0', minWidth: 180,
+      transform: visible ? 'scale(1)' : 'scale(0.95)',
+      opacity: visible ? 1 : 0,
+      transition: 'transform 120ms ease-out, opacity 120ms ease-out',
+      transformOrigin: 'top left',
+    }}>
+      {menu.items.map((item, i) => {
+        if (item.divider) return <div key={i} style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
+        return (
+          <div key={i}
+            onClick={(e) => { e.stopPropagation(); if (!item.disabled) { item.onClick(); onClose() } }}
+            style={{
+              padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: item.disabled ? 'default' : 'pointer',
+              fontSize: 12.5, color: item.danger ? '#f87171' : item.disabled ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.85)',
+              opacity: item.disabled ? 0.5 : 1,
+            }}
+            onMouseEnter={e => { if (!item.disabled) (e.currentTarget.style.background = 'rgba(255,255,255,0.06)') }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            {item.icon && <span style={{ fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>}
+            <span style={{ flex: 1 }}>{item.label}</span>
+            {item.shortcut && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginLeft: 16 }}>{item.shortcut}</span>}
+          </div>
+        )
+      })}
     </div>
   )
 }

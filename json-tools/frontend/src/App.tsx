@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DiffEntry, DiffResponse } from './api/jsonApi'
 import { jsonApi } from './api/jsonApi'
 
@@ -264,7 +264,27 @@ function computeLineDiff(leftJson: string, rightJson: string): LineDiff | null {
     }
 
     stack.reverse()
-    for (const [l, r, lh, rh] of stack) {
+
+    // Merge adjacent remove+add into "changed" when keys match
+    const merged: Array<[string, string, LineDiffType, LineDiffType]> = []
+    let si = 0
+    while (si < stack.length) {
+      const [l, r, lh, rh] = stack[si]
+      if (lh === 'removed' && si + 1 < stack.length && stack[si + 1][3] === 'added') {
+        const [, r2] = stack[si + 1]
+        const lKey = l.replace(/\s/g, '').split(':')[0]
+        const rKey = r2.replace(/\s/g, '').split(':')[0]
+        if (lKey && lKey === rKey) {
+          merged.push([l, r2, 'changed', 'changed'])
+          si += 2
+          continue
+        }
+      }
+      merged.push([l, r, lh, rh])
+      si++
+    }
+
+    for (const [l, r, lh, rh] of merged) {
       alignedLeft.push(l)
       alignedRight.push(r)
       leftHL.push(lh)
@@ -366,10 +386,7 @@ function DiffTab() {
               />
             </>
           ) : lineDiff ? (
-            <>
-              <DiffPane lines={lineDiff.leftLines} highlights={lineDiff.leftHighlights} label="Left" />
-              <DiffPane lines={lineDiff.rightLines} highlights={lineDiff.rightHighlights} label="Right" />
-            </>
+            <SyncedDiffPanes lineDiff={lineDiff} />
           ) : (
             <>
               <EditorPane
@@ -411,7 +428,34 @@ function DiffTab() {
   )
 }
 
-function DiffPane({ lines, highlights, label }: { lines: string[]; highlights: LineDiffType[]; label: string }) {
+function SyncedDiffPanes({ lineDiff }: { lineDiff: LineDiff }) {
+  const leftRef = useRef<HTMLDivElement>(null)
+  const rightRef = useRef<HTMLDivElement>(null)
+  const syncing = useRef(false)
+
+  const handleScroll = useCallback((source: 'left' | 'right') => {
+    if (syncing.current) return
+    syncing.current = true
+    const src = source === 'left' ? leftRef.current : rightRef.current
+    const tgt = source === 'left' ? rightRef.current : leftRef.current
+    if (src && tgt) {
+      tgt.scrollTop = src.scrollTop
+      tgt.scrollLeft = src.scrollLeft
+    }
+    requestAnimationFrame(() => { syncing.current = false })
+  }, [])
+
+  return (
+    <>
+      <DiffPane lines={lineDiff.leftLines} highlights={lineDiff.leftHighlights} label="Left"
+        scrollRef={leftRef} onScroll={() => handleScroll('left')} />
+      <DiffPane lines={lineDiff.rightLines} highlights={lineDiff.rightHighlights} label="Right"
+        scrollRef={rightRef} onScroll={() => handleScroll('right')} />
+    </>
+  )
+}
+
+function DiffPane({ lines, highlights, label, scrollRef, onScroll }: { lines: string[]; highlights: LineDiffType[]; label: string; scrollRef?: React.RefObject<HTMLDivElement | null>; onScroll?: () => void }) {
   const bgMap: Record<string, string> = {
     added: 'rgba(74, 222, 128, 0.1)',
     removed: 'rgba(248, 113, 113, 0.1)',
@@ -427,7 +471,7 @@ function DiffPane({ lines, highlights, label }: { lines: string[]; highlights: L
       }}>
         {label}
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', fontFamily: 'monospace', fontSize: 13, lineHeight: '20px' }}>
+      <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', fontFamily: 'monospace', fontSize: 13, lineHeight: '20px' }}>
         {lines.map((line, i) => {
           const hl = highlights[i]
           return (

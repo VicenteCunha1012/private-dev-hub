@@ -10,6 +10,8 @@ import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.sse.*
+import io.ktor.sse.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -42,6 +44,7 @@ fun Application.module() {
         anyHost()
     }
     install(DefaultHeaders)
+    install(SSE)
     install(StatusPages) {
         exception<IllegalArgumentException> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to (cause.message ?: "Bad request")))
@@ -93,6 +96,49 @@ fun Application.module() {
                 val stdout = process.inputStream.bufferedReader().readText().take(50_000)
                 val stderr = process.errorStream.bufferedReader().readText().take(10_000)
                 call.respond(ExecResult(exitCode = process.exitValue(), stdout = stdout, stderr = stderr))
+            }
+        }
+
+        sse("/exec/stream") {
+            val params = call.request.queryParameters
+            val command = params["command"] ?: ""
+            val workdir = params["workdir"]?.let { File(it) }?.takeIf { it.isDirectory } ?: File(System.getProperty("user.home"))
+            val timeout = (params["timeout"]?.toIntOrNull() ?: 30).coerceIn(1, 120).toLong()
+
+            if (command.isBlank()) {
+                send(ServerSentEvent(data = """{"type":"error","message":"No command provided"}"""))
+                return@sse
+            }
+
+            val process = ProcessBuilder("bash", "-c", command)
+                .directory(workdir)
+                .redirectErrorStream(true)
+                .start()
+
+            val reader = process.inputStream.bufferedReader()
+            val startTime = System.currentTimeMillis()
+
+            try {
+                var line = reader.readLine()
+                while (line != null) {
+                    val elapsed = System.currentTimeMillis() - startTime
+                    if (elapsed > timeout * 1000) {
+                        process.destroyForcibly()
+                        send(ServerSentEvent(data = """{"type":"error","message":"Timed out after ${timeout}s"}"""))
+                        break
+                    }
+                    val escaped = line.replace("\\", "\\\\").replace("\"", "\\\"")
+                    send(ServerSentEvent(data = """{"type":"stdout","line":"$escaped"}"""))
+                    line = reader.readLine()
+                }
+                process.waitFor(2, TimeUnit.SECONDS)
+                send(ServerSentEvent(data = """{"type":"done","exitCode":${process.exitValue()}}"""))
+            } catch (e: Exception) {
+                process.destroyForcibly()
+                val errMsg = (e.message ?: "Unknown error").replace("\\", "\\\\").replace("\"", "\\\"")
+                send(ServerSentEvent(data = """{"type":"error","message":"$errMsg"}"""))
+            } finally {
+                reader.close()
             }
         }
 
