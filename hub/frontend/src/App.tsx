@@ -257,16 +257,19 @@ function AppInner({ onActionRef }: { onActionRef: MutableRefObject<((entryLabel:
   const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => { rootRef.current?.focus() }, [])
 
-  // Shift to open spotlight
+  // Shift to open spotlight (suppress when modals/settings are open)
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Shift' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const tag = (e.target as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        if (showConfig || showAddEntry || showSpotlight) return
         setShowSpotlight(true)
       }
     }
     window.addEventListener('keyup', onKeyUp, true)
     return () => window.removeEventListener('keyup', onKeyUp, true)
-  }, [])
+  }, [showConfig, showAddEntry, showSpotlight])
 
   const postToIframe = useCallback((entryUrl: string, message: Record<string, unknown>) => {
     const send = () => {

@@ -16,6 +16,17 @@ const typeEmoji: Record<string, string> = {
 export default function EntryIcon({ entry, size = 20 }: EntryIconProps) {
   const [failed, setFailed] = useState(false)
 
+  if (entry.emoji) {
+    return (
+      <span style={{
+        width: size, height: size, display: 'inline-flex', alignItems: 'center',
+        justifyContent: 'center', fontSize: size * 0.85, flexShrink: 0, lineHeight: 1,
+      }}>
+        {entry.emoji}
+      </span>
+    )
+  }
+
   if (failed || !entry.url) {
     return (
       <span style={{

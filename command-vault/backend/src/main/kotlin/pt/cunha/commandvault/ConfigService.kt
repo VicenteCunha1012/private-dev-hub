@@ -57,7 +57,7 @@ class ConfigService(private val conn: Connection) {
 
     suspend fun exportDatabase(): String = withContext(Dispatchers.IO) {
         val sb = StringBuilder()
-        val tables = listOf("commandvault_config", "snippets")
+        val tables = listOf("commandvault_config", "snippets", "flows")
         for (table in tables) {
             val rs = conn.createStatement().executeQuery("SELECT * FROM $table")
             val meta = rs.metaData
@@ -81,6 +81,7 @@ class ConfigService(private val conn: Connection) {
 
     suspend fun importDatabase(sql: String) = withContext(Dispatchers.IO) {
         conn.createStatement().use { stmt ->
+            stmt.executeUpdate("DELETE FROM flows")
             stmt.executeUpdate("DELETE FROM snippets")
             stmt.executeUpdate("DELETE FROM commandvault_config")
         }

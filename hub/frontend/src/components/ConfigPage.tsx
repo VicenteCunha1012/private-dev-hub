@@ -618,6 +618,7 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
   const [folderId, setFolderId] = useState<number | undefined>(entry?.folderId)
   const [workdir, setWorkdir] = useState(entry?.workdir ?? '')
   const [command, setCommand] = useState(entry?.command ?? '')
+  const [emoji, setEmoji] = useState(entry?.emoji ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -631,17 +632,17 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
         const session = await ttydApi.create(label, workdir || '/root', command)
         await api.createEntry({
           label, url: session.url, type, folderId, position: 0,
-          workdir: workdir || '/root', command,
+          workdir: workdir || '/root', command, emoji: emoji || undefined,
         })
       } else if (entry) {
         await api.updateEntry(entry.id, {
           label,
           url: type === 'tui' ? entry.url : (url || undefined),
-          type, folderId,
+          type, folderId, emoji: emoji || undefined,
           ...(type === 'tui' ? { workdir: workdir || undefined, command: command || undefined } : {}),
         })
       } else {
-        await api.createEntry({ label, url: url || undefined, type, folderId, position: 0 })
+        await api.createEntry({ label, url: url || undefined, type, folderId, position: 0, emoji: emoji || undefined })
       }
       await onSave()
     } catch (e) {
@@ -658,9 +659,14 @@ function EntryModal({ folders, entry, onClose, onSave }: EntryModalProps) {
             {error}
           </div>
         )}
-        <Field label="Label">
-          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="My Service" autoFocus required />
-        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12 }}>
+          <Field label="Label">
+            <input value={label} onChange={e => setLabel(e.target.value)} placeholder="My Service" autoFocus required />
+          </Field>
+          <Field label="Emoji">
+            <input value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="🔧" style={{ width: 52, textAlign: 'center', fontSize: 18 }} maxLength={4} />
+          </Field>
+        </div>
 
         {type === 'tui' ? (
           <>

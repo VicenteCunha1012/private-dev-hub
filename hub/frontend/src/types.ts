@@ -9,6 +9,7 @@ export interface Entry {
   position: number
   workdir?: string
   command?: string
+  emoji?: string
 }
 
 export interface Folder {

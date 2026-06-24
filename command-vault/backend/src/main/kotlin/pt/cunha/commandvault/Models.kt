@@ -30,6 +30,27 @@ data class UpdateSnippetRequest(
 )
 
 @Serializable
+data class Flow(
+    val id: Int,
+    val name: String,
+    val graphJson: String,
+    val createdAt: String,
+    val updatedAt: String
+)
+
+@Serializable
+data class CreateFlowRequest(
+    val name: String,
+    val graphJson: String? = null
+)
+
+@Serializable
+data class UpdateFlowRequest(
+    val name: String? = null,
+    val graphJson: String? = null
+)
+
+@Serializable
 data class VaultConfig(
     val pgDumpPath: String,
     val psqlPath: String,

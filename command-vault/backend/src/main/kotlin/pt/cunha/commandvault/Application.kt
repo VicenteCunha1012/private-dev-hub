@@ -17,6 +17,7 @@ fun Application.module() {
 
     val configService = ConfigService(db.connection)
     val snippetService = SnippetService(db.connection)
+    val flowService = FlowService(db.connection)
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false })
@@ -55,5 +56,6 @@ fun Application.module() {
         healthRoutes()
         configRoutes(configService)
         snippetRoutes(snippetService)
+        flowRoutes(flowService)
     }
 }

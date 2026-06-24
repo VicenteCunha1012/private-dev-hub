@@ -35,7 +35,8 @@ data class Entry(
     val folderId: Int? = null,
     val position: Int,
     val workdir: String? = null,
-    val command: String? = null
+    val command: String? = null,
+    val emoji: String? = null
 )
 
 @Serializable
@@ -46,7 +47,8 @@ data class CreateEntryRequest(
     val folderId: Int? = null,
     val position: Int = 0,
     val workdir: String? = null,
-    val command: String? = null
+    val command: String? = null,
+    val emoji: String? = null
 )
 
 @Serializable
@@ -57,7 +59,8 @@ data class UpdateEntryRequest(
     val folderId: Int? = null,
     val position: Int? = null,
     val workdir: String? = null,
-    val command: String? = null
+    val command: String? = null,
+    val emoji: String? = null
 )
 
 @Serializable

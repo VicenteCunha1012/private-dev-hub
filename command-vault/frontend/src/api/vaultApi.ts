@@ -22,6 +22,24 @@ export interface UpdateSnippetRequest {
   tags?: string
 }
 
+export interface Flow {
+  id: number
+  name: string
+  graphJson: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateFlowRequest {
+  name: string
+  graphJson?: string
+}
+
+export interface UpdateFlowRequest {
+  name?: string
+  graphJson?: string
+}
+
 export interface VaultConfig {
   pgDumpPath: string
   psqlPath: string
@@ -83,4 +101,17 @@ export const vaultApi = {
   deleteSnippet: (id: number): Promise<void> =>
     req(`/snippets/${id}`, { method: 'DELETE' }),
   getTags: (): Promise<string[]> => req('/snippets/tags'),
+
+  // Flows
+  getFlows: (search?: string): Promise<Flow[]> => {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : ''
+    return req(`/flows${qs}`)
+  },
+  getFlow: (id: number): Promise<Flow> => req(`/flows/${id}`),
+  createFlow: (data: CreateFlowRequest): Promise<Flow> =>
+    req('/flows', { method: 'POST', body: JSON.stringify(data) }),
+  updateFlow: (id: number, data: UpdateFlowRequest): Promise<Flow> =>
+    req(`/flows/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFlow: (id: number): Promise<void> =>
+    req(`/flows/${id}`, { method: 'DELETE' }),
 }

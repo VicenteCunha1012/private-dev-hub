@@ -95,3 +95,45 @@ fun Routing.snippetRoutes(snippetService: SnippetService) {
         }
     }
 }
+
+fun Routing.flowRoutes(flowService: FlowService) {
+    route("/flows") {
+        get {
+            val search = call.request.queryParameters["search"]
+            call.respond(flowService.getAll(search))
+        }
+
+        post {
+            val req = call.receive<CreateFlowRequest>()
+            val flow = flowService.create(req)
+            call.respond(HttpStatusCode.Created, flow)
+        }
+
+        get("/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+                ?: throw IllegalArgumentException("Invalid flow id")
+            val flow = flowService.getById(id)
+                ?: throw NoSuchElementException("Flow not found")
+            call.respond(flow)
+        }
+
+        put("/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+                ?: throw IllegalArgumentException("Invalid flow id")
+            val req = call.receive<UpdateFlowRequest>()
+            val updated = flowService.update(id, req)
+                ?: throw NoSuchElementException("Flow not found")
+            call.respond(updated)
+        }
+
+        delete("/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+                ?: throw IllegalArgumentException("Invalid flow id")
+            if (flowService.delete(id)) {
+                call.respond(HttpStatusCode.NoContent)
+            } else {
+                throw NoSuchElementException("Flow not found")
+            }
+        }
+    }
+}

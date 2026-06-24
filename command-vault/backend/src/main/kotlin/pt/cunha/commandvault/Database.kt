@@ -51,6 +51,15 @@ class Database(private val config: ApplicationConfig) {
                     updated_at TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS flows (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    graph_json TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
         }
         // Seed default config
         val configStmt = connection.prepareStatement(

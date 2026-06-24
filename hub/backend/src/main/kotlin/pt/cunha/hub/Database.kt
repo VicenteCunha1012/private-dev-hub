@@ -40,6 +40,7 @@ class Database(private val config: ApplicationConfig) {
             """)
             stmt.executeUpdate("ALTER TABLE entries ADD COLUMN IF NOT EXISTS workdir TEXT")
             stmt.executeUpdate("ALTER TABLE entries ADD COLUMN IF NOT EXISTS command TEXT")
+            stmt.executeUpdate("ALTER TABLE entries ADD COLUMN IF NOT EXISTS emoji VARCHAR(10)")
             stmt.executeUpdate("ALTER TABLE folders ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES folders(id) ON DELETE SET NULL")
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS entry_icons (
@@ -84,88 +85,36 @@ class Database(private val config: ApplicationConfig) {
         val obsId = insertFolder("Observabilidade", 2)
 
         val entryStmt = connection.prepareStatement(
-            "INSERT INTO entries (label, url, type, folder_id, position) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO entries (label, url, type, folder_id, position, emoji) VALUES (?, ?, ?, ?, ?, ?)"
         )
 
-        fun insertEntry(label: String, url: String, folderId: Int, position: Int) {
+        fun insertEntry(label: String, url: String, type: String, folderId: Int, position: Int, emoji: String? = null) {
             entryStmt.setString(1, label)
             entryStmt.setString(2, url)
-            entryStmt.setString(3, "redirect")
+            entryStmt.setString(3, type)
             entryStmt.setInt(4, folderId)
             entryStmt.setInt(5, position)
+            entryStmt.setString(6, emoji)
             entryStmt.executeUpdate()
         }
 
         val toolsId = insertFolder("Tools", 3)
 
-        insertEntry("Portainer", "https://localhost:9443", infraId, 0)
-        insertEntry("GitLab", "https://gitlab.example.com", devId, 0)
-        insertEntry("Confluence", "https://example.atlassian.net/wiki", devId, 1)
-        insertEntry("Jira", "https://example.atlassian.net", devId, 2)
-        insertEntry("Grafana", "https://grafana.example.com", obsId, 0)
+        insertEntry("Portainer", "https://localhost:9443", "redirect", infraId, 0, "🐳")
+        insertEntry("GitLab", "https://gitlab.example.com", "redirect", devId, 0, "🦊")
+        insertEntry("Confluence", "https://example.atlassian.net/wiki", "redirect", devId, 1, "📖")
+        insertEntry("Jira", "https://example.atlassian.net", "redirect", devId, 2, "📋")
+        insertEntry("Grafana", "https://grafana.example.com", "redirect", obsId, 0, "📊")
 
-        entryStmt.setString(1, "Kafbat+")
-        entryStmt.setString(2, "http://localhost:10301")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 0)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "AI Sessions")
-        entryStmt.setString(2, "http://localhost:10302")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 1)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "JSON Tools")
-        entryStmt.setString(2, "http://localhost:10306")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 2)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "Mock Generator")
-        entryStmt.setString(2, "http://localhost:10308")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 3)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "Command Vault")
-        entryStmt.setString(2, "http://localhost:10309")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 4)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "Port Radar")
-        entryStmt.setString(2, "http://localhost:10310")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 5)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "Health Dashboard")
-        entryStmt.setString(2, "http://localhost:10311")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 6)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "Todo")
-        entryStmt.setString(2, "http://localhost:10312")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 7)
-        entryStmt.executeUpdate()
-
-        entryStmt.setString(1, "Secrets Vault")
-        entryStmt.setString(2, "http://localhost:10314")
-        entryStmt.setString(3, "tool")
-        entryStmt.setInt(4, toolsId)
-        entryStmt.setInt(5, 8)
-        entryStmt.executeUpdate()
+        insertEntry("Kafbat+", "http://localhost:10301", "tool", toolsId, 0, "📨")
+        insertEntry("AI Sessions", "http://localhost:10302", "tool", toolsId, 1, "🤖")
+        insertEntry("JSON Tools", "http://localhost:10306", "tool", toolsId, 2, "🔧")
+        insertEntry("Mock Generator", "http://localhost:10308", "tool", toolsId, 3, "🎲")
+        insertEntry("Command Vault", "http://localhost:10309", "tool", toolsId, 4, "💻")
+        insertEntry("Port Radar", "http://localhost:10310", "tool", toolsId, 5, "🛰️")
+        insertEntry("Health Dashboard", "http://localhost:10311", "tool", toolsId, 6, "💚")
+        insertEntry("Todo", "http://localhost:10312", "tool", toolsId, 7, "✅")
+        insertEntry("Secrets Vault", "http://localhost:10314", "tool", toolsId, 8, "🔐")
 
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"

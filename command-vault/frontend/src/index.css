@@ -94,3 +94,13 @@ a { color: var(--accent); text-decoration: none; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2a2440; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3d3660; }
+
+/* React Flow overrides */
+.react-flow__handle { width: 12px !important; height: 12px !important; border: 2px solid #0a0812 !important; }
+.flow-handle { background: #fbbf24 !important; border-radius: 2px !important; }
+.data-handle { background: #ec4899 !important; border-radius: 50% !important; }
+.data-handle-green { background: #4ade80 !important; border-radius: 50% !important; }
+.data-handle-blue { background: #38bdf8 !important; border-radius: 50% !important; }
+.react-flow__controls-button { background: var(--card-bg) !important; border-color: var(--border) !important; fill: var(--text-muted) !important; }
+.react-flow__controls-button:hover { background: var(--card-hover) !important; }
+.react-flow__minimap { background: var(--bg) !important; }

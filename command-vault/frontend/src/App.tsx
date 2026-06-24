@@ -1,38 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { vaultApi, type Snippet, type CreateSnippetRequest, type UpdateSnippetRequest } from './api/vaultApi'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { vaultApi, type Snippet, type Flow, type CreateSnippetRequest, type UpdateSnippetRequest } from './api/vaultApi'
+import { parseVariables, substituteVariables, type VarDef } from './lib/variables'
 
-// ── Variable parsing ─────────────────────────────────────────────────────────
-
-interface VarDef {
-  name: string
-  type: 'text' | 'file'
-}
-
-function parseVariables(command: string): VarDef[] {
-  const matches = command.match(/\{(?:file:)?\w+\}/g)
-  if (!matches) return []
-  const seen = new Set<string>()
-  const vars: VarDef[] = []
-  for (const m of matches) {
-    const inner = m.slice(1, -1)
-    const isFile = inner.startsWith('file:')
-    const name = isFile ? inner.slice(5) : inner
-    if (!seen.has(name)) {
-      seen.add(name)
-      vars.push({ name, type: isFile ? 'file' : 'text' })
-    }
-  }
-  return vars
-}
-
-function substituteVariables(command: string, values: Record<string, string>): string {
-  let result = command
-  for (const [key, val] of Object.entries(values)) {
-    result = result.replaceAll(`{file:${key}}`, val)
-    result = result.replaceAll(`{${key}}`, val)
-  }
-  return result
-}
+const FlowEditor = lazy(() => import('./components/FlowEditor'))
 
 const VAR_HISTORY_KEY = 'command-vault-var-history'
 
@@ -362,10 +332,15 @@ function SnippetForm({ initial, onSubmit, onCancel, submitLabel }: {
 // ── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [view, setView] = useState<'commands' | 'flows'>('commands')
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
+  const [flows, setFlows] = useState<Flow[]>([])
+  const [selectedFlowId, setSelectedFlowId] = useState<number | null>(null)
+  const [pendingFlowCommand, setPendingFlowCommand] = useState<{ title: string; command: string } | undefined>(undefined)
+  const [hoveredSnippetId, setHoveredSnippetId] = useState<number | null>(null)
 
   // Spotlight deep-link
   useEffect(() => {
@@ -411,8 +386,13 @@ export default function App() {
     } catch { /* ignore */ }
   }, [])
 
+  const loadFlows = useCallback(async () => {
+    try { setFlows(await vaultApi.getFlows()) } catch { /* ignore */ }
+  }, [])
+
   useEffect(() => { loadSnippets() }, [loadSnippets])
   useEffect(() => { loadTags() }, [loadTags])
+  useEffect(() => { loadFlows() }, [loadFlows])
 
   const handleCreate = useCallback(async (data: CreateSnippetRequest | UpdateSnippetRequest) => {
     try {
@@ -476,6 +456,7 @@ export default function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
+      if (view === 'flows') return
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (e.key === 'f') { e.preventDefault(); searchRef.current?.focus() }
@@ -504,7 +485,7 @@ export default function App() {
     }
     document.addEventListener('keydown', handle, true)
     return () => document.removeEventListener('keydown', handle, true)
-  }, [snippets, showVarForm, handleExpand])
+  }, [snippets, showVarForm, handleExpand, view])
 
   const [terminalUrl, setTerminalUrl] = useState<string | null>(null)
 
@@ -611,6 +592,50 @@ export default function App() {
           </select>
         </div>
 
+        {/* Flows toggle */}
+        <div style={{ padding: '0 8px 4px' }}>
+          <div
+            onClick={() => { setView(v => v === 'flows' ? 'commands' : 'flows'); if (view === 'commands') setSelectedId(null) }}
+            style={{
+              padding: '8px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
+              background: view === 'flows' ? 'var(--active-bg)' : 'transparent',
+              borderLeft: view === 'flows' ? '3px solid var(--accent)' : '3px solid transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              fontWeight: 600, fontSize: 13, color: view === 'flows' ? 'var(--active-text)' : 'var(--text-muted)',
+            }}
+          >
+            <span>⚡ Flows</span>
+            {view === 'flows' && (
+              <button onClick={(e) => { e.stopPropagation(); vaultApi.createFlow({ name: 'New Flow' }).then(() => loadFlows()) }}
+                style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--accent-solid)', color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+            )}
+          </div>
+        </div>
+
+        {/* Flow list */}
+        {view === 'flows' && (
+          <div style={{ padding: '0 8px 4px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+            {flows.map(f => (
+              <div key={f.id} onClick={() => setSelectedFlowId(f.id)}
+                style={{
+                  padding: '6px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
+                  marginBottom: 2, fontSize: 12,
+                  background: f.id === selectedFlowId ? 'var(--active-bg)' : 'transparent',
+                  borderLeft: f.id === selectedFlowId ? '3px solid var(--accent-2)' : '3px solid transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  color: f.id === selectedFlowId ? 'var(--active-text)' : 'var(--text)',
+                }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this flow?')) { vaultApi.deleteFlow(f.id).then(() => { loadFlows(); if (selectedFlowId === f.id) setSelectedFlowId(null) }) } }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 11, cursor: 'pointer', padding: '0 2px', flexShrink: 0 }}>✕</button>
+              </div>
+            ))}
+            {flows.length === 0 && (
+              <div style={{ padding: 8, textAlign: 'center', color: 'var(--text-dim)', fontSize: 11 }}>No flows yet</div>
+            )}
+          </div>
+        )}
+
         {/* Snippet list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
           {snippets.map(s => {
@@ -620,10 +645,12 @@ export default function App() {
             return (
               <div
                 key={s.id}
-                onClick={() => { setSelectedId(s.id); setShowVarForm(false); setExecResult(null) }}
+                onClick={() => { setSelectedId(s.id); setShowVarForm(false); setExecResult(null); setView('commands') }}
+                onMouseEnter={() => setHoveredSnippetId(s.id)}
+                onMouseLeave={() => setHoveredSnippetId(null)}
                 style={{
                   padding: '10px 10px', borderRadius: 'var(--radius)', cursor: 'pointer',
-                  marginBottom: 2,
+                  marginBottom: 2, position: 'relative',
                   background: isActive ? 'var(--active-bg)' : 'transparent',
                   borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
                 }}
@@ -638,6 +665,33 @@ export default function App() {
                   <div style={{ marginTop: 4 }}>
                     {snippetTags.map(t => <TagBadge key={t} tag={t} />)}
                   </div>
+                )}
+                {hoveredSnippetId === s.id && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!selectedFlowId) {
+                        vaultApi.createFlow({ name: `Flow: ${s.title}` }).then(flow => {
+                          loadFlows()
+                          setSelectedFlowId(flow.id)
+                          setPendingFlowCommand({ title: s.title, command: s.command })
+                          setView('flows')
+                        })
+                      } else {
+                        setPendingFlowCommand({ title: s.title, command: s.command })
+                        setView('flows')
+                      }
+                    }}
+                    style={{
+                      position: 'absolute', top: 6, right: 6,
+                      background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)',
+                      color: '#fbbf24', borderRadius: 4, padding: '2px 6px',
+                      fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                    }}
+                    title="Add to flow"
+                  >
+                    ⚡ Flow
+                  </button>
                 )}
               </div>
             )
@@ -661,14 +715,27 @@ export default function App() {
           </div>
         )}
 
-        {!selected && !error && (
+        {view === 'flows' && selectedFlowId && (
+          <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>Loading editor...</div>}>
+            <FlowEditor flowId={selectedFlowId} initialCommand={pendingFlowCommand} />
+          </Suspense>
+        )}
+
+        {view === 'flows' && !selectedFlowId && !error && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--text-dim)' }}>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>⚡</div>
+            <div style={{ fontSize: 14 }}>Select a flow or create a new one</div>
+          </div>
+        )}
+
+        {view === 'commands' && !selected && !error && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--text-dim)' }}>
             <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>&gt;_</div>
             <div style={{ fontSize: 14 }}>Select a snippet or create a new one</div>
           </div>
         )}
 
-        {selected && (
+        {view === 'commands' && selected && (
           <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>

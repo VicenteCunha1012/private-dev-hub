@@ -23,7 +23,7 @@ class FolderService(private val conn: Connection) {
         folders.forEach { entryMap[it.id] = mutableListOf() }
 
         conn.prepareStatement(
-            "SELECT id, label, url, type, folder_id, position, workdir, command FROM entries WHERE folder_id IS NOT NULL ORDER BY position, id"
+            "SELECT id, label, url, type, folder_id, position, workdir, command, emoji FROM entries WHERE folder_id IS NOT NULL ORDER BY position, id"
         ).executeQuery().use { rs ->
             while (rs.next()) {
                 val fid = rs.getInt("folder_id")
@@ -37,7 +37,8 @@ class FolderService(private val conn: Connection) {
                             folderId = fid,
                             position = rs.getInt("position"),
                             workdir = rs.getString("workdir"),
-                            command = rs.getString("command")
+                            command = rs.getString("command"),
+                            emoji = rs.getString("emoji")
                         )
                     )
                 }
