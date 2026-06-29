@@ -1,7 +1,8 @@
 FROM gradle:8.12-jdk21 AS build
 WORKDIR /app
-COPY . .
-RUN gradle shadowJar --no-daemon -x test
+COPY dev-hub-core/ /dev-hub-core/
+COPY secrets-vault/backend/ .
+RUN sed -i 's|../../dev-hub-core|/dev-hub-core|' settings.gradle.kts && gradle shadowJar --no-daemon -x test
 
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app

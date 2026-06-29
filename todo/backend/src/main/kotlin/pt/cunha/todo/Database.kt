@@ -1,39 +1,11 @@
 package pt.cunha.todo
 
 import io.ktor.server.config.*
-import java.sql.Connection
-import java.sql.DriverManager
+import pt.cunha.core.BaseDatabase
 
-class Database(private val config: ApplicationConfig) {
+class Database(config: ApplicationConfig) : BaseDatabase(config) {
 
-    lateinit var connection: Connection
-        private set
-
-    fun init() {
-        Class.forName("org.postgresql.Driver")
-        val url = config.property("postgres.url").getString()
-        val user = config.property("postgres.user").getString()
-        val password = config.property("postgres.password").getString()
-        connection = connectWithRetry(url, user, password)
-        createSchema()
-        seedDefaults()
-    }
-
-    private fun connectWithRetry(url: String, user: String, password: String): Connection {
-        var lastException: Exception? = null
-        repeat(30) { attempt ->
-            try {
-                return DriverManager.getConnection(url, user, password)
-            } catch (e: Exception) {
-                lastException = e
-                println("DB connection attempt ${attempt + 1}/30 failed: ${e.message}")
-                Thread.sleep(2000)
-            }
-        }
-        throw lastException ?: IllegalStateException("Could not connect to database")
-    }
-
-    private fun createSchema() {
+    override fun createSchema() {
         connection.createStatement().use { stmt ->
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS todo_config (
@@ -69,6 +41,7 @@ class Database(private val config: ApplicationConfig) {
                 )
             """)
         }
+        seedDefaults()
     }
 
     private fun seedDefaults() {
@@ -76,15 +49,9 @@ class Database(private val config: ApplicationConfig) {
             rs.next(); rs.getInt(1)
         }
         if (count == 0) {
-            val stmt = connection.prepareStatement(
-                "INSERT INTO lists (name, icon, color, position) VALUES (?, ?, ?, ?)"
-            )
+            val stmt = connection.prepareStatement("INSERT INTO lists (name, icon, color, position) VALUES (?, ?, ?, ?)")
             fun insertList(name: String, icon: String, color: String, position: Int) {
-                stmt.setString(1, name)
-                stmt.setString(2, icon)
-                stmt.setString(3, color)
-                stmt.setInt(4, position)
-                stmt.executeUpdate()
+                stmt.setString(1, name); stmt.setString(2, icon); stmt.setString(3, color); stmt.setInt(4, position); stmt.executeUpdate()
             }
             insertList("My Day", "☀️", "#f59e0b", 0)
             insertList("Important", "⭐", "#ef4444", 1)

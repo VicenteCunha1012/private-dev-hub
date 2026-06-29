@@ -1,0 +1,6 @@
+ktor:
+  deployment:
+    port: 10416
+  application:
+    modules:
+      - pt.cunha.utils.ApplicationKt.module

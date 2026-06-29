@@ -34,33 +34,17 @@ data class ClusterRequest(
 
 fun Routing.configRoutes(configService: ConfigService) {
     route("/config") {
-        get {
-            call.respond(configService.getAll())
-        }
+        get { call.respond(configService.getAll()) }
         post {
             val req = call.receive<ConfigUpdateRequest>()
             req.brokers?.let { configService.set("brokers", it) }
             req.defaultLimit?.let { configService.set("default_limit", it) }
             call.respond(configService.getAll())
         }
-        get("/export") {
-            call.respond(configService.getAll())
-        }
+        get("/export") { call.respond(configService.getAll()) }
         post("/import") {
             val data = call.receive<Map<String, String>>()
             data.forEach { (k, v) -> configService.set(k, v) }
-            call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
-        }
-    }
-
-    route("/db") {
-        get("/export") {
-            val dump = configService.exportDatabase()
-            call.respondText(dump, ContentType.Text.Plain)
-        }
-        post("/import") {
-            val sql = call.receiveText()
-            configService.importDatabase(sql)
             call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
         }
     }

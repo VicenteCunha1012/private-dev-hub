@@ -35,15 +35,21 @@ Each module is fully self-contained: its own Dockerfile, its own Postgres DB (if
 
 | Module | Frontend | Backend | DB | Notes |
 |---|---|---|---|---|
-| Hub | 10300 | 10303 | 10403 | Shell with sidebar + iframes + backup scheduler |
+| Hub | 10300 | 10303 | 10403 | Shell with sidebar + iframes + backup scheduler + PWA |
 | Kafbat+ | 10301 | 10401 | 10501 | Kafka UI |
 | AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` + `~/.local/share/opencode/opencode.db` from host |
-| JSON Tools | 10306 | 10406 | — | Stateless |
+| JSON Tools | 10306 | 10406 | — | Stateless, synced diff scrolling |
 | Mock Data Generator | 10308 | 10408 | 10508 | AI-inferred specs + Python generator |
-| Command Vault | 10309 | 10409 | 10509 | Snippet manager with {variable} substitution |
+| Command Vault | 10309 | 10409 | 10509 | Snippets + Flows (React Flow node editor) |
 | Port Radar | 10310 | 10410 | — | Reads host /proc/net, stateless |
 | Health Dashboard | 10311 | 10411 | — | Proxies /health checks, stateless |
-| ttyd Manager | — | 10600 | — | Runs on host, not in Docker |
+| Todo | 10312 | 10412 | 10512 | Lists, subtasks, priorities, tags |
+| Arcade | 10313 | 10413 | 10513 | 15 browser games, coin system |
+| Secrets Vault | 10314 | 10414 | 10514 | Zero-knowledge encrypted credentials (AES-256-GCM) |
+| Git History | 10315 | 10415 | — | Stateless, shells out to git |
+| Dev Utils | 10316 | 10416 | — | Stateless utility aggregator |
+| AI Memory | 10317 | 10417 | 10517 | Handoffs + decisions + MCP server |
+| ttyd Manager | — | 10600 | — | Runs on host, SSE streaming, TUI dedup |
 | ttyd TUI sessions | — | — | — | 10604–10620 dynamic |
 
 All Docker ports bind to `127.0.0.1` only. Frontends are served via nginx on port 80 inside the container, mapped to `103xx` on the host.
@@ -62,6 +68,16 @@ dev-hub/
 ├── docs/
 │   └── dev_info.md                 # This file
 ├── initial_prompt.md               # Original design spec (Portuguese)
+│
+├── dev-hub-core/                   # Shared Kotlin library (JAR, not a server)
+│   ├── src/main/kotlin/pt/cunha/core/
+│   │   ├── BaseDatabase.kt        # Connection retry, postgres config, abstract createSchema()
+│   │   ├── BaseConfigService.kt   # Key-value config CRUD, DB export/import
+│   │   ├── DbExportImport.kt      # Generic table export (SELECT→INSERT) and import
+│   │   ├── StandardPlugins.kt     # installStandardPlugins() — CORS, JSON, StatusPages, etc.
+│   │   └── StandardRoutes.kt      # healthRoutes(), configDbRoutes() — /health, /db/export, /db/import
+│   ├── build.gradle.kts           # Library with api() deps (all shared ktor/postgres/logback)
+│   └── settings.gradle.kts        # Ktor version catalog 3.5.0
 │
 ├── hub/
 │   ├── frontend/                   # React + Vite
@@ -240,10 +256,35 @@ dev-hub/
 │       │   └── Application.kt     # Parallel health checks via Ktor client, in-memory config
 │       └── Dockerfile
 │
+├── todo/
+│   ├── frontend/                   # React + Vite — port 10312
+│   └── backend/                    # Ktor — port 10412 + PostgreSQL 10512
+│
+├── arcade/
+│   ├── frontend/                   # React + Vite — port 10313 (15 browser games)
+│   └── backend/                    # Ktor — port 10413 + PostgreSQL 10513
+│
+├── secrets-vault/
+│   ├── frontend/                   # React + Vite — port 10314 (Web Crypto AES-256-GCM)
+│   └── backend/                    # Ktor — port 10414 + PostgreSQL 10514
+│
+├── git-history/
+│   ├── frontend/                   # React + Vite — port 10315
+│   └── backend/                    # Ktor — port 10415 (stateless, git shell-out)
+│
+├── utils/
+│   ├── frontend/                   # React + Vite — port 10316
+│   └── backend/                    # Ktor — port 10416 (stateless)
+│
+├── ai-memory/
+│   ├── frontend/                   # React + Vite — port 10317
+│   ├── backend/                    # Ktor — port 10417 + PostgreSQL 10517
+│   └── mcp-server/                # Node.js MCP server for Claude Code / OpenCode
+│
 ├── ttyd-manager/                  # Runs NATIVELY on host, not in Docker
 │   ├── src/main/kotlin/pt/cunha/ttydmanager/
-│   │   ├── Application.kt        # Ktor server on port 10600
-│   │   └── TuiManager.kt         # Process spawning, port pool 10604-10620, cleanup
+│   │   ├── Application.kt        # Ktor server on port 10600 + SSE streaming endpoint
+│   │   └── TuiManager.kt         # Process spawning, port pool 10604-10620, dedup, cleanup
 │   ├── build.gradle.kts
 │   ├── Dockerfile                 # Exists but unused — kept for reference
 │   └── settings.gradle.kts
@@ -297,9 +338,54 @@ Seed: `groq_api_key=` (empty), `groq_model=llama-3.3-70b-versatile`, `faker_loca
 commandvault_config (key VARCHAR(255) PK, value TEXT)
 snippets (id SERIAL PK, title VARCHAR(255), command TEXT NOT NULL, description TEXT,
           tags TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())
+flows (id SERIAL PK, name VARCHAR(255), graph_json TEXT DEFAULT '{"nodes":[],"edges":[]}',
+       created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())
 ```
 
-Tags are stored as comma-separated strings. Search uses ILIKE on title, command, and description. Tag filter uses ILIKE on the tags column.
+Tags stored as comma-separated strings. Flows stored as opaque JSON blobs (React Flow node/edge arrays).
+
+### Secrets Vault DB (port 10514, db: secretsvault, user: secretsvault)
+
+```sql
+secretsvault_config (key VARCHAR(255) PK, value TEXT)
+secrets (id SERIAL PK, label VARCHAR(255), category VARCHAR(255), tags TEXT,
+         iv TEXT NOT NULL, ciphertext TEXT NOT NULL,
+         created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())
+```
+
+Crypto config stored in config table: `kdf_salt`, `verify_salt`, `verifier`, `iterations`. All secret values are AES-256-GCM encrypted blobs. Labels/categories/tags are plaintext for search.
+
+### Arcade DB (port 10513, db: arcade, user: arcade)
+
+```sql
+arcade_config (key VARCHAR(255) PK, value TEXT)
+coins (id SERIAL PK, amount INT, source VARCHAR(50), earned_at TIMESTAMPTZ)
+scores (id SERIAL PK, game_id VARCHAR(50), score INT, duration_seconds INT, won BOOLEAN, played_at TIMESTAMPTZ)
+play_sessions (id VARCHAR(50) PK, offered_games TEXT, chosen_game VARCHAR(50), coin_consumed BOOLEAN, created_at TIMESTAMPTZ)
+```
+
+### Todo DB (port 10512, db: todo, user: todo)
+
+```sql
+todo_config (key VARCHAR(255) PK, value TEXT)
+lists (id SERIAL PK, name VARCHAR(255), color VARCHAR(20), icon VARCHAR(10), position INT, parent_id INT FK, created_at TIMESTAMPTZ)
+tasks (id SERIAL PK, list_id INT FK→lists, title TEXT, notes TEXT, completed BOOLEAN, priority INT, due_date DATE, tags TEXT, position INT, parent_id INT FK, created_at TIMESTAMPTZ, completed_at TIMESTAMPTZ)
+```
+
+### AI Memory DB (port 10517, db: aimemory, user: aimemory)
+
+```sql
+aimemory_config (key VARCHAR(255) PK, value TEXT)
+handoffs (id SERIAL PK, project VARCHAR(255), context VARCHAR(255) DEFAULT 'default',
+          content TEXT, tool VARCHAR(50),
+          created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())
+decisions (id SERIAL PK, title VARCHAR(500), description TEXT, reasoning TEXT,
+           alternatives TEXT, tags TEXT, project VARCHAR(255),
+           mr_link TEXT, ticket_link TEXT, tool VARCHAR(50),
+           created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())
+```
+
+Handoffs are upserted by project+context (same project+context updates existing). Decisions have full CRUD. Tags stored as comma-separated strings.
 
 ---
 
@@ -452,6 +538,59 @@ Tags are stored as comma-separated strings. Search uses ILIKE on title, command,
 | POST | /exec | Execute command `{command, workdir?, timeoutSeconds?}` → `{exitCode, stdout, stderr, timedOut}` |
 | GET | /files | List directory `?path=/home/user` → `{path, entries: [{name, path, isDir}]}` |
 
+### Git History Backend (10415)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /health | Health check |
+| GET | /config | Get config (directories, traceDepth) |
+| POST | /config | Update config `{directories: [...]}` |
+| GET | /repos | List configured repos `[{name, path}]` |
+| GET | /repos/{repo}/branches | List branches `[{name, current}]` |
+| GET | /repos/{repo}/commits | Paginated commits `?branch=&limit=&offset=` |
+| GET | /repos/{repo}/commits/{hash} | Commit detail with full diff (files + hunks) |
+| GET | /repos/{repo}/tree | File tree `?ref=&path=` |
+| GET | /repos/{repo}/file | File content `?path=&ref=` |
+| GET | /repos/{repo}/file/history | File commit history `?path=&branch=&limit=` (with --follow) |
+| GET | /repos/{repo}/blame | Blame `?path=&start=&end=&ref=` (porcelain format) |
+| GET | /repos/{repo}/line-history | Line trace `?path=&start=&end=&limit=` (git log -L) |
+
+### Dev Utils Backend (10416)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /health | Health check |
+| POST | /regex/test | Test regex `{pattern, text, flags}` → `{valid, matches[], explanation}` |
+| POST | /cron/parse | Parse cron/systemd `{expression, count}` → `{readable, nextExecutions[], type}` |
+| POST | /uuid/generate | Generate UUIDs `{count, format}` → `{values[]}` |
+| POST | /hash/compute | Hash text `{text, algorithm}` → `{hash, algorithm}` |
+| POST | /hash/compare | Compare hashes `{hash1, hash2}` → `{match}` |
+| POST | /url/parse | Parse URL `{url}` → `{scheme, host, port, path, queryParams[]}` |
+| POST | /url/encode | Encode/decode `{text, decode}` → `{result}` |
+| POST | /jwt/decode | Decode JWT `{token}` → `{header, payload}` |
+
+### AI Memory Backend (10417)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | /health | Health check |
+| GET | /config | Get config |
+| POST | /config | Update config |
+| GET | /db/export | Export DB as SQL |
+| POST | /db/import | Import SQL |
+| GET | /handoffs | List handoffs `?project=` |
+| GET | /handoffs/latest | Latest handoff `?project=&context=` |
+| GET | /handoffs/history | Handoff history `?project=&context=&limit=` |
+| POST | /handoffs | Write/upsert handoff `{project, context, content, tool}` |
+| GET | /decisions | List decisions `?search=&tag=&project=` |
+| GET | /decisions/tags | List distinct tags |
+| GET | /decisions/projects | List distinct projects |
+| GET | /decisions/search | Search `?q=&limit=` |
+| GET | /decisions/{id} | Get decision by ID |
+| POST | /decisions | Create decision `{title, description, reasoning?, alternatives?, tags?, project?, tool?}` |
+| PUT | /decisions/{id} | Update decision (partial) |
+| DELETE | /decisions/{id} | Delete decision |
+
 ---
 
 ## Key Design Decisions
@@ -552,15 +691,23 @@ export const api = { method: () => req('/path'), ... }
 
 ## Backend Patterns
 
+### Shared Core (`dev-hub-core/`)
+All backends depend on `dev-hub-core` via Gradle composite build (`includeBuild("../../dev-hub-core")`). The core provides:
+- `BaseDatabase` — connection retry (30 attempts, 2s), reads `postgres.url/user/password` from Ktor config, abstract `createSchema()`
+- `BaseConfigService` — key-value config table CRUD (`getConfigMap`, `setConfig`, `setConfigs`, `getMaskedConfigMap`), generic `exportDatabase` and `importDatabase` parameterized by table list
+- `installStandardPlugins()` — installs ContentNegotiation, CORS, DefaultHeaders, StatusPages
+- `healthRoutes()` — standard `GET /health`
+- `configDbRoutes(configService)` — standard `GET /db/export` and `POST /db/import`
+
 ### Application Module
 Every backend follows the same structure in `Application.kt`:
-1. Initialize Database (if applicable)
-2. Create services
-3. Install Ktor plugins: ContentNegotiation (JSON), CORS (anyHost), DefaultHeaders, StatusPages
-4. Define routing: health + module-specific routes
+1. Initialize Database (extends `BaseDatabase`)
+2. Create services (ConfigService extends `BaseConfigService`)
+3. Call `installStandardPlugins()`
+4. Define routing: `healthRoutes()` + `configDbRoutes()` + module-specific routes
 
 ### Database Connection
-Direct JDBC with `java.sql.Connection`. No ORM. Connection is created once at startup with retry logic (30 attempts, 2s interval). Schema is created with `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for migrations.
+Via `BaseDatabase` — direct JDBC with `java.sql.Connection`, no ORM. Connection retry (30 attempts, 2s). Schema created with `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for migrations.
 
 ### CORS
 All backends allow all origins (`anyHost()`) with all methods. This is fine because everything runs on localhost.

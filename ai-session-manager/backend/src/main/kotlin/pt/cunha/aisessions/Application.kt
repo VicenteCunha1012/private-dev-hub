@@ -10,16 +10,23 @@ import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+
+@Serializable
+data class PushRequest(val message: String? = null)
 
 fun Application.module() {
     val claudeDir = environment.config.propertyOrNull("sessions.claudeDir")?.getString() ?: "/home/user/.claude"
     val openCodeDb = environment.config.propertyOrNull("sessions.openCodeDb")?.getString() ?: "/home/user/.opencode/opencode.db"
     val openCodeDir = environment.config.propertyOrNull("sessions.openCodeDir")?.getString() ?: "/home/user/.opencode-config"
     val homeMcpJson = environment.config.propertyOrNull("sessions.homeMcpJson")?.getString() ?: "/home/user/.claude.json"
+    val aiConfigPath = environment.config.propertyOrNull("sessions.aiConfigPath")?.getString() ?: "/home/user/ai-config"
+    val rtkConfigDir = environment.config.propertyOrNull("sessions.rtkConfigDir")?.getString() ?: "/home/user/.config/rtk"
     val sessionScanner = SessionScanner(claudeDir)
     val openCodeScanner = OpenCodeScanner(openCodeDb)
     val aiConfigScanner = AiConfigScanner(claudeDir, openCodeDir, homeMcpJson)
+    val aiConfigApplyService = AiConfigApplyService(aiConfigPath, claudeDir, openCodeDir, homeMcpJson, rtkConfigDir)
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true })
@@ -182,6 +189,38 @@ fun Application.module() {
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "File not found or not allowed"))
             }
+        }
+
+        get("/applyconfig/status") {
+            call.respond(aiConfigApplyService.getStatus())
+        }
+
+        post("/applyconfig/sync") {
+            call.respond(aiConfigApplyService.sync())
+        }
+
+        post("/applyconfig/apply") {
+            call.respond(aiConfigApplyService.apply())
+        }
+
+        post("/applyconfig/pull") {
+            call.respond(aiConfigApplyService.pull())
+        }
+
+        post("/applyconfig/push") {
+            val req = try { call.receive<PushRequest>() } catch (e: Exception) { PushRequest() }
+            call.respond(aiConfigApplyService.push(req.message))
+        }
+
+        get("/applyconfig/file") {
+            val path = call.request.queryParameters["path"] ?: throw IllegalArgumentException("path required")
+            val content = aiConfigApplyService.getFileContent(path)
+            if (content != null) call.respond(mapOf("path" to path, "content" to content))
+            else call.respond(HttpStatusCode.NotFound, mapOf("error" to "File not found"))
+        }
+
+        post("/applyconfig/host-setup") {
+            call.respond(aiConfigApplyService.hostSetup())
         }
     }
 }

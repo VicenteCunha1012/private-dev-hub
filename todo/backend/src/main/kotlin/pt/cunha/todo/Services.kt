@@ -5,70 +5,17 @@ import kotlinx.coroutines.withContext
 import java.sql.Connection
 import java.sql.Types
 
-class ConfigService(private val conn: Connection) {
+class ConfigService(conn: Connection) : pt.cunha.core.BaseConfigService(
+    conn, "todo_config", listOf("todo_config", "lists", "tasks")
+) {
+    suspend fun getAll(): Map<String, String> = getConfigMap()
 
-    suspend fun getAll(): Map<String, String> = withContext(Dispatchers.IO) {
-        val map = mutableMapOf<String, String>()
-        conn.createStatement().executeQuery("SELECT key, value FROM todo_config").use { rs ->
-            while (rs.next()) map[rs.getString("key")] = rs.getString("value") ?: ""
-        }
-        map
-    }
-
-    suspend fun update(config: Map<String, String>) = withContext(Dispatchers.IO) {
-        val stmt = conn.prepareStatement(
-            "INSERT INTO todo_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
-        )
-        for ((key, value) in config) {
-            stmt.setString(1, key)
-            stmt.setString(2, value)
-            stmt.executeUpdate()
-        }
-    }
+    suspend fun update(config: Map<String, String>) = setConfigs(config)
 
     suspend fun exportConfig(): Map<String, String> = getAll()
 
-    suspend fun importConfig(config: Map<String, String>) = withContext(Dispatchers.IO) {
-        conn.createStatement().executeUpdate("DELETE FROM todo_config")
-        update(config)
-    }
-
-    suspend fun exportDatabase(): String = withContext(Dispatchers.IO) {
-        val sb = StringBuilder()
-        val tables = listOf("todo_config", "lists", "tasks")
-        for (table in tables) {
-            val rs = conn.createStatement().executeQuery("SELECT * FROM $table")
-            val meta = rs.metaData
-            val colCount = meta.columnCount
-            while (rs.next()) {
-                val values = (1..colCount).joinToString(", ") { i ->
-                    val v = rs.getObject(i)
-                    when (v) {
-                        null -> "NULL"
-                        is Number -> v.toString()
-                        is Boolean -> v.toString()
-                        else -> "'${v.toString().replace("'", "''")}'"
-                    }
-                }
-                sb.appendLine("INSERT INTO $table VALUES ($values);")
-            }
-            rs.close()
-        }
-        sb.toString()
-    }
-
-    suspend fun importDatabase(sql: String) = withContext(Dispatchers.IO) {
-        conn.createStatement().use { stmt ->
-            stmt.executeUpdate("DELETE FROM tasks")
-            stmt.executeUpdate("DELETE FROM lists")
-            stmt.executeUpdate("DELETE FROM todo_config")
-        }
-        for (line in sql.lines()) {
-            val trimmed = line.trim()
-            if (trimmed.isNotEmpty() && !trimmed.startsWith("--")) {
-                conn.createStatement().use { it.executeUpdate(trimmed) }
-            }
-        }
+    suspend fun importConfig(config: Map<String, String>) {
+        setConfigs(config)
     }
 }
 

@@ -117,42 +117,10 @@ class ScoreService(private val conn: Connection) {
     }
 }
 
-class ConfigService(private val conn: Connection) {
-    suspend fun getConfig(): Map<String, String> = withContext(Dispatchers.IO) {
-        val map = mutableMapOf<String, String>()
-        conn.createStatement().executeQuery("SELECT key, value FROM arcade_config").use { rs ->
-            while (rs.next()) map[rs.getString("key")] = rs.getString("value")
-        }
-        map
-    }
+class ConfigService(conn: Connection) : pt.cunha.core.BaseConfigService(
+    conn, "arcade_config", listOf("arcade_config", "coins", "scores", "play_sessions")
+) {
+    suspend fun getConfig(): Map<String, String> = getConfigMap()
 
-    suspend fun updateConfig(updates: Map<String, String>) = withContext(Dispatchers.IO) {
-        val stmt = conn.prepareStatement("INSERT INTO arcade_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
-        updates.forEach { (k, v) -> stmt.setString(1, k); stmt.setString(2, v); stmt.executeUpdate() }
-    }
-
-    suspend fun exportDb(): String = withContext(Dispatchers.IO) {
-        val sb = StringBuilder()
-        for (table in listOf("arcade_config", "coins", "scores", "play_sessions")) {
-            val rs = conn.createStatement().executeQuery("SELECT * FROM $table")
-            val meta = rs.metaData
-            while (rs.next()) {
-                val vals = (1..meta.columnCount).map { i ->
-                    val v = rs.getString(i)
-                    if (v == null) "NULL" else "'${v.replace("'", "''")}'"
-                }
-                sb.appendLine("INSERT INTO $table (${(1..meta.columnCount).joinToString(",") { meta.getColumnName(it) }}) VALUES (${vals.joinToString(",")}) ON CONFLICT DO NOTHING;")
-            }
-        }
-        sb.toString()
-    }
-
-    suspend fun importDb(sql: String) = withContext(Dispatchers.IO) {
-        conn.createStatement().use { stmt ->
-            for (table in listOf("play_sessions", "scores", "coins", "arcade_config")) {
-                stmt.executeUpdate("DELETE FROM $table")
-            }
-            sql.lines().filter { it.trim().startsWith("INSERT") }.forEach { stmt.executeUpdate(it) }
-        }
-    }
+    suspend fun updateConfig(updates: Map<String, String>) = setConfigs(updates)
 }

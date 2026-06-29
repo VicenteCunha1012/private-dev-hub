@@ -16,19 +16,10 @@ kotlin {
 }
 
 dependencies {
-    implementation(ktorLibs.serialization.kotlinx.json)
-    implementation(ktorLibs.server.config.yaml)
-    implementation(ktorLibs.server.contentNegotiation)
-    implementation(ktorLibs.server.core)
-    implementation(ktorLibs.server.cors)
-    implementation(ktorLibs.server.defaultHeaders)
-    implementation(ktorLibs.server.netty)
-    implementation(ktorLibs.server.statusPages)
+    implementation("pt.cunha:dev-hub-core")
     implementation(ktorLibs.client.core)
     implementation(ktorLibs.client.cio)
     implementation(ktorLibs.client.contentNegotiation)
-    implementation(libs.logback.classic)
-    implementation(libs.postgresql)
 
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)

@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kafbat-plus-backend"
+
+includeBuild("../../dev-hub-core")

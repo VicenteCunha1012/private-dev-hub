@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "mock-data-generator-backend"
+
+includeBuild("../../dev-hub-core")

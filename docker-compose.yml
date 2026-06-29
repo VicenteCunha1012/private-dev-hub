@@ -41,7 +41,9 @@ services:
       - kafbat-plus-backend
 
   kafbat-plus-backend:
-    build: ./kafbat-plus/backend
+    build:
+      context: .
+      dockerfile: kafbat-plus/backend/Dockerfile
     ports:
       - "127.0.0.1:10401:10401"
     extra_hosts:
@@ -81,11 +83,16 @@ services:
       - "127.0.0.1:10402:10402"
     environment:
       - JAVA_OPTS=-Xmx256m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - ${HOME}/.claude:/home/user/.claude:ro
+      - ${HOME}/.claude:/home/user/.claude
       - ${HOME}/.local/share/opencode:/home/user/.opencode
-      - ${HOME}/.config/opencode:/home/user/.opencode-config:ro
-      - ${HOME}/.claude.json:/home/user/.claude.json:ro
+      - ${HOME}/.config/opencode:/home/user/.opencode-config
+      - ${HOME}/.claude.json:/home/user/.claude.json
+      - ${HOME}/ai-config:/home/user/ai-config
+      - ${HOME}/.config/rtk:/home/user/.config/rtk
+      - ${HOME}/.gitconfig:/home/user/.gitconfig:ro
 
   json-tools-frontend:
     build: ./json-tools/frontend
@@ -109,7 +116,9 @@ services:
       - mock-data-generator-backend
 
   mock-data-generator-backend:
-    build: ./mock-data-generator/backend
+    build:
+      context: .
+      dockerfile: mock-data-generator/backend/Dockerfile
     ports:
       - "127.0.0.1:10408:10408"
     environment:
@@ -142,7 +151,9 @@ services:
       - command-vault-backend
 
   command-vault-backend:
-    build: ./command-vault/backend
+    build:
+      context: .
+      dockerfile: command-vault/backend/Dockerfile
     ports:
       - "127.0.0.1:10409:10409"
     environment:
@@ -207,7 +218,9 @@ services:
       - todo-backend
 
   todo-backend:
-    build: ./todo/backend
+    build:
+      context: .
+      dockerfile: todo/backend/Dockerfile
     ports:
       - "127.0.0.1:10412:10412"
     environment:
@@ -240,7 +253,9 @@ services:
       - arcade-backend
 
   arcade-backend:
-    build: ./arcade/backend
+    build:
+      context: .
+      dockerfile: arcade/backend/Dockerfile
     ports:
       - "127.0.0.1:10413:10413"
     environment:
@@ -273,7 +288,9 @@ services:
       - secrets-vault-backend
 
   secrets-vault-backend:
-    build: ./secrets-vault/backend
+    build:
+      context: .
+      dockerfile: secrets-vault/backend/Dockerfile
     ports:
       - "127.0.0.1:10414:10414"
     environment:
@@ -298,6 +315,75 @@ services:
       timeout: 5s
       retries: 10
 
+  git-history-frontend:
+    build: ./git-history/frontend
+    ports:
+      - "127.0.0.1:10315:80"
+    depends_on:
+      - git-history-backend
+
+  git-history-backend:
+    build:
+      context: .
+      dockerfile: git-history/backend/Dockerfile
+    ports:
+      - "127.0.0.1:10415:10415"
+    environment:
+      - JAVA_OPTS=-Xmx256m
+    volumes:
+      - ${HOME}:/home/user:ro
+
+  utils-frontend:
+    build: ./utils/frontend
+    ports:
+      - "127.0.0.1:10316:80"
+    depends_on:
+      - utils-backend
+
+  utils-backend:
+    build:
+      context: .
+      dockerfile: utils/backend/Dockerfile
+    ports:
+      - "127.0.0.1:10416:10416"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+
+  ai-memory-frontend:
+    build: ./ai-memory/frontend
+    ports:
+      - "127.0.0.1:10317:80"
+    depends_on:
+      - ai-memory-backend
+
+  ai-memory-backend:
+    build:
+      context: .
+      dockerfile: ai-memory/backend/Dockerfile
+    ports:
+      - "127.0.0.1:10417:10417"
+    environment:
+      - JAVA_OPTS=-Xmx128m
+    depends_on:
+      ai-memory-db:
+        condition: service_healthy
+
+  ai-memory-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aimemory
+      POSTGRES_USER: aimemory
+      POSTGRES_PASSWORD: aimemory
+    ports:
+      - "127.0.0.1:10517:5432"
+    volumes:
+      - ai-memory-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aimemory -d aimemory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
@@ -306,3 +392,4 @@ volumes:
   todo-data:
   arcade-data:
   secrets-vault-db-data:
+  ai-memory-db-data:

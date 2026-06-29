@@ -10,3 +10,5 @@ sessions:
   openCodeDb: "/home/user/.opencode/opencode.db"
   openCodeDir: "/home/user/.opencode-config"
   homeMcpJson: "/home/user/.claude.json"
+  aiConfigPath: "/home/user/ai-config"
+  rtkConfigDir: "/home/user/.config/rtk"

@@ -37,6 +37,12 @@ Each module gets a consistent `xx` suffix across its services.
 | Command Vault | 10309 | 10409 | 10509 |
 | Port Radar | 10310 | 10410 | — |
 | Health Dashboard | 10311 | 10411 | — |
+| Todo | 10312 | 10412 | 10512 |
+| Arcade | 10313 | 10413 | 10513 |
+| Secrets Vault | 10314 | 10414 | 10514 |
+| Git History | 10315 | 10415 | — |
+| Dev Utils | 10316 | 10416 | — |
+| AI Memory | 10317 | 10417 | 10517 |
 | ttyd Manager | — | 10600 | — |
 | ttyd TUI sessions | — | — | 10604–10620 (dynamic) |
 
@@ -78,8 +84,9 @@ Most tools work out of the box. The ones that need config:
 dev-hub/
 ├── docker-compose.yml
 ├── start.sh / stop.sh
+├── dev-hub-core/                   Shared Kotlin library (BaseDatabase, BaseConfigService, plugins)
 ├── hub/
-│   ├── frontend/                   React + Vite — port 10300
+│   ├── frontend/                   React + Vite — port 10300 (PWA installable)
 │   └── backend/                    Ktor — port 10303 + PostgreSQL 10403
 ├── kafbat-plus/
 │   ├── frontend/                   React + Vite — port 10301
@@ -102,6 +109,25 @@ dev-hub/
 ├── health-dashboard/
 │   ├── frontend/                   React + Vite — port 10311
 │   └── backend/                    Ktor — port 10411 (proxies health checks)
+├── todo/
+│   ├── frontend/                   React + Vite — port 10312
+│   └── backend/                    Ktor — port 10412 + PostgreSQL 10512
+├── arcade/
+│   ├── frontend/                   React + Vite — port 10313
+│   └── backend/                    Ktor — port 10413 + PostgreSQL 10513
+├── secrets-vault/
+│   ├── frontend/                   React + Vite — port 10314
+│   └── backend/                    Ktor — port 10414 + PostgreSQL 10514
+├── git-history/
+│   ├── frontend/                   React + Vite — port 10315
+│   └── backend/                    Ktor — port 10415 (stateless, shells out to git)
+├── utils/
+│   ├── frontend/                   React + Vite — port 10316
+│   └── backend/                    Ktor — port 10416 (stateless)
+├── ai-memory/
+│   ├── frontend/                   React + Vite — port 10317
+│   ├── backend/                    Ktor — port 10417 + PostgreSQL 10517
+│   └── mcp-server/                 MCP server for Claude Code / OpenCode integration
 ├── ttyd-manager/                   Ktor — port 10600 (runs on host, not Docker)
 └── backend-template/               Ktor starter to copy for new modules
 ```
@@ -218,6 +244,13 @@ Personal command/snippet manager with variable substitution and execution.
 - **Run button**: execute the command on the host and see stdout/stderr output inline. Configurable working directory with file picker
 - **Variable history**: previous values per variable are remembered across sessions (last 10)
 - Tag badges, tag filter dropdown, distinct tags list
+- **Flows**: node-based visual automation editor (React Flow)
+  - **Node types**: Start (execution entry), Constant (data source), Command (shell execution), Display (output viewer), Subflow (reuse other flows as nodes)
+  - **Data edges** (dashed) connect outputs to inputs; **Flow edges** (solid yellow) define execution order
+  - Commands with `{variable}` syntax auto-generate input ports on the node
+  - **Real-time streaming**: command output streams line-by-line via SSE into Display nodes
+  - **Subflow nodes**: use any saved flow as a reusable node — unconnected inputs auto-exposed
+  - Start/stop execution, autosave, right-click context menus
 
 **Examples:**
 ```
@@ -269,8 +302,79 @@ Manages terminal sessions and command execution. Runs natively on the host (not 
 - Each TUI gets a port in the `10604–10620` range
 - Add/remove TUIs at runtime via hub Settings
 - **Command execution**: `POST /exec` runs shell commands on the host with configurable working directory and timeout (used by Command Vault's Run button)
+- **Streaming execution**: `GET /exec/stream` SSE endpoint for real-time stdout streaming (used by Flow editor)
 - **File browsing**: `GET /files?path=` lists directory contents (used by Command Vault's file picker)
-- API: `GET /tuis`, `POST /tuis`, `DELETE /tuis/{id}`, `POST /exec`, `GET /files`
+- **Deduplication**: creating a TUI with the same name as an existing one kills the old session first (prevents port exhaustion)
+- API: `GET /tuis`, `POST /tuis`, `DELETE /tuis/{id}`, `POST /exec`, `GET /exec/stream`, `GET /files`
+
+---
+
+### Secrets Vault
+
+Zero-knowledge encrypted credential manager. Master password never leaves the browser.
+
+**What you can do:**
+- Store credentials with label, category, tags (plaintext for search) + encrypted blob (value, username, URL, notes)
+- **Client-side encryption**: Web Crypto API (PBKDF2 → AES-256-GCM). Backend stores only ciphertext
+- **Auto-lock**: vault locks when iframe loses focus or tab switches. Manual lock button too
+- **Master password setup**: first visit creates vault with password. No recovery — forget = wipe only
+- **Change password**: re-encrypts all secrets with new key
+- Search by label/category/tags while locked (metadata is plaintext)
+- Reveal/copy individual fields after unlock
+
+---
+
+### Git History Explorer
+
+Visual explorer for local Git repository history. Three modes: commit browsing, file timeline, and line tracing.
+
+**What you can do:**
+- **Browse commits**: select repo + branch, paginated commit list, click any commit to see full diff with side-by-side hunks
+- **Browse files**: navigate the file tree at any branch/commit, view file contents, see file-level commit history with diffs
+- **Line tracing**: select lines in a file viewer, instant blame (who last touched each line), then "full line history" traces the evolution of those lines through the codebase via `git log -L`
+- **Config card**: add/remove repository directories to explore
+- Diff rendering with green/red highlighting, line numbers, hunk headers
+
+**How it works:** backend shells out to `git` (ProcessBuilder with list args — no shell interpolation). Repos mounted read-only in Docker. Sanitizes all refs and paths.
+
+---
+
+### Dev Utils
+
+Aggregator of small stateless dev utilities in one tabbed page. No database.
+
+**Tabs:**
+- **Regex workbench** — test regex against text, live match highlighting, capture groups, pattern explanation
+- **Cron / systemd-timer translator** — parse cron or `OnCalendar=` expressions, human-readable description, next N executions
+- **UUID / ULID generator** — generate in bulk (UUID v4, uppercase, no dashes, ULID), copy individual or all
+- **Hash & checksum** — MD5/SHA-1/SHA-256/SHA-384/SHA-512, compare two hashes
+- **URL / query parser** — decompose URL into components + query params table, encode/decode
+- **JWT decoder** — decode header + payload, show expiry status, extract Keycloak roles
+
+---
+
+### AI Memory
+
+Persistent memory for AI tools — handoff notes between sessions and a searchable decision log. Exposed as MCP server for Claude Code and OpenCode.
+
+**What you can do:**
+- **Handoff Notes**: write session state at the end of a session (what was being done, what's left). Read at session start. Grouped by project + context. History preserved.
+- **Decision Log**: log technical decisions with title, description, reasoning, alternatives, tags, project. Searchable and filterable. Field for future MR/ticket linking (placeholder, resolver not yet built).
+- **MCP server**: `write_handoff`, `read_handoff`, `log_decision`, `search_decisions` — callable by Claude Code and OpenCode
+- Both AI tools and humans can write via MCP or UI respectively
+- See `ai-memory/MCP_SETUP.md` for integration instructions
+
+---
+
+### Arcade
+
+Coin-operated retro game arcade with 15 browser games.
+
+**What you can do:**
+- Earn coins via git push hooks, spend them to play
+- 15 games: 2048, Minesweeper, Memory, Tetris, Snake, Breakout, Pong, and more
+- High scores and play history tracked per game
+- Random game selection from 3 offered per coin
 
 ---
 
@@ -305,6 +409,7 @@ Every module exposes `GET /config` and `POST /config`.
 
 - **Config JSON**: `Settings → Backup & Restore → Export/Import config`
 - **Database SQL**: `Settings → Backup & Restore → Export/Import database`
+- **Full backup**: `Settings → Backup & Restore → Export/Import everything` — exports ALL module data (hub, commands, flows, secrets, arcade, todo, kafbat, mock generator, ai-memory) into one JSON file. Import restores everything across all modules.
 - **Backup Scheduler**: `Settings → Backup Scheduler` — auto-backup on interval with retention, manual trigger, backup list
 
 ### Recovery after full wipe
@@ -312,8 +417,7 @@ Every module exposes `GET /config` and `POST /config`.
 ```bash
 ./start.sh
 # Open http://localhost:10300 → Settings
-# Import config → config-backup.json
-# Import database → hub-db-YYYY-MM-DD.sql
+# Import everything → devhub-full-backup-YYYY-MM-DD.json
 ```
 
 ---
@@ -323,9 +427,10 @@ Every module exposes `GET /config` and `POST /config`.
 1. `cp -r backend-template/ <module>/backend/`
 2. `cd <module> && npm create vite@latest frontend -- --template react-ts`
 3. Assign next free `xx` suffix (frontend `103xx`, backend `104xx`, DB `105xx`)
-4. Implement: `GET /health`, `GET/POST /config`, `GET/POST /config/export`, `GET/POST /config/import`, `GET/POST /db/export` (if DB)
-5. Add to `docker-compose.yml`
-6. Add seed entry in `hub/backend/.../Database.kt`
+4. Add `includeBuild("../../dev-hub-core")` to `settings.gradle.kts`, use `implementation("pt.cunha:dev-hub-core")` in `build.gradle.kts`
+5. Extend `BaseDatabase` for schema, `BaseConfigService` for config CRUD, call `installStandardPlugins()` + `healthRoutes()` + `configDbRoutes()` in Application.kt
+6. Add to `docker-compose.yml`
+7. Add seed entry in `hub/backend/.../Database.kt`
 
 ---
 
@@ -359,9 +464,20 @@ cd <module>/backend && ./gradlew shadowJar
 - [x] Health Dashboard — traffic-light health checks
 - [x] ttyd Manager — dynamic TUI spawning on host, TUI session auto-recovery on restart
 - [x] Tiling window manager — drag entries to split into side-by-side or 2×2 grid
-- [x] Spotlight global search — Shift to search entries, Kafka topics, JSON tools, commands with deep-linking
+- [x] Spotlight global search — Shift to search entries, Kafka topics, JSON tools, commands, flows with deep-linking
 - [x] AI Config viewer — unified read-only view of Claude Code + OpenCode configuration
-- [ ] Todo List — full CRUD todo app with lists, subtasks, priorities, tags
+- [x] Todo List — full CRUD todo app with lists, subtasks, priorities, tags
+- [x] Arcade — coin-operated retro game arcade (15 games, git-push coin earning)
+- [x] Secrets Vault — zero-knowledge encrypted credential manager (Web Crypto, AES-256-GCM)
+- [x] Command Vault Flows — node-based visual automation with React Flow, SSE streaming, subflow nodes
+- [x] PWA support — installable as standalone app (Firefox via extension)
+- [x] Custom context menus — right-click on entries, snippets, flows for quick actions
+- [x] Full backup/restore — export/import all module data in one JSON file
+- [x] dev-hub-core — shared Kotlin library (BaseDatabase, BaseConfigService, standard plugins/routes)
+- [x] Entry emojis — per-entry emoji icons in sidebar and home screen
+- [x] JSON diff synced scrolling — left/right panes scroll together, changed values on same line
+- [x] Git History Explorer — visual repo history browser with commit/file/line-trace modes
+- [x] Dev Utils — regex, cron, UUID, hash, URL parser, JWT decoder in one tabbed page
+- [x] AI Memory — handoff notes + decision log with MCP server for Claude Code / OpenCode
 - [ ] RTK Helper — `filters.toml` editor with versioned backups
 - [ ] GitLab MR Dashboard — personal MR overview
-- [ ] Hub-level aggregated backup (all modules in one zip)

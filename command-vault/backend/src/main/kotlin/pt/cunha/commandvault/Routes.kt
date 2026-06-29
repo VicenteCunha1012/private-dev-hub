@@ -5,45 +5,17 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Routing.healthRoutes() {
-    get("/health") {
-        call.respond(mapOf("status" to "ok"))
-    }
-}
-
 fun Routing.configRoutes(configService: ConfigService) {
     route("/config") {
-        get {
-            call.respond(configService.getConfig())
-        }
-
+        get { call.respond(configService.getConfig()) }
         post {
             val req = call.receive<UpdateConfigRequest>()
-            val updated = configService.updateConfig(req.pgDumpPath, req.psqlPath, req.pgRestorePath)
-            call.respond(updated)
+            call.respond(configService.updateConfig(req.pgDumpPath, req.psqlPath, req.pgRestorePath))
         }
-
-        get("/export") {
-            val config = configService.getConfig()
-            call.respond(config)
-        }
-
+        get("/export") { call.respond(configService.getConfig()) }
         post("/import") {
             val imported = call.receive<VaultConfig>()
             configService.updateConfig(imported.pgDumpPath, imported.psqlPath, imported.pgRestorePath)
-            call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
-        }
-    }
-
-    route("/db") {
-        get("/export") {
-            val dump = configService.exportDatabase()
-            call.respondText(dump, ContentType.Text.Plain)
-        }
-
-        post("/import") {
-            val sql = call.receiveText()
-            configService.importDatabase(sql)
             call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
         }
     }
@@ -56,42 +28,24 @@ fun Routing.snippetRoutes(snippetService: SnippetService) {
             val tag = call.request.queryParameters["tag"]
             call.respond(snippetService.getAll(search, tag))
         }
-
         post {
             val req = call.receive<CreateSnippetRequest>()
-            val snippet = snippetService.create(req)
-            call.respond(HttpStatusCode.Created, snippet)
+            call.respond(HttpStatusCode.Created, snippetService.create(req))
         }
-
-        get("/tags") {
-            call.respond(snippetService.getTags())
-        }
-
+        get("/tags") { call.respond(snippetService.getTags()) }
         get("/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-                ?: throw IllegalArgumentException("Invalid snippet id")
-            val snippet = snippetService.getById(id)
-                ?: throw NoSuchElementException("Snippet not found")
-            call.respond(snippet)
+            val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid snippet id")
+            call.respond(snippetService.getById(id) ?: throw NoSuchElementException("Snippet not found"))
         }
-
         put("/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-                ?: throw IllegalArgumentException("Invalid snippet id")
+            val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid snippet id")
             val req = call.receive<UpdateSnippetRequest>()
-            val updated = snippetService.update(id, req)
-                ?: throw NoSuchElementException("Snippet not found")
-            call.respond(updated)
+            call.respond(snippetService.update(id, req) ?: throw NoSuchElementException("Snippet not found"))
         }
-
         delete("/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-                ?: throw IllegalArgumentException("Invalid snippet id")
-            if (snippetService.delete(id)) {
-                call.respond(HttpStatusCode.NoContent)
-            } else {
-                throw NoSuchElementException("Snippet not found")
-            }
+            val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid snippet id")
+            if (snippetService.delete(id)) call.respond(HttpStatusCode.NoContent)
+            else throw NoSuchElementException("Snippet not found")
         }
     }
 }
@@ -102,38 +56,23 @@ fun Routing.flowRoutes(flowService: FlowService) {
             val search = call.request.queryParameters["search"]
             call.respond(flowService.getAll(search))
         }
-
         post {
             val req = call.receive<CreateFlowRequest>()
-            val flow = flowService.create(req)
-            call.respond(HttpStatusCode.Created, flow)
+            call.respond(HttpStatusCode.Created, flowService.create(req))
         }
-
         get("/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-                ?: throw IllegalArgumentException("Invalid flow id")
-            val flow = flowService.getById(id)
-                ?: throw NoSuchElementException("Flow not found")
-            call.respond(flow)
+            val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid flow id")
+            call.respond(flowService.getById(id) ?: throw NoSuchElementException("Flow not found"))
         }
-
         put("/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-                ?: throw IllegalArgumentException("Invalid flow id")
+            val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid flow id")
             val req = call.receive<UpdateFlowRequest>()
-            val updated = flowService.update(id, req)
-                ?: throw NoSuchElementException("Flow not found")
-            call.respond(updated)
+            call.respond(flowService.update(id, req) ?: throw NoSuchElementException("Flow not found"))
         }
-
         delete("/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-                ?: throw IllegalArgumentException("Invalid flow id")
-            if (flowService.delete(id)) {
-                call.respond(HttpStatusCode.NoContent)
-            } else {
-                throw NoSuchElementException("Flow not found")
-            }
+            val id = call.parameters["id"]?.toIntOrNull() ?: throw IllegalArgumentException("Invalid flow id")
+            if (flowService.delete(id)) call.respond(HttpStatusCode.NoContent)
+            else throw NoSuchElementException("Flow not found")
         }
     }
 }

@@ -1,0 +1,10 @@
+ktor:
+  deployment:
+    port: 10415
+  application:
+    modules:
+      - pt.cunha.githistory.ApplicationKt.module
+
+repos:
+  directories: ""
+  traceDepth: "50"

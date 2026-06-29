@@ -6,8 +6,6 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Routing.arcadeRoutes(coinService: CoinService, playService: PlayService, scoreService: ScoreService, configService: ConfigService) {
-    get("/health") { call.respond(mapOf("status" to "ok")) }
-
     route("/config") {
         get { call.respond(configService.getConfig()) }
         post {
@@ -19,18 +17,6 @@ fun Routing.arcadeRoutes(coinService: CoinService, playService: PlayService, sco
         post("/import") {
             val updates = call.receive<Map<String, String>>()
             configService.updateConfig(updates)
-            call.respond(mapOf("status" to "imported"))
-        }
-    }
-
-    route("/db") {
-        get("/export") {
-            val sql = configService.exportDb()
-            call.respondText(sql, ContentType.Text.Plain)
-        }
-        post("/import") {
-            val sql = call.receiveText()
-            configService.importDb(sql)
             call.respond(mapOf("status" to "imported"))
         }
     }

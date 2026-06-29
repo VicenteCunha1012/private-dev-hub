@@ -6,6 +6,16 @@ async function req<T>(path: string): Promise<T> {
   return res.json()
 }
 
+async function post<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.json()
+}
+
 export interface SessionSummary {
   id: string
   title: string
@@ -108,6 +118,25 @@ export interface AiConfigFile {
   content: string
 }
 
+export interface ApplyConfigFileEntry {
+  path: string
+  size: number
+}
+
+export interface ApplyConfigStatus {
+  aiConfigPath: string
+  isValidRepo: boolean
+  gitStatus: string
+  lastCommit: string | null
+  files: ApplyConfigFileEntry[]
+}
+
+export interface ApplyConfigResult {
+  success: boolean
+  output: string
+  changed: string[]
+}
+
 export const sessionsApi = {
   health: (): Promise<{ status: string }> => req('/health'),
   getSessions: (tool: string = 'claude-code'): Promise<SessionSummary[]> => req(`/sessions?tool=${tool}`),
@@ -122,4 +151,12 @@ export const sessionsApi = {
   getAiConfig: (): Promise<AiConfigResult> => req('/aiconfig'),
   getAiConfigFile: (path: string): Promise<AiConfigFile> =>
     req(`/aiconfig/file?path=${encodeURIComponent(path)}`),
+  getApplyConfigStatus: (): Promise<ApplyConfigStatus> => req('/applyconfig/status'),
+  syncConfig: (): Promise<ApplyConfigResult> => post('/applyconfig/sync'),
+  applyConfig: (): Promise<ApplyConfigResult> => post('/applyconfig/apply'),
+  pullConfig: (): Promise<ApplyConfigResult> => post('/applyconfig/pull'),
+  pushConfig: (message?: string): Promise<ApplyConfigResult> => post('/applyconfig/push', { message }),
+  getApplyConfigFile: (path: string): Promise<AiConfigFile> =>
+    req(`/applyconfig/file?path=${encodeURIComponent(path)}`),
+  hostSetup: (): Promise<ApplyConfigResult> => post('/applyconfig/host-setup'),
 }

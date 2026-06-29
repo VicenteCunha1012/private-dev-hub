@@ -5,44 +5,18 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Routing.healthRoutes() {
-    get("/health") {
-        call.respond(mapOf("status" to "ok"))
-    }
-}
-
 fun Routing.configRoutes(configService: ConfigService) {
     route("/config") {
-        get {
-            call.respond(configService.getAll())
-        }
-
+        get { call.respond(configService.getAll()) }
         post {
             val config = call.receive<Map<String, String>>()
             configService.update(config)
             call.respond(configService.getAll())
         }
-
-        get("/export") {
-            call.respond(configService.exportConfig())
-        }
-
+        get("/export") { call.respond(configService.exportConfig()) }
         post("/import") {
             val config = call.receive<Map<String, String>>()
             configService.importConfig(config)
-            call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
-        }
-    }
-
-    route("/db") {
-        get("/export") {
-            val dump = configService.exportDatabase()
-            call.respondText(dump, ContentType.Text.Plain)
-        }
-
-        post("/import") {
-            val sql = call.receiveText()
-            configService.importDatabase(sql)
             call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
         }
     }

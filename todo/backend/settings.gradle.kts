@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "todo"
+
+includeBuild("../../dev-hub-core")

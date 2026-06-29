@@ -15,30 +15,16 @@ import pt.cunha.mockgen.services.SpecService
 
 fun Routing.configRoutes(configService: ConfigService) {
     route("/config") {
-        get {
-            call.respond(configService.getMasked())
-        }
+        get { call.respond(configService.getMasked()) }
         post {
             val updates = call.receive<Map<String, String>>()
             updates.forEach { (k, v) -> configService.set(k, v) }
             call.respond(configService.getMasked())
         }
-        get("/export") {
-            call.respond(configService.getAll())
-        }
+        get("/export") { call.respond(configService.getAll()) }
         post("/import") {
             val data = call.receive<Map<String, String>>()
             data.forEach { (k, v) -> configService.set(k, v) }
-            call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
-        }
-    }
-    route("/db") {
-        get("/export") {
-            call.respondText(configService.exportDatabase(), ContentType.Text.Plain)
-        }
-        post("/import") {
-            val sql = call.receiveText()
-            configService.importDatabase(sql)
             call.respond(HttpStatusCode.OK, mapOf("status" to "imported"))
         }
     }

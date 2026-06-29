@@ -1,30 +1,11 @@
 package pt.cunha.arcade
 
 import io.ktor.server.config.*
-import java.sql.Connection
-import java.sql.DriverManager
+import pt.cunha.core.BaseDatabase
 
-class Database(private val config: ApplicationConfig) {
-    lateinit var connection: Connection
+class Database(config: ApplicationConfig) : BaseDatabase(config) {
 
-    fun init() {
-        Class.forName("org.postgresql.Driver")
-        val url = config.property("postgres.url").getString()
-        val user = config.property("postgres.user").getString()
-        val password = config.property("postgres.password").getString()
-
-        var attempts = 0
-        while (true) {
-            try {
-                connection = DriverManager.getConnection(url, user, password)
-                break
-            } catch (e: Exception) {
-                attempts++
-                if (attempts >= 30) throw e
-                Thread.sleep(2000)
-            }
-        }
-
+    override fun createSchema() {
         connection.createStatement().use { stmt ->
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS arcade_config (

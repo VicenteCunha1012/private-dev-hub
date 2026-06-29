@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "arcade"
+
+includeBuild("../../dev-hub-core")

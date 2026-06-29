@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "command-vault-backend"
+
+includeBuild("../../dev-hub-core")

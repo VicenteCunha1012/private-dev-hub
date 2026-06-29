@@ -37,6 +37,7 @@ private val MODULE_BACKENDS = mapOf(
     "arcade" to "http://arcade-backend:10413",
     "secrets-vault" to "http://secrets-vault-backend:10414",
     "todo" to "http://todo-backend:10412",
+    "ai-memory" to "http://ai-memory-backend:10417",
 )
 
 fun Routing.configRoutes(configService: ConfigService, folderService: FolderService, entryService: EntryService) {

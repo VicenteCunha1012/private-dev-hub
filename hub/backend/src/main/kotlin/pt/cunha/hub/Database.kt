@@ -115,6 +115,9 @@ class Database(private val config: ApplicationConfig) {
         insertEntry("Health Dashboard", "http://localhost:10311", "tool", toolsId, 6, "💚")
         insertEntry("Todo", "http://localhost:10312", "tool", toolsId, 7, "✅")
         insertEntry("Secrets Vault", "http://localhost:10314", "tool", toolsId, 8, "🔐")
+        insertEntry("Git History", "http://localhost:10315", "tool", toolsId, 9, "📜")
+        insertEntry("Dev Utils", "http://localhost:10316", "tool", toolsId, 10, "🧰")
+        insertEntry("AI Memory", "http://localhost:10317", "tool", toolsId, 11, "🧠")
 
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"

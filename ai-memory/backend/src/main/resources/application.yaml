@@ -1,0 +1,11 @@
+ktor:
+  deployment:
+    port: 10417
+  application:
+    modules:
+      - pt.cunha.aimemory.ApplicationKt.module
+
+postgres:
+  url: "jdbc:postgresql://ai-memory-db:5432/aimemory"
+  user: "aimemory"
+  password: "aimemory"

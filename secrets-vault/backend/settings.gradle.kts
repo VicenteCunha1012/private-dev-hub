@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "secrets-vault-backend"
+
+includeBuild("../../dev-hub-core")
