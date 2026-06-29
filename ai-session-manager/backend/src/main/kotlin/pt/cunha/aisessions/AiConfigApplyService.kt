@@ -303,29 +303,22 @@ class AiConfigApplyService(
     }
 
     private fun runGitWithIdent(vararg args: String): String {
-        // Read user identity from repo's local git config
         val name = try { runGit("config", "user.name") } catch (e: Exception) { "Dev Hub" }
         val email = try { runGit("config", "user.email") } catch (e: Exception) { "devhub@localhost" }
-        val credHelper = "store --file=$aiConfigPath/.git/.credentials"
-        val cmd = listOf("git",
-            "-c", "credential.helper=$credHelper",
+        return runGit(
             "-c", "user.name=${name.trim()}",
             "-c", "user.email=${email.trim()}",
-            "-C", aiConfigPath
-        ) + args.toList()
-        val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
-        val out = proc.inputStream.bufferedReader().readText()
-        val exited = proc.waitFor(60, TimeUnit.SECONDS)
-        if (!exited) { proc.destroyForcibly(); throw RuntimeException("git timed out") }
-        if (proc.exitValue() != 0) throw RuntimeException(out.trim())
-        return out
+            *args
+        )
     }
 
     private fun runGit(vararg args: String): String {
-        // Override credential helper to use the .credentials file within the mounted repo
-        // (the absolute path in .git/config points to the host path which differs inside the container)
         val credHelper = "store --file=$aiConfigPath/.git/.credentials"
-        val cmd = listOf("git", "-c", "credential.helper=$credHelper", "-C", aiConfigPath) + args.toList()
+        val cmd = listOf("git",
+            "-c", "safe.directory=$aiConfigPath",
+            "-c", "credential.helper=$credHelper",
+            "-C", aiConfigPath
+        ) + args.toList()
         val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
         val out = proc.inputStream.bufferedReader().readText()
         val exited = proc.waitFor(60, TimeUnit.SECONDS)

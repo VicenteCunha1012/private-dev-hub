@@ -29,7 +29,7 @@ export interface BlameEntry {
   author: string; authorEmail: string; date: string; relativeDate: string; line: string
 }
 export interface LineHistoryEntry {
-  hash: string; shortHash: string; author: string; date: string; message: string; diff: string
+  hash: string; shortHash: string; author: string; date: string; relativeDate: string; message: string; diff: string
 }
 
 export const api = {

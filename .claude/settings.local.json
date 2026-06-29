@@ -77,7 +77,19 @@
       "Bash(git config *)",
       "Bash(npm list *)",
       "Bash(rtk git *)",
-      "Bash(rtk wc *)"
+      "Bash(rtk wc *)",
+      "Bash(python3 *)",
+      "Bash(curl -s -X POST http://localhost:10303/entries -H 'Content-Type: application/json' -d '{\"label\":\"Dev Utils\",\"url\":\"http://localhost:10316\",\"type\":\"tool\",\"folderId\":4,\"position\":10}')",
+      "Bash(curl -s -X POST http://localhost:10303/entries -H 'Content-Type: application/json' -d '{\"label\":\"AI Memory\",\"url\":\"http://localhost:10317\",\"type\":\"tool\",\"folderId\":4,\"position\":11}')",
+      "Bash(node /home/cunvic/private-dev-hub/ai-memory/mcp-server/index.js --help)",
+      "Bash(timeout 3 node index.js)",
+      "Bash(node -e \"import\\('/home/cunvic/private-dev-hub/ai-memory/mcp-server/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js'\\).then\\(m => console.log\\(Object.keys\\(m\\).filter\\(k => k.includes\\('Schema'\\)\\).join\\('\\\\n'\\)\\)\\)\")",
+      "mcp__ai-memory__log_decision",
+      "mcp__ai-memory__write_handoff",
+      "Bash(grep -v \"^--$\")",
+      "Bash(xargs ls -la)",
+      "Bash(sort -t/ -k6)",
+      "Bash(xargs ls)"
     ]
   }
 }

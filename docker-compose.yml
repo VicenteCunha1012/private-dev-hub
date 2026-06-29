@@ -11,8 +11,7 @@ services:
     build: ./hub/backend
     ports:
       - "127.0.0.1:10303:10303"
-    environment:
-      - JAVA_OPTS=-Xmx256m
+    mem_limit: 384m
     depends_on:
       hub-db:
         condition: service_healthy
@@ -46,10 +45,9 @@ services:
       dockerfile: kafbat-plus/backend/Dockerfile
     ports:
       - "127.0.0.1:10401:10401"
+    mem_limit: 384m
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    environment:
-      - JAVA_OPTS=-Xmx256m
     depends_on:
       kafbat-plus-db:
         condition: service_healthy
@@ -81,8 +79,7 @@ services:
     build: ./ai-session-manager/backend
     ports:
       - "127.0.0.1:10402:10402"
-    environment:
-      - JAVA_OPTS=-Xmx256m
+    mem_limit: 384m
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -105,8 +102,7 @@ services:
     build: ./json-tools/backend
     ports:
       - "127.0.0.1:10406:10406"
-    environment:
-      - JAVA_OPTS=-Xmx128m
+    mem_limit: 320m
 
   mock-data-generator-frontend:
     build: ./mock-data-generator/frontend
@@ -121,8 +117,7 @@ services:
       dockerfile: mock-data-generator/backend/Dockerfile
     ports:
       - "127.0.0.1:10408:10408"
-    environment:
-      - JAVA_OPTS=-Xmx256m
+    mem_limit: 512m
     depends_on:
       mock-data-generator-db:
         condition: service_healthy
@@ -156,8 +151,7 @@ services:
       dockerfile: command-vault/backend/Dockerfile
     ports:
       - "127.0.0.1:10409:10409"
-    environment:
-      - JAVA_OPTS=-Xmx128m
+    mem_limit: 384m
     depends_on:
       command-vault-db:
         condition: service_healthy
@@ -189,8 +183,7 @@ services:
     build: ./port-radar/backend
     ports:
       - "127.0.0.1:10410:10410"
-    environment:
-      - JAVA_OPTS=-Xmx128m
+    mem_limit: 320m
     volumes:
       - /proc:/host/proc:ro
 
@@ -205,10 +198,9 @@ services:
     build: ./health-dashboard/backend
     ports:
       - "127.0.0.1:10411:10411"
+    mem_limit: 320m
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    environment:
-      - JAVA_OPTS=-Xmx128m
 
   todo-frontend:
     build: ./todo/frontend
@@ -223,8 +215,7 @@ services:
       dockerfile: todo/backend/Dockerfile
     ports:
       - "127.0.0.1:10412:10412"
-    environment:
-      - JAVA_OPTS=-Xmx256m
+    mem_limit: 384m
     depends_on:
       todo-db:
         condition: service_healthy
@@ -258,8 +249,7 @@ services:
       dockerfile: arcade/backend/Dockerfile
     ports:
       - "127.0.0.1:10413:10413"
-    environment:
-      - JAVA_OPTS=-Xmx256m
+    mem_limit: 384m
     depends_on:
       arcade-db:
         condition: service_healthy
@@ -293,8 +283,7 @@ services:
       dockerfile: secrets-vault/backend/Dockerfile
     ports:
       - "127.0.0.1:10414:10414"
-    environment:
-      - JAVA_OPTS=-Xmx128m
+    mem_limit: 320m
     depends_on:
       secrets-vault-db:
         condition: service_healthy
@@ -328,10 +317,10 @@ services:
       dockerfile: git-history/backend/Dockerfile
     ports:
       - "127.0.0.1:10415:10415"
-    environment:
-      - JAVA_OPTS=-Xmx256m
+    mem_limit: 384m
     volumes:
-      - ${HOME}:/home/user:ro
+      - ${HOME}:${HOME}:ro
+      - git-history-config:/data
 
   utils-frontend:
     build: ./utils/frontend
@@ -346,8 +335,7 @@ services:
       dockerfile: utils/backend/Dockerfile
     ports:
       - "127.0.0.1:10416:10416"
-    environment:
-      - JAVA_OPTS=-Xmx128m
+    mem_limit: 320m
 
   ai-memory-frontend:
     build: ./ai-memory/frontend
@@ -362,8 +350,7 @@ services:
       dockerfile: ai-memory/backend/Dockerfile
     ports:
       - "127.0.0.1:10417:10417"
-    environment:
-      - JAVA_OPTS=-Xmx128m
+    mem_limit: 320m
     depends_on:
       ai-memory-db:
         condition: service_healthy
@@ -387,6 +374,7 @@ services:
 volumes:
   hub-db-data:
   kafbat-plus-db-data:
+  git-history-config:
   mock-data-generator-db-data:
   command-vault-db-data:
   todo-data:

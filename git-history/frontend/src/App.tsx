@@ -29,7 +29,7 @@ const s = {
   codeLine: (selected: boolean, blameColor?: string) => ({ display: 'flex', minHeight: 20, background: selected ? 'rgba(249, 115, 22, 0.1)' : blameColor || 'transparent', cursor: 'pointer', transition: 'background 0.1s' }) as CSSProperties,
   codeLineNum: { width: 50, textAlign: 'right', padding: '0 8px', color: 'var(--text-dim)', userSelect: 'none', fontFamily: 'var(--mono)', fontSize: 12, flexShrink: 0 } as CSSProperties,
   codeContent: { flex: 1, padding: '0 12px', whiteSpace: 'pre', fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6 } as CSSProperties,
-  blamePanel: { width: 320, minWidth: 320, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' } as CSSProperties,
+  blamePanel: (wide: boolean) => ({ width: wide ? 480 : 320, minWidth: wide ? 480 : 320, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }) as CSSProperties,
   blamePanelHeader: { padding: '12px 14px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14 } as CSSProperties,
   blameEntry: { padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 12 } as CSSProperties,
   timelineEntry: { padding: '14px 16px', borderBottom: '1px solid var(--border)' } as CSSProperties,
@@ -134,17 +134,18 @@ export default function App() {
   }, [repo])
 
   const navigateTree = useCallback((entry: TreeEntry) => {
+    const fullPath = treePath ? `${treePath}/${entry.path}` : entry.path
     if (entry.type === 'tree') {
-      setTreePath(entry.path)
+      setTreePath(fullPath)
       setFileContent(null)
       setSelectedLines(new Set())
       setBlameData([])
       setLineHistory([])
       setShowLineHistory(false)
       setShowFileHistory(false)
-      api.getTree(repo, branch, entry.path).then(setTree).catch(() => {})
+      api.getTree(repo, branch, fullPath).then(setTree).catch(() => {})
     } else {
-      api.getFile(repo, entry.path, branch).then(fc => {
+      api.getFile(repo, fullPath, branch).then(fc => {
         setFileContent(fc)
         setSelectedLines(new Set())
         setBlameData([])
@@ -152,7 +153,7 @@ export default function App() {
         setShowLineHistory(false)
       }).catch(() => {})
     }
-  }, [repo, branch])
+  }, [repo, branch, treePath])
 
   const navigateBreadcrumb = useCallback((idx: number) => {
     const parts = treePath.split('/')
@@ -400,7 +401,7 @@ export default function App() {
               )}
             </div>
             {mode === 'trace' && (blameData.length > 0 || showLineHistory) && (
-              <div style={s.blamePanel}>
+              <div style={s.blamePanel(showLineHistory)}>
                 <div style={s.blamePanelHeader}>
                   {showLineHistory ? 'Line History' : 'Blame'}
                 </div>
@@ -413,25 +414,7 @@ export default function App() {
                     </div>
                   ))}
                   {showLineHistory && lineHistory.map((lh, i) => (
-                    <div key={i} style={s.timelineEntry}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={s.commitHash}>{lh.shortHash}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDate(lh.date)}</span>
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{lh.message}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{lh.author}</div>
-                      {lh.diff && (
-                        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, lineHeight: 1.5, maxHeight: 200, overflow: 'auto', borderRadius: 4, border: '1px solid var(--border)', padding: 6, background: 'var(--bg)' }}>
-                          {lh.diff.split('\n').map((line, j) => (
-                            <div key={j} style={{
-                              color: line.startsWith('+') ? 'var(--add-text)' : line.startsWith('-') ? 'var(--remove-text)' : 'var(--text-muted)',
-                              background: line.startsWith('+') ? 'var(--add-bg)' : line.startsWith('-') ? 'var(--remove-bg)' : 'transparent',
-                              whiteSpace: 'pre'
-                            }}>{line}</div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <LineHistoryCard key={i} entry={lh} />
                   ))}
                   {showLineHistory && lineHistory.length >= traceLimit && (
                     <div style={{ padding: 12, textAlign: 'center' }}>
@@ -469,6 +452,55 @@ function CommitDetailView({ detail }: { detail: CommitDetail }) {
       {detail.files.map((file, i) => (
         <DiffFileView key={i} file={file} />
       ))}
+    </div>
+  )
+}
+
+function LineHistoryCard({ entry }: { entry: LineHistoryEntry }) {
+  const [expanded, setExpanded] = useState(false)
+  const initials = entry.author.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
+  const hue = entry.author.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360
+  const avatarColor = `hsl(${hue}, 45%, 38%)`
+  const diffLines = entry.diff ? entry.diff.split('\n') : []
+  const hasDiff = diffLines.some(l => l.startsWith('+') || l.startsWith('-'))
+  return (
+    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, letterSpacing: 0.5 }}>
+          {initials}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{entry.author}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{entry.relativeDate}</span>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6, lineHeight: 1.4 }}>{entry.message}</div>
+          <div style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--accent)', marginBottom: hasDiff ? 8 : 0 }}>{entry.shortHash}</div>
+          {hasDiff && (
+            <>
+              <button
+                onClick={() => setExpanded(e => !e)}
+                style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', marginBottom: expanded ? 8 : 0 }}
+              >
+                {expanded ? '▲ hide changes' : '▼ show changes'}
+              </button>
+              {expanded && (
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, lineHeight: 1.5, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg)', overflow: 'auto' }}>
+                  {diffLines.map((line, j) => (
+                    <div key={j} style={{
+                      padding: '0 8px',
+                      color: line.startsWith('+') ? 'var(--add-text)' : line.startsWith('-') ? 'var(--remove-text)' : 'var(--text-muted)',
+                      background: line.startsWith('+') ? 'var(--add-bg)' : line.startsWith('-') ? 'var(--remove-bg)' : 'transparent',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all'
+                    }}>{line || ' '}</div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

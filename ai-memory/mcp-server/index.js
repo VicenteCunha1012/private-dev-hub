@@ -2,6 +2,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 
 const API_BASE = process.env.AI_MEMORY_URL || 'http://localhost:10417'
 
@@ -18,7 +19,7 @@ const server = new Server(
   { capabilities: { tools: {} } }
 )
 
-server.setRequestHandler('tools/list', async () => ({
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: 'write_handoff',
@@ -55,7 +56,7 @@ server.setRequestHandler('tools/list', async () => ({
           title: { type: 'string', description: 'Short decision title (e.g. "Chose PostgreSQL over MongoDB")' },
           description: { type: 'string', description: 'What was decided and the context' },
           reasoning: { type: 'string', description: 'Why this option was chosen' },
-          alternatives: { type: 'string', description: 'Other options considered' },
+          alternatives: { type: 'string', description: 'What other options were considered' },
           tags: { type: 'string', description: 'Comma-separated tags (e.g. "database,architecture")' },
           project: { type: 'string', description: 'Project name' },
           tool: { type: 'string', description: 'Tool writing this' },
@@ -78,7 +79,7 @@ server.setRequestHandler('tools/list', async () => ({
   ],
 }))
 
-server.setRequestHandler('tools/call', async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params
 
   switch (name) {

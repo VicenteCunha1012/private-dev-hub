@@ -5,6 +5,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 TTYD_JAR="$DIR/ttyd-manager/build/libs/ttyd-manager-all.jar"
 TTYD_PID_FILE="$DIR/.ttyd-manager.pid"
 
+# BuildKit required for --mount=type=cache in Dockerfiles
+export DOCKER_BUILDKIT=1
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -92,6 +95,16 @@ HOOK_EOF
     chmod +x "$HOOK_FILE"
     git config --global core.hooksPath "$HOOKS_DIR"
     log "Git pre-push hook installed ($HOOKS_DIR)"
+fi
+
+# ── ktor-base shared runtime image ───────────────────────────────────────────
+KTOR_BASE_ID=$(docker images -q ktor-base:21 2>/dev/null)
+if [ -z "$KTOR_BASE_ID" ]; then
+    info "Building ktor-base:21 (first time only — all backends share this layer)..."
+    docker build -t ktor-base:21 "$DIR/ktor-base"
+    log "ktor-base:21 built"
+else
+    log "ktor-base:21: cached"
 fi
 
 # ── Docker Compose ────────────────────────────────────────────────────────────
