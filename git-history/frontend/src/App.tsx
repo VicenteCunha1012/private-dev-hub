@@ -1,46 +1,7 @@
-import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api, type RepoInfo, type BranchInfo, type CommitInfo, type CommitDetail, type TreeEntry, type FileContent, type BlameEntry, type LineHistoryEntry, type DiffFile, type DiffHunk, type DiffLine } from './api/gitApi'
 
 type Mode = 'commits' | 'files' | 'trace'
-
-const s = {
-  root: { display: 'flex', height: '100%', width: '100%', overflow: 'hidden' } as CSSProperties,
-  sidebar: { width: 'var(--sidebar-width)', minWidth: 280, background: 'var(--sidebar-bg)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' } as CSSProperties,
-  sidebarHeader: { padding: '16px 16px 12px', borderBottom: '1px solid var(--border)' } as CSSProperties,
-  main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' } as CSSProperties,
-  topBar: { padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } as CSSProperties,
-  tabs: { display: 'flex', gap: 0, background: 'var(--card-bg)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' } as CSSProperties,
-  tab: (active: boolean) => ({ padding: '7px 16px', fontSize: 13, fontWeight: active ? 600 : 400, color: active ? 'var(--accent)' : 'var(--text-muted)', background: active ? 'var(--active-bg)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s', borderRight: '1px solid var(--border)' }) as CSSProperties,
-  content: { flex: 1, overflow: 'auto', padding: 16 } as CSSProperties,
-  select: { width: 'auto', minWidth: 140, padding: '6px 10px', fontSize: 13 } as CSSProperties,
-  commitList: { display: 'flex', flexDirection: 'column', gap: 2 } as CSSProperties,
-  commitItem: (active: boolean) => ({ padding: '10px 14px', borderRadius: 'var(--radius)', cursor: 'pointer', background: active ? 'var(--active-bg)' : 'transparent', borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent', transition: 'all 0.12s' }) as CSSProperties,
-  commitHash: { fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)', marginRight: 8 } as CSSProperties,
-  commitMsg: { fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } as CSSProperties,
-  commitMeta: { fontSize: 11, color: 'var(--text-muted)', marginTop: 2 } as CSSProperties,
-  card: { background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12 } as CSSProperties,
-  cardHeader: { padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as CSSProperties,
-  badge: (color: string) => ({ display: 'inline-block', padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: color === 'green' ? 'var(--add-bg)' : color === 'red' ? 'var(--remove-bg)' : 'var(--accent-glow)', color: color === 'green' ? 'var(--add-text)' : color === 'red' ? 'var(--remove-text)' : 'var(--accent)' }) as CSSProperties,
-  diffTable: { width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6 } as CSSProperties,
-  lineNum: { width: 50, textAlign: 'right', padding: '0 8px', color: 'var(--text-dim)', userSelect: 'none', verticalAlign: 'top' } as CSSProperties,
-  diffContent: (type: string) => ({ padding: '0 12px', whiteSpace: 'pre', background: type === 'add' ? 'var(--add-bg)' : type === 'remove' ? 'var(--remove-bg)' : 'transparent', color: type === 'add' ? 'var(--add-text)' : type === 'remove' ? 'var(--remove-text)' : 'var(--text)' }) as CSSProperties,
-  treeItem: (isDir: boolean) => ({ padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 'var(--radius)', color: isDir ? 'var(--accent)' : 'var(--text)', fontFamily: 'var(--mono)', fontSize: 13 }) as CSSProperties,
-  fileViewerHeader: { padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 } as CSSProperties,
-  codeLine: (selected: boolean, blameColor?: string) => ({ display: 'flex', minHeight: 20, background: selected ? 'rgba(249, 115, 22, 0.1)' : blameColor || 'transparent', cursor: 'pointer', transition: 'background 0.1s' }) as CSSProperties,
-  codeLineNum: { width: 50, textAlign: 'right', padding: '0 8px', color: 'var(--text-dim)', userSelect: 'none', fontFamily: 'var(--mono)', fontSize: 12, flexShrink: 0 } as CSSProperties,
-  codeContent: { flex: 1, padding: '0 12px', whiteSpace: 'pre', fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6 } as CSSProperties,
-  blamePanel: (wide: boolean) => ({ width: wide ? 480 : 320, minWidth: wide ? 480 : 320, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }) as CSSProperties,
-  blamePanelHeader: { padding: '12px 14px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14 } as CSSProperties,
-  blameEntry: { padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 12 } as CSSProperties,
-  timelineEntry: { padding: '14px 16px', borderBottom: '1px solid var(--border)' } as CSSProperties,
-  btn: { padding: '6px 14px', borderRadius: 'var(--radius)', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' } as CSSProperties,
-  btnOutline: { padding: '6px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' } as CSSProperties,
-  configCard: { background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 16, margin: 16 } as CSSProperties,
-  scrollList: { flex: 1, overflow: 'auto' } as CSSProperties,
-  empty: { padding: 40, textAlign: 'center', color: 'var(--text-muted)' } as CSSProperties,
-  breadcrumb: { display: 'flex', gap: 4, alignItems: 'center', fontSize: 13, color: 'var(--text-muted)', flexWrap: 'wrap' } as CSSProperties,
-  breadcrumbItem: { cursor: 'pointer', color: 'var(--accent)', padding: '2px 4px', borderRadius: 4 } as CSSProperties,
-}
 
 export default function App() {
   const [repos, setRepos] = useState<RepoInfo[]>([])
@@ -221,8 +182,8 @@ export default function App() {
 
   if (showConfig) {
     return (
-      <div style={{ ...s.root, justifyContent: 'center', alignItems: 'center' }}>
-        <div style={{ ...s.configCard, width: 500, maxWidth: '90%' }}>
+      <div className="gh-root" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 16, margin: 16, width: 500, maxWidth: '90%' }}>
           <h2 style={{ marginBottom: 16, fontSize: 18 }}>Git History Config</h2>
           <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Repository directories (one per line)</label>
           <textarea
@@ -233,8 +194,8 @@ export default function App() {
             placeholder="/home/user/projects/repo1&#10;/home/user/projects/repo2"
           />
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button style={s.btnOutline} onClick={() => setShowConfig(false)}>Cancel</button>
-            <button style={s.btn} onClick={saveConfig}>Save</button>
+            <button onClick={() => setShowConfig(false)}>Cancel</button>
+            <button className="button" onClick={saveConfig}>Save</button>
           </div>
         </div>
       </div>
@@ -243,12 +204,12 @@ export default function App() {
 
   if (repos.length === 0) {
     return (
-      <div style={{ ...s.root, justifyContent: 'center', alignItems: 'center' }}>
-        <div style={{ ...s.configCard, width: 500, textAlign: 'center' }}>
+      <div className="gh-root" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 16, margin: 16, width: 500, textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>&#128218;</div>
           <h2 style={{ marginBottom: 8 }}>No repositories configured</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>Add repository directories to get started.</p>
-          <button style={s.btn} onClick={() => setShowConfig(true)}>Configure Repos</button>
+          <button className="button" onClick={() => setShowConfig(true)}>Configure Repos</button>
           {error && <p style={{ color: 'var(--danger)', marginTop: 12, fontSize: 12 }}>{error}</p>}
         </div>
       </div>
@@ -256,44 +217,42 @@ export default function App() {
   }
 
   return (
-    <div style={s.root}>
+    <div className="gh-root">
       {/* Sidebar */}
-      <div style={s.sidebar} ref={sidebarRef}>
-        <div style={s.sidebarHeader}>
+      <div className="gh-sidebar" ref={sidebarRef}>
+        <div className="gh-sidebar-header">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontWeight: 700, fontSize: 15 }}>Git History</span>
-            <button style={{ ...s.btnOutline, padding: '4px 10px', fontSize: 11 }} onClick={() => setShowConfig(true)}>Config</button>
+            <button style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setShowConfig(true)}>Config</button>
           </div>
-          <select value={repo} onChange={e => setRepo(e.target.value)} style={{ ...s.select, width: '100%', marginBottom: 8 }}>
+          <select value={repo} onChange={e => setRepo(e.target.value)} style={{ width: '100%', marginBottom: 8 }}>
             {repos.map(r => <option key={r.path} value={r.path}>{r.name}</option>)}
           </select>
-          <select value={branch} onChange={e => setBranch(e.target.value)} style={{ ...s.select, width: '100%' }}>
+          <select value={branch} onChange={e => setBranch(e.target.value)} style={{ width: '100%' }}>
             {branches.map(b => <option key={b.name} value={b.name}>{b.name}{b.current ? ' *' : ''}</option>)}
           </select>
         </div>
-        <div style={s.tabs}>
+        <div style={{ display: 'flex', gap: 0, background: 'var(--card-bg)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
           {(['commits', 'files', 'trace'] as Mode[]).map(m => (
-            <button key={m} style={s.tab(mode === m)} onClick={() => setMode(m)}>
+            <button key={m} className={`gh-tab ${mode === m ? 'active' : ''}`} onClick={() => setMode(m)}>
               {m === 'commits' ? 'Commits' : m === 'files' ? 'Files' : 'Trace'}
             </button>
           ))}
         </div>
-        <div style={s.scrollList}>
+        <div style={{ flex: 1, overflow: 'auto' }}>
           {mode === 'commits' && (
-            <div style={s.commitList}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {commits.map(c => (
-                <div key={c.hash} style={s.commitItem(selectedCommit === c.hash)} onClick={() => selectCommit(c.hash)}
-                  onMouseEnter={e => { if (selectedCommit !== c.hash) (e.currentTarget as HTMLDivElement).style.background = 'var(--card-hover)' }}
-                  onMouseLeave={e => { if (selectedCommit !== c.hash) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}>
-                  <div style={s.commitMsg}>
-                    <span style={s.commitHash}>{c.shortHash}</span>
+                <div key={c.hash} className={`gh-commit-item ${selectedCommit === c.hash ? 'active' : ''}`} onClick={() => selectCommit(c.hash)}>
+                  <div className="gh-commit-msg">
+                    <span className="gh-commit-hash">{c.shortHash}</span>
                     {c.message}
                   </div>
-                  <div style={s.commitMeta}>{c.author} &middot; {c.relativeDate}</div>
+                  <div className="gh-commit-meta">{c.author} &middot; {c.relativeDate}</div>
                 </div>
               ))}
               {commits.length >= 50 && (
-                <button style={{ ...s.btnOutline, margin: '8px 14px', width: 'auto' }} onClick={loadMoreCommits} disabled={loadingMore}>
+                <button style={{ margin: '8px 14px', width: 'auto' }} onClick={loadMoreCommits} disabled={loadingMore}>
                   {loadingMore ? 'Loading...' : 'Load more'}
                 </button>
               )}
@@ -302,20 +261,18 @@ export default function App() {
           {mode === 'files' && !fileContent && (
             <div>
               {treePath && (
-                <div style={{ ...s.breadcrumb, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={s.breadcrumbItem} onClick={() => navigateBreadcrumb(0)}>/</span>
+                <div className="gh-breadcrumb" style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                  <span className="gh-breadcrumb-part" onClick={() => navigateBreadcrumb(0)}>/</span>
                   {treePath.split('/').map((part, i) => (
                     <span key={i}>
-                      <span style={{ color: 'var(--text-dim)' }}>/</span>
-                      <span style={s.breadcrumbItem} onClick={() => navigateBreadcrumb(i + 1)}>{part}</span>
+                      <span className="gh-breadcrumb-sep">/</span>
+                      <span className="gh-breadcrumb-part" onClick={() => navigateBreadcrumb(i + 1)}>{part}</span>
                     </span>
                   ))}
                 </div>
               )}
               {tree.map(entry => (
-                <div key={entry.path} style={s.treeItem(entry.type === 'tree')} onClick={() => navigateTree(entry)}
-                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--card-hover)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
+                <div key={entry.path} className={`gh-tree-item ${entry.type === 'tree' ? 'dir' : 'file'}`} onClick={() => navigateTree(entry)}>
                   <span>{entry.type === 'tree' ? '\u{1F4C1}' : '\u{1F4C4}'}</span>
                   <span style={{ flex: 1 }}>{entry.name}</span>
                   {entry.size != null && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{formatSize(entry.size)}</span>}
@@ -326,14 +283,14 @@ export default function App() {
           {mode === 'files' && fileContent && (
             <div>
               <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
-                <button style={{ ...s.btnOutline, padding: '3px 8px', fontSize: 11, marginRight: 8 }} onClick={() => { setFileContent(null); setSelectedLines(new Set()); setBlameData([]) }}>
+                <button style={{ padding: '3px 8px', fontSize: 11, marginRight: 8 }} onClick={() => { setFileContent(null); setSelectedLines(new Set()); setBlameData([]) }}>
                   Back
                 </button>
-                <button style={{ ...s.btnOutline, padding: '3px 8px', fontSize: 11, marginRight: 8 }} onClick={loadFileHistory}>
+                <button style={{ padding: '3px 8px', fontSize: 11, marginRight: 8 }} onClick={loadFileHistory}>
                   History
                 </button>
                 {selectedLines.size > 0 && (
-                  <button style={{ ...s.btn, padding: '3px 8px', fontSize: 11 }} onClick={loadBlame}>
+                  <button className="button" style={{ padding: '3px 8px', fontSize: 11 }} onClick={loadBlame}>
                     Blame L{Math.min(...selectedLines)}{selectedLines.size > 1 ? `-L${Math.max(...selectedLines)}` : ''}
                   </button>
                 )}
@@ -348,12 +305,12 @@ export default function App() {
                 </div>
               )}
               {blameData.length > 0 && !showLineHistory && (
-                <button style={{ ...s.btn, width: '100%', marginBottom: 8, fontSize: 12 }} onClick={loadLineHistory} disabled={lineHistoryLoading}>
+                <button className="button" style={{ width: '100%', marginBottom: 8, fontSize: 12 }} onClick={loadLineHistory} disabled={lineHistoryLoading}>
                   {lineHistoryLoading ? 'Loading...' : 'Full line history'}
                 </button>
               )}
               {selectedLines.size === 0 && (
-                <p style={{ ...s.empty, padding: 20 }}>Select lines in a file to trace their history</p>
+                <p className="gh-empty" style={{ padding: 20 }}>Select lines in a file to trace their history</p>
               )}
             </div>
           )}
@@ -361,7 +318,7 @@ export default function App() {
       </div>
 
       {/* Main content */}
-      <div style={s.main}>
+      <div className="gh-main">
         {error && (
           <div style={{ padding: '8px 16px', background: 'var(--remove-bg)', color: 'var(--danger)', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
             {error}
@@ -370,11 +327,11 @@ export default function App() {
         )}
 
         {mode === 'commits' && !commitDetail && (
-          <div style={s.empty}>Select a commit from the sidebar</div>
+          <div className="gh-empty">Select a commit from the sidebar</div>
         )}
 
         {mode === 'commits' && commitDetail && (
-          <div style={s.content}>
+          <div className="gh-content">
             <CommitDetailView detail={commitDetail} />
           </div>
         )}
@@ -401,14 +358,14 @@ export default function App() {
               )}
             </div>
             {mode === 'trace' && (blameData.length > 0 || showLineHistory) && (
-              <div style={s.blamePanel(showLineHistory)}>
-                <div style={s.blamePanelHeader}>
+              <div className={`gh-blame-panel ${showLineHistory ? 'wide' : 'narrow'}`}>
+                <div className="gh-blame-header">
                   {showLineHistory ? 'Line History' : 'Blame'}
                 </div>
                 <div style={{ flex: 1, overflow: 'auto' }}>
                   {!showLineHistory && blameData.map((b, i) => (
-                    <div key={i} style={s.blameEntry}>
-                      <div><span style={s.commitHash}>{b.shortHash}</span> <span style={{ fontWeight: 600 }}>{b.author}</span></div>
+                    <div key={i} className="gh-blame-entry">
+                      <div><span className="gh-commit-hash">{b.shortHash}</span> <span style={{ fontWeight: 600 }}>{b.author}</span></div>
                       <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{b.relativeDate}</div>
                       <div style={{ fontFamily: 'var(--mono)', fontSize: 11, marginTop: 4, color: 'var(--text)', whiteSpace: 'pre', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.line}</div>
                     </div>
@@ -418,7 +375,7 @@ export default function App() {
                   ))}
                   {showLineHistory && lineHistory.length >= traceLimit && (
                     <div style={{ padding: 12, textAlign: 'center' }}>
-                      <button style={s.btn} onClick={() => { setTraceLimit(prev => prev + 20); loadLineHistory() }}>
+                      <button className="button" onClick={() => { setTraceLimit(prev => prev + 20); loadLineHistory() }}>
                         Go deeper
                       </button>
                     </div>
@@ -430,7 +387,7 @@ export default function App() {
         )}
 
         {mode === 'files' && !fileContent && (
-          <div style={s.empty}>Browse the file tree and select a file</div>
+          <div className="gh-empty">Browse the file tree and select a file</div>
         )}
       </div>
     </div>
@@ -493,7 +450,7 @@ function LineHistoryCard({ entry }: { entry: LineHistoryEntry }) {
                       background: line.startsWith('+') ? 'var(--add-bg)' : line.startsWith('-') ? 'var(--remove-bg)' : 'transparent',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-all'
-                    }}>{line || ' '}</div>
+                    }}>{line || ' '}</div>
                   ))}
                 </div>
               )}
@@ -508,14 +465,19 @@ function LineHistoryCard({ entry }: { entry: LineHistoryEntry }) {
 function DiffFileView({ file }: { file: DiffFile }) {
   const [collapsed, setCollapsed] = useState(false)
   const statusColor = file.status === 'added' ? 'green' : file.status === 'deleted' ? 'red' : 'orange'
+  const badgeStyle = {
+    display: 'inline-block', padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+    background: statusColor === 'green' ? 'var(--add-bg)' : statusColor === 'red' ? 'var(--remove-bg)' : 'var(--accent-glow)',
+    color: statusColor === 'green' ? 'var(--add-text)' : statusColor === 'red' ? 'var(--remove-text)' : 'var(--accent)'
+  }
   return (
-    <div style={s.card}>
-      <div style={s.cardHeader}>
+    <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12 }}>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={s.badge(statusColor)}>{file.status}</span>
+          <span style={badgeStyle}>{file.status}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>{file.path}</span>
         </div>
-        <button style={{ ...s.btnOutline, padding: '2px 8px', fontSize: 11 }} onClick={() => setCollapsed(!collapsed)}>
+        <button style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? 'Expand' : 'Collapse'}
         </button>
       </div>
@@ -532,7 +494,7 @@ function HunkView({ hunk }: { hunk: DiffHunk }) {
       <div style={{ padding: '4px 14px', background: 'rgba(249, 115, 22, 0.06)', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-dim)' }}>
         {hunk.header}
       </div>
-      <table style={s.diffTable}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.6 }}>
         <tbody>
           {hunk.lines.map((line, k) => (
             <DiffLineRow key={k} line={line} />
@@ -544,11 +506,12 @@ function HunkView({ hunk }: { hunk: DiffHunk }) {
 }
 
 function DiffLineRow({ line }: { line: DiffLine }) {
+  const lineNumStyle = { width: 50, textAlign: 'right' as const, padding: '0 8px', color: 'var(--text-dim)', userSelect: 'none' as const, verticalAlign: 'top' as const }
   return (
     <tr>
-      <td style={s.lineNum}>{line.oldLineNum ?? ''}</td>
-      <td style={s.lineNum}>{line.newLineNum ?? ''}</td>
-      <td style={s.diffContent(line.type)}>
+      <td style={lineNumStyle}>{line.oldLineNum ?? ''}</td>
+      <td style={lineNumStyle}>{line.newLineNum ?? ''}</td>
+      <td className={`gh-diff-${line.type}`} style={{ padding: '0 12px', whiteSpace: 'pre' }}>
         <span style={{ userSelect: 'none', color: 'var(--text-dim)', marginRight: 4 }}>
           {line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '}
         </span>
@@ -582,7 +545,7 @@ function FileViewer({ file, selectedLines, blameData, onLineClick }: {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={s.fileViewerHeader}>
+      <div className="gh-file-header">
         <span style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>{file.path}</span>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{file.lines} lines</span>
       </div>
@@ -591,10 +554,16 @@ function FileViewer({ file, selectedLines, blameData, onLineClick }: {
           const lineNum = i + 1
           const blame = blameMap.get(lineNum)
           const blameColor = blame ? hashColors.get(blame.hash) : undefined
+          const isSelected = selectedLines.has(lineNum)
           return (
-            <div key={i} style={s.codeLine(selectedLines.has(lineNum), blameColor)} onClick={e => onLineClick(lineNum, e)}>
-              <div style={s.codeLineNum}>{lineNum}</div>
-              <div style={s.codeContent}>{line}</div>
+            <div
+              key={i}
+              className={`gh-code-line${isSelected ? ' selected' : ''}`}
+              style={!isSelected && blameColor ? { background: blameColor } : undefined}
+              onClick={e => onLineClick(lineNum, e)}
+            >
+              <div className="gh-line-num">{lineNum}</div>
+              <div className="gh-line-content">{line}</div>
             </div>
           )
         })}
@@ -613,23 +582,28 @@ function FileHistoryView({ history, onSelect, selectedCommit, onClose }: {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 600 }}>File History ({history.length} commits)</span>
-        <button style={{ ...s.btnOutline, padding: '3px 8px', fontSize: 11 }} onClick={onClose}>Close</button>
+        <button style={{ padding: '3px 8px', fontSize: 11 }} onClick={onClose}>Close</button>
       </div>
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div style={{ width: 300, overflow: 'auto', borderRight: '1px solid var(--border)' }}>
           {history.map(c => (
-            <div key={c.hash} style={{ ...s.commitItem(selectedCommit?.hash === c.hash), padding: '8px 12px' }} onClick={() => onSelect(c.hash)}>
+            <div
+              key={c.hash}
+              className={`gh-commit-item ${selectedCommit?.hash === c.hash ? 'active' : ''}`}
+              style={{ padding: '8px 12px' }}
+              onClick={() => onSelect(c.hash)}
+            >
               <div style={{ fontSize: 12 }}>
-                <span style={s.commitHash}>{c.shortHash}</span>
+                <span className="gh-commit-hash">{c.shortHash}</span>
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.message}</span>
               </div>
-              <div style={s.commitMeta}>{c.author} &middot; {c.relativeDate}</div>
+              <div className="gh-commit-meta">{c.author} &middot; {c.relativeDate}</div>
             </div>
           ))}
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
           {selectedCommit ? <CommitDetailView detail={selectedCommit} /> : (
-            <div style={s.empty}>Select a commit to see the diff</div>
+            <div className="gh-empty">Select a commit to see the diff</div>
           )}
         </div>
       </div>

@@ -1,0 +1,10 @@
+ktor:
+  deployment:
+    port: 10410
+  application:
+    modules:
+      - pt.cunha.inframonitor.ApplicationKt.module
+
+inframonitor:
+  procNetPath: "/host/proc/1/net"
+  procPath: "/host/proc"

@@ -59,6 +59,9 @@ class Database(private val config: ApplicationConfig) {
                     value TEXT NOT NULL
                 )
             """)
+            // merge port-radar + health-dashboard → infra-monitor
+            stmt.executeUpdate("UPDATE entries SET label='Infra Monitor', url='http://localhost:10310', emoji='🖥️' WHERE label='Port Radar'")
+            stmt.executeUpdate("DELETE FROM entries WHERE label='Health Dashboard'")
         }
     }
 
@@ -111,13 +114,12 @@ class Database(private val config: ApplicationConfig) {
         insertEntry("JSON Tools", "http://localhost:10306", "tool", toolsId, 2, "🔧")
         insertEntry("Mock Generator", "http://localhost:10308", "tool", toolsId, 3, "🎲")
         insertEntry("Command Vault", "http://localhost:10309", "tool", toolsId, 4, "💻")
-        insertEntry("Port Radar", "http://localhost:10310", "tool", toolsId, 5, "🛰️")
-        insertEntry("Health Dashboard", "http://localhost:10311", "tool", toolsId, 6, "💚")
-        insertEntry("Todo", "http://localhost:10312", "tool", toolsId, 7, "✅")
-        insertEntry("Secrets Vault", "http://localhost:10314", "tool", toolsId, 8, "🔐")
-        insertEntry("Git History", "http://localhost:10315", "tool", toolsId, 9, "📜")
-        insertEntry("Dev Utils", "http://localhost:10316", "tool", toolsId, 10, "🧰")
-        insertEntry("AI Memory", "http://localhost:10317", "tool", toolsId, 11, "🧠")
+        insertEntry("Infra Monitor", "http://localhost:10310", "tool", toolsId, 5, "🖥️")
+        insertEntry("Todo", "http://localhost:10312", "tool", toolsId, 6, "✅")
+        insertEntry("Secrets Vault", "http://localhost:10314", "tool", toolsId, 7, "🔐")
+        insertEntry("Git History", "http://localhost:10315", "tool", toolsId, 8, "📜")
+        insertEntry("Dev Utils", "http://localhost:10316", "tool", toolsId, 9, "🧰")
+        insertEntry("AI Memory", "http://localhost:10317", "tool", toolsId, 10, "🧠")
 
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"

@@ -172,33 +172,20 @@ services:
       timeout: 5s
       retries: 10
 
-  port-radar-frontend:
-    build: ./port-radar/frontend
+  infra-monitor-frontend:
+    build: ./infra-monitor/frontend
     ports:
       - "127.0.0.1:10310:80"
     depends_on:
-      - port-radar-backend
+      - infra-monitor-backend
 
-  port-radar-backend:
-    build: ./port-radar/backend
+  infra-monitor-backend:
+    build: ./infra-monitor/backend
     ports:
       - "127.0.0.1:10410:10410"
     mem_limit: 320m
     volumes:
       - /proc:/host/proc:ro
-
-  health-dashboard-frontend:
-    build: ./health-dashboard/frontend
-    ports:
-      - "127.0.0.1:10311:80"
-    depends_on:
-      - health-dashboard-backend
-
-  health-dashboard-backend:
-    build: ./health-dashboard/backend
-    ports:
-      - "127.0.0.1:10411:10411"
-    mem_limit: 320m
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

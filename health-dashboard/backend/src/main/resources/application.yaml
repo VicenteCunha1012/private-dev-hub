@@ -1,6 +1,0 @@
-ktor:
-  deployment:
-    port: 10411
-  application:
-    modules:
-      - pt.cunha.healthdashboard.ApplicationKt.module

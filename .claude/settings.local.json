@@ -89,7 +89,13 @@
       "Bash(grep -v \"^--$\")",
       "Bash(xargs ls -la)",
       "Bash(sort -t/ -k6)",
-      "Bash(xargs ls)"
+      "Bash(xargs ls)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(sed -i 's|  Port Radar:         http://localhost:10310|  Infra Monitor:      http://localhost:10310|' /home/cunvic/private-dev-hub/start.sh)",
+      "Bash(sed -i '/  Health Dashboard:   http:\\\\/\\\\/localhost:10311/d' /home/cunvic/private-dev-hub/start.sh)",
+      "Bash(docker stop *)",
+      "Bash(rtk npm *)"
     ]
   }
 }

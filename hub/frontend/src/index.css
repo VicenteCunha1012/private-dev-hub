@@ -38,7 +38,34 @@
   --success:      #4ade80;
 
   --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, Consolas, monospace;
   --radius: 8px;
+}
+
+/* Bridge — map design-system token names → hub palette vars.
+   These are aliases only; the palette JS continues to override the vars above. */
+:root {
+  --s1:    var(--sidebar-bg);
+  --s2:    var(--card-bg);
+  --s3:    var(--card-hover);
+  --s4:    #231f33;
+  --bd:    var(--border);
+  --bd-s:  var(--border-light);
+  --tx:    var(--text);
+  --tx-2:  var(--text-muted);
+  --tx-3:  var(--text-dim);
+  --ac:    var(--accent);
+  --ac-dim: var(--active-bg);
+  --ac-glow: var(--accent-glow);
+  --r:     6px;  --r-lg: 10px;
+  --ok:    var(--success);  --ok-dim:   rgba(74,222,128,0.12);
+  --warn:  #fbbf24;         --warn-dim: rgba(251,191,36,0.12);
+  --err:   var(--danger);   --err-dim:  rgba(248,113,113,0.12);
+  --info:  #60a5fa;         --info-dim: rgba(96,165,250,0.12);
+  --add-bg:    rgba(52,211,153,0.10); --add-text:    #6ee7b7;
+  --remove-bg: rgba(248,113,113,0.10); --remove-text: #fca5a5;
+  --sans:  var(--font);
+  --text-h: var(--text);
 }
 
 html, body, #root {
@@ -52,44 +79,96 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: 13.5px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
 }
 
+/* ── Buttons ── */
 button {
-  font-family: var(--font);
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-  font-size: inherit;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font); font-size: 13px; font-weight: 500;
+  cursor: pointer; outline: none;
+  padding: 6px 13px; border-radius: var(--r);
+  border: 1px solid var(--bd);
+  background: var(--s3); color: var(--tx-2);
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+  user-select: none; white-space: nowrap;
+  vertical-align: middle;
+  -webkit-appearance: none;
+}
+button:hover { background: var(--s4); color: var(--tx); border-color: var(--bd-s); }
+button:active { opacity: 0.85; }
+button:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+button.active {
+  background: var(--ac-dim); color: var(--ac);
+  border-color: color-mix(in srgb, var(--ac) 35%, transparent);
 }
 
+/* ── Inputs ── */
 input, textarea, select {
-  font-family: var(--font);
-  font-size: 13.5px;
-  color: var(--text);
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 11px;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: var(--font); font-size: 13px;
+  color: var(--tx); background: var(--s3);
+  border: 1px solid var(--bd); border-radius: var(--r);
+  padding: 7px 11px; width: 100%; outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  -webkit-appearance: none; color-scheme: dark;
 }
-
+input::placeholder, textarea::placeholder { color: var(--tx-3); }
 input:focus, textarea:focus, select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--ac); box-shadow: 0 0 0 3px var(--ac-dim);
 }
+select { cursor: pointer; }
+select option { background: var(--s2); color: var(--tx); }
+textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
 
-select option {
-  background: #1e1a2e;
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--s4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bd-s); }
 
 a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a2440; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3d3660; }
+/* ── Utilities ── */
+.page { padding: 24px; max-width: 1280px; margin: 0 auto; }
+.mono { font-family: var(--mono); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { color: var(--tx-3); text-align: center; padding: 48px 0; font-size: 13px; }
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+  text-transform: uppercase; white-space: nowrap;
+}
+.badge-ok     { background: var(--ok-dim);   color: var(--ok); }
+.badge-warn   { background: var(--warn-dim);  color: var(--warn); }
+.badge-err    { background: var(--err-dim);   color: var(--err); }
+.badge-info   { background: var(--info-dim);  color: var(--info); }
+.badge-muted  { background: var(--s4);        color: var(--tx-3); }
+.badge-accent { background: var(--ac-dim);    color: var(--ac); }
+
+/* portal table row accent */
+.portal-row td:first-child { border-left: 2px solid var(--ac); }
+
+/* ── Layout helpers ── */
+.layout-split { display: flex; height: 100%; overflow: hidden; }
+.layout-sidebar {
+  width: var(--sidebar-width, 260px); min-width: var(--sidebar-width, 260px);
+  background: var(--s1); border-right: 1px solid var(--bd);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.layout-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* loading helper */
+.loading { display: flex; align-items: center; justify-content: center; gap: 10px; height: 200px; color: var(--tx-2); }
+.spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--bd-s); border-top-color: var(--ac);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
