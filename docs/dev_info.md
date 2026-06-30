@@ -41,8 +41,7 @@ Each module is fully self-contained: its own Dockerfile, its own Postgres DB (if
 | JSON Tools | 10306 | 10406 | — | Stateless, synced diff scrolling |
 | Mock Data Generator | 10308 | 10408 | 10508 | AI-inferred specs + Python generator |
 | Command Vault | 10309 | 10409 | 10509 | Snippets + Flows (React Flow node editor) |
-| Port Radar | 10310 | 10410 | — | Reads host /proc/net, stateless |
-| Health Dashboard | 10311 | 10411 | — | Proxies /health checks, stateless |
+| Infra Monitor | 10310 | 10410 | — | Port scanner (host /proc/1/net, SYS_PTRACE+DAC_READ_SEARCH) + health checks, stateless |
 | Todo | 10312 | 10412 | 10512 | Lists, subtasks, priorities, tags |
 | Arcade | 10313 | 10413 | 10513 | 15 browser games, coin system |
 | Secrets Vault | 10314 | 10414 | 10514 | Zero-knowledge encrypted credentials (AES-256-GCM) |
@@ -230,31 +229,20 @@ dev-hub/
 │       │   └── Routes.kt          # /snippets CRUD, /snippets/tags, /config, /db
 │       └── Dockerfile
 │
-├── port-radar/
+├── infra-monitor/
 │   ├── frontend/
 │   │   ├── src/
-│   │   │   ├── App.tsx             # Port table with conflict detection (allowlist-based), auto-refresh
-│   │   │   └── api/radarApi.ts
+│   │   │   ├── App.tsx             # Tabbed: Ports (collapsible Dev Hub section) + Services (health grid)
+│   │   │   └── api/infraApi.ts
 │   │   ├── Dockerfile
 │   │   └── nginx.conf
 │   │
 │   └── backend/
-│       ├── src/main/kotlin/pt/cunha/portradar/
-│       │   └── Application.kt     # Reads /host/proc/net/tcp, maps ports to modules
+│       ├── src/main/kotlin/pt/cunha/inframonitor/
+│       │   └── Application.kt     # Reads /host/proc/1/net/tcp (root ns), inode→PID map via /host/proc/<pid>/fd, parallel health checks
+│       ├── src/main/resources/application.yaml
 │       └── Dockerfile
-│
-├── health-dashboard/
-│   ├── frontend/
-│   │   ├── src/
-│   │   │   ├── App.tsx             # Traffic-light grid, auto-refresh, summary bar
-│   │   │   └── api/healthApi.ts
-│   │   ├── Dockerfile
-│   │   └── nginx.conf
-│   │
-│   └── backend/
-│       ├── src/main/kotlin/pt/cunha/healthdashboard/
-│       │   └── Application.kt     # Parallel health checks via Ktor client, in-memory config
-│       └── Dockerfile
+│   # docker-compose: cap_add: [SYS_PTRACE, DAC_READ_SEARCH] to read all host process fds
 │
 ├── todo/
 │   ├── frontend/                   # React + Vite — port 10312
@@ -508,24 +496,17 @@ Handoffs are upserted by project+context (same project+context updates existing)
 | DELETE | /snippets/{id} | Delete snippet |
 | GET | /snippets/tags | List distinct tags |
 
-### Port Radar Backend (10410)
+### Infra Monitor Backend (10410)
 
 | Method | Path | Description |
 |---|---|---|
 | GET | /health | Health check |
-| GET | /config | Get config (procNetPath) |
-| GET | /ports | List open ports `?range=portal` (filters to 10300-10620) |
-
-### Health Dashboard Backend (10411)
-
-| Method | Path | Description |
-|---|---|---|
-| GET | /health | Health check |
+| GET | /ports | List open ports `?range=portal` (filters 10300-10620). Reads `/host/proc/1/net/tcp` + `/host/proc/<pid>/fd` for PID/process |
+| GET | /status | Check all services in parallel → `{services: [{name, url, status, responseTimeMs, error?}], checkedAt}` |
 | GET | /config | Get service list |
 | POST | /config | Replace service list `[{name, url}, ...]` |
-| GET | /config/export | Export config |
-| POST | /config/import | Import config |
-| GET | /status | Check all services in parallel → `{services: [{name, url, status, responseTimeMs, error?}], checkedAt}` |
+
+Config note: `inframonitor.procNetPath` defaults to `/host/proc/1/net` (root network namespace). `inframonitor.procPath` defaults to `/host/proc`.
 
 ### ttyd Manager (10600, runs on host)
 
@@ -553,7 +534,7 @@ Handoffs are upserted by project+context (same project+context updates existing)
 | GET | /repos/{repo}/file | File content `?path=&ref=` |
 | GET | /repos/{repo}/file/history | File commit history `?path=&branch=&limit=` (with --follow) |
 | GET | /repos/{repo}/blame | Blame `?path=&start=&end=&ref=` (porcelain format) |
-| GET | /repos/{repo}/line-history | Line trace `?path=&start=&end=&limit=` (git log -L) |
+| GET | /repos/{repo}/line-history | Line trace `?path=&start=&end=&limit=` (iterative `git blame -L` chaining through parent commits via origLine — accurate on restructured files) |
 
 ### Dev Utils Backend (10416)
 
@@ -644,10 +625,8 @@ Hub Frontend (10300)
   │                                                           → Python subprocess (for generation)
   ├── iframes → Command Vault Frontend (10309)
   │                └── calls → Command Vault Backend (10409) → Command Vault DB (10509)
-  ├── iframes → Port Radar Frontend (10310)
-  │                └── calls → Port Radar Backend (10410) → reads /host/proc/net/tcp
-  ├── iframes → Health Dashboard Frontend (10311)
-  │                └── calls → Health Dashboard Backend (10411) → pings /health on all backends
+  ├── iframes → Infra Monitor Frontend (10310)
+  │                └── calls → Infra Monitor Backend (10410) → reads /host/proc/1/net/tcp + pings /health on all backends
   ├── iframes → ttyd sessions (10604-10620) [served by host ttyd processes]
   └── calls → Hub Backend (10303) → Hub DB (10403) [+ backup scheduler writes to local dir]
                                   → ttyd Manager API (10600)
@@ -664,12 +643,21 @@ Dependencies between modules are unidirectional and optional:
 ## Frontend Patterns
 
 ### Styling
-All frontends use inline styles (no CSS-in-JS library, no CSS modules). CSS variables are defined in `index.css` for colors/theme. Each module has its own accent color:
-- Hub: purple (`#a78bfa` / configurable via palettes)
-- Kafbat+: indigo (`#6366f1`)
-- AI Sessions: violet (`#8b5cf6`)
-- JSON Tools: amber (`#f59e0b`)
-- Mock Generator: emerald (`#10b981`)
+All frontends share a unified CSS design system defined in each module's `index.css`. No CSS-in-JS library, no CSS modules. The system uses a consistent neutral-dark base scale (`--bg`, `--s1`–`--s4`, `--bd`, `--tx`) with per-module accent colors and a full set of component classes (`.badge-ok/warn/err/info`, `.loading`, `.spinner`, `.layout-split`, `.layout-sidebar`). Backwards-compat aliases map old variable names (`--border`, `--card-bg`, `--accent`, etc.) so existing TSX inline styles keep working.
+
+Per-module accent (`--ac`):
+- Hub: violet (`#a78bfa` / overridden by palette system)
+- Kafbat+: blue (`#3b82f6`)
+- AI Sessions: violet (`#a78bfa`)
+- JSON Tools: emerald (`#10b981`)
+- Mock Generator: rose (`#f43f5e`)
+- Command Vault: orange (`#fb923c`)
+- Infra Monitor: cyan (`#06b6d4`)
+- Todo: indigo (`#818cf8`)
+- Arcade: pink (`#ec4899`)
+- Secrets Vault: red (`#f87171`)
+- Git History: amber (`#f59e0b`)
+- Dev Utils / AI Memory: purple (`#a78bfa`)
 
 ### Common UI Components
 Each module defines its own components (no shared component library). Common patterns:
@@ -915,8 +903,9 @@ API key is stored in `mockgen_config` table, set via `POST /config`, masked in `
 - ttyd-manager doesn't persist sessions across restarts, but the hub frontend auto-recreates them on page load from stored entry data (command + workdir).
 - Mock Generator's Python subprocess has no timeout — a malformed spec could hang the generation.
 - Kafbat+ consumer uses ephemeral consumer groups (random UUID per request), so it doesn't track offsets.
-- Port Radar requires `/proc` to be mounted from the host (`/proc:/host/proc:ro` in docker-compose). Without this, it only sees the container's own ports.
-- Health Dashboard uses Docker service names to reach backends — `host.docker.internal` for ttyd-manager (host-native). On Linux, `extra_hosts: host.docker.internal:host-gateway` is configured in docker-compose.
+- Infra Monitor requires `/proc:/host/proc:ro` mounted from host AND `cap_add: [SYS_PTRACE, DAC_READ_SEARCH]` in docker-compose. Without the capabilities, PID/process columns show `-` for non-container processes. Without the mount, port scanning returns empty.
+- Infra Monitor reads `/host/proc/1/net/tcp` (not `/host/proc/net/tcp`) — the latter is a symlink to the container's own network namespace, not the host's.
+- Infra Monitor services tab uses Docker service names to reach backends — `host.docker.internal` for ttyd-manager (host-native). On Linux, `extra_hosts: host.docker.internal:host-gateway` is configured in docker-compose.
 - Backup Scheduler runs as a coroutine in the hub backend process. If the process restarts, the scheduler restarts from config but any in-flight backup is lost.
 - AI Session Manager Cost Tracker timeline aggregation is done at query time (no pre-computed rollups). May be slow with thousands of sessions.
 - Spotlight deep-linking uses `postMessage` across cross-origin iframes. Works in Chromium; Firefox may require a hard refresh after first deploy for module listeners to register.

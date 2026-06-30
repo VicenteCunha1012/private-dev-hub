@@ -91,13 +91,6 @@ services:
       - ${HOME}/.config/rtk:/home/user/.config/rtk
       - ${HOME}/.gitconfig:/home/user/.gitconfig:ro
 
-  json-tools-frontend:
-    build: ./json-tools/frontend
-    ports:
-      - "127.0.0.1:10306:80"
-    depends_on:
-      - json-tools-backend
-
   json-tools-backend:
     build: ./json-tools/backend
     ports:
@@ -172,13 +165,6 @@ services:
       timeout: 5s
       retries: 10
 
-  infra-monitor-frontend:
-    build: ./infra-monitor/frontend
-    ports:
-      - "127.0.0.1:10310:80"
-    depends_on:
-      - infra-monitor-backend
-
   infra-monitor-backend:
     build: ./infra-monitor/backend
     ports:
@@ -186,6 +172,9 @@ services:
     mem_limit: 320m
     volumes:
       - /proc:/host/proc:ro
+    cap_add:
+      - SYS_PTRACE
+      - DAC_READ_SEARCH
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -291,13 +280,6 @@ services:
       timeout: 5s
       retries: 10
 
-  git-history-frontend:
-    build: ./git-history/frontend
-    ports:
-      - "127.0.0.1:10315:80"
-    depends_on:
-      - git-history-backend
-
   git-history-backend:
     build:
       context: .
@@ -323,13 +305,6 @@ services:
     ports:
       - "127.0.0.1:10416:10416"
     mem_limit: 320m
-
-  ai-memory-frontend:
-    build: ./ai-memory/frontend
-    ports:
-      - "127.0.0.1:10317:80"
-    depends_on:
-      - ai-memory-backend
 
   ai-memory-backend:
     build:

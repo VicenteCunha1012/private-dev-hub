@@ -95,7 +95,9 @@
       "Bash(sed -i 's|  Port Radar:         http://localhost:10310|  Infra Monitor:      http://localhost:10310|' /home/cunvic/private-dev-hub/start.sh)",
       "Bash(sed -i '/  Health Dashboard:   http:\\\\/\\\\/localhost:10311/d' /home/cunvic/private-dev-hub/start.sh)",
       "Bash(docker stop *)",
-      "Bash(rtk npm *)"
+      "Bash(rtk npm *)",
+      "Bash(bash sync-ai-config.sh)",
+      "Bash(sudo chown cunvic:cunvic ~/.claude/CLAUDE.md ~/.claude/RTK.md ~/.claude/settings.json ~/.config/opencode/AGENTS.md ~/.config/opencode/opencode.json ~/ai-config/claude/CLAUDE.md ~/ai-config/claude/RTK.md ~/ai-config/claude/settings.json)"
     ]
   }
 }

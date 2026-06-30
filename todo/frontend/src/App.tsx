@@ -268,7 +268,12 @@ export default function App() {
               <div style={{ fontSize: '15px' }}>No tasks yet. Add one above!</div>
             </div>
           ) : (
-            tasks.map((task, idx) => (
+            [...tasks]
+              .sort((a, b) => {
+                if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+              })
+              .map((task, idx) => (
               <TaskRow
                 key={task.id}
                 task={task}

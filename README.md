@@ -32,17 +32,16 @@ Each module gets a consistent `xx` suffix across its services.
 | Hub | 10300 | 10303 | 10403 |
 | Kafbat+ | 10301 | 10401 | 10501 |
 | AI Session Manager | 10302 | 10402 | — |
-| JSON Tools | 10306 | 10406 | — |
+| JSON Tools | 10306 | 10406 | — (backend only, UI merged into Dev Utils) |
 | Mock Data Generator | 10308 | 10408 | 10508 |
 | Command Vault | 10309 | 10409 | 10509 |
-| Port Radar | 10310 | 10410 | — |
-| Health Dashboard | 10311 | 10411 | — |
+| Infra Monitor | 10310 | 10410 | — (backend only, UI merged into Dev Utils) |
 | Todo | 10312 | 10412 | 10512 |
 | Arcade | 10313 | 10413 | 10513 |
 | Secrets Vault | 10314 | 10414 | 10514 |
 | Git History | 10315 | 10415 | — |
-| Dev Utils | 10316 | 10416 | — |
-| AI Memory | 10317 | 10417 | 10517 |
+| Dev Utils | 10316 | 10416 | — (includes JSON Tools + Infra Monitor UI) |
+| AI Memory | 10317 | 10417 | 10517 (backend + MCP only, UI merged into AI Sessions) |
 | ttyd Manager | — | 10600 | — |
 | ttyd TUI sessions | — | — | 10604–10620 (dynamic) |
 
@@ -103,12 +102,9 @@ dev-hub/
 ├── command-vault/
 │   ├── frontend/                   React + Vite — port 10309
 │   └── backend/                    Ktor — port 10409 + PostgreSQL 10509
-├── port-radar/
+├── infra-monitor/
 │   ├── frontend/                   React + Vite — port 10310
-│   └── backend/                    Ktor — port 10410 (reads host /proc/net)
-├── health-dashboard/
-│   ├── frontend/                   React + Vite — port 10311
-│   └── backend/                    Ktor — port 10411 (proxies health checks)
+│   └── backend/                    Ktor — port 10410 (reads host /proc/net + proxies health checks)
 ├── todo/
 │   ├── frontend/                   React + Vite — port 10312
 │   └── backend/                    Ktor — port 10412 + PostgreSQL 10512
@@ -186,6 +182,7 @@ Visual dashboard for Claude Code and OpenCode session usage and spending.
 - Click a session: token summary, distribution bar, duration, cost, turn-by-turn view, MCP tools
 - **Cost Tracker tab**: daily/weekly/monthly spending bar chart, daily average, monthly projection, detail table by date
 - **AI Config tab**: read-only unified view of Claude Code + OpenCode configuration — commands, skills, MCPs, rules, agents, plugins. Shows sync status (green = shared between tools, grey = single tool only). Click any item to view its full content
+- **Memory tab**: AI Memory UI — handoff notes (grouped by project/context, with history) and decision log (CRUD, searchable, filterable by tag/project). Calls the AI Memory backend at port 10417
 
 **How it works:** reads `~/.claude/projects/` for Claude Code (JSONL files, mounted read-only) and `~/.local/share/opencode/opencode.db` for OpenCode (SQLite). AI Config reads `~/.claude/` (commands, skills, CLAUDE.md), `~/.claude.json` (MCP servers), and `~/.config/opencode/` (opencode.json, AGENTS.md, plugins). No database of its own.
 
@@ -263,34 +260,25 @@ SELECT * FROM {table} WHERE id = {id} LIMIT {limit};
 
 ---
 
-### Port Radar
+### Infra Monitor
 
-Shows which ports are in use on localhost right now. Stateless, no DB.
+Port scanner + service health dashboard combined. Stateless, no DB.
 
-**What you can do:**
-- See all open ports with PID, process name, protocol, and state
-- Portal ports (10300–10620) highlighted and labeled with module name
+**Ports tab:**
+- All open ports with PID, process name, protocol, and state (reads host `/proc` via `SYS_PTRACE` + `DAC_READ_SEARCH` capabilities)
+- Dev Hub ports (10300–10620) grouped in a collapsible section labeled by module name
 - **Conflict detection**: warning badge if a portal port is occupied by an unexpected process
 - Click any LISTEN port to open `http://localhost:{port}` in a new tab
-- Toggle between "All ports" and "Portal only"
 - Auto-refresh every 5s
 
-**How it works:** backend reads `/proc/net/tcp` from the host (mounted as `/host/proc` volume).
-
----
-
-### Health Dashboard
-
-"Is everything up?" at a glance. Stateless, no DB.
-
-**What you can do:**
+**Services tab:**
 - Traffic-light grid: green (up), red (down), yellow (degraded) per service
 - Response time in ms for each service
 - Summary bar: "X/Y services up"
 - Auto-refresh: 5s / 10s / 30s / off
 - Configurable service list (defaults to all portal backends)
 
-**How it works:** backend pings `/health` on all configured services in parallel (5s timeout), returns aggregated status. Uses Docker service names for containers, `host.docker.internal` for ttyd-manager.
+**How it works:** backend reads `/host/proc/1/net/tcp` (root network namespace, not the container namespace) for ports. Pings `/health` on all configured services in parallel (5s timeout) for service status. Docker capabilities `SYS_PTRACE` + `DAC_READ_SEARCH` allow reading PID/process for all host processes.
 
 ---
 
@@ -331,7 +319,7 @@ Visual explorer for local Git repository history. Three modes: commit browsing, 
 **What you can do:**
 - **Browse commits**: select repo + branch, paginated commit list, click any commit to see full diff with side-by-side hunks
 - **Browse files**: navigate the file tree at any branch/commit, view file contents, see file-level commit history with diffs
-- **Line tracing**: select lines in a file viewer, instant blame (who last touched each line), then "full line history" traces the evolution of those lines through the codebase via `git log -L`
+- **Line tracing**: select lines in a file viewer, instant blame (who last touched each line), then "full line history" traces the evolution of those lines through history using iterative `git blame -L` (chains through parent commits following the original line number — more accurate than `git log -L` on restructured files)
 - **Config card**: add/remove repository directories to explore
 - Diff rendering with green/red highlighting, line numbers, hunk headers
 
@@ -341,15 +329,26 @@ Visual explorer for local Git repository history. Three modes: commit browsing, 
 
 ### Dev Utils
 
-Aggregator of small stateless dev utilities in one tabbed page. No database.
+Unified dev toolbox with a sidebar navigation. No database. Merges JSON Tools and Infra Monitor UI.
 
-**Tabs:**
+**Sidebar sections:**
+
+*Dev Utils:*
 - **Regex workbench** — test regex against text, live match highlighting, capture groups, pattern explanation
 - **Cron / systemd-timer translator** — parse cron or `OnCalendar=` expressions, human-readable description, next N executions
 - **UUID / ULID generator** — generate in bulk (UUID v4, uppercase, no dashes, ULID), copy individual or all
 - **Hash & checksum** — MD5/SHA-1/SHA-256/SHA-384/SHA-512, compare two hashes
 - **URL / query parser** — decompose URL into components + query params table, encode/decode
 - **JWT decoder** — decode header + payload, show expiry status, extract Keycloak roles
+
+*JSON Tools:*
+- **Format** — prettify JSON with configurable indent, copy button
+- **Compact** — minify to single line, shows size reduction %
+- **Diff** — structural side-by-side comparison at every JSON path, inline LCS-based line highlighting, synced scrolling, `Ctrl+Enter` to compare
+
+*Infra Monitor:*
+- **Port Radar** — all open ports with PID, process, state; Dev Hub ports collapsible section; conflict detection; auto-refresh
+- **Health Dashboard** — traffic-light service health grid; configurable service list; auto-refresh
 
 ---
 
@@ -460,8 +459,7 @@ cd <module>/backend && ./gradlew shadowJar
 - [x] JSON Tools — format, compact, structural diff
 - [x] Mock Data Generator — AI-inferred specs, Faker generation, Kafbat+ integration
 - [x] Command Vault — snippet manager with `{variable}` substitution
-- [x] Port Radar — live port scanner with conflict detection
-- [x] Health Dashboard — traffic-light health checks
+- [x] Infra Monitor — live port scanner with collapsible Dev Hub section + traffic-light health checks (merged from Port Radar + Health Dashboard)
 - [x] ttyd Manager — dynamic TUI spawning on host, TUI session auto-recovery on restart
 - [x] Tiling window manager — drag entries to split into side-by-side or 2×2 grid
 - [x] Spotlight global search — Shift to search entries, Kafka topics, JSON tools, commands, flows with deep-linking
