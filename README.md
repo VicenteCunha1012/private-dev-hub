@@ -84,6 +84,7 @@ dev-hub/
 ├── docker-compose.yml
 ├── start.sh / stop.sh
 ├── dev-hub-core/                   Shared Kotlin library (BaseDatabase, BaseConfigService, plugins)
+├── frontend-lib/                   Shared CSS design system (@dev-hub/ui npm package)
 ├── hub/
 │   ├── frontend/                   React + Vite — port 10300 (PWA installable)
 │   └── backend/                    Ktor — port 10303 + PostgreSQL 10403
@@ -91,11 +92,10 @@ dev-hub/
 │   ├── frontend/                   React + Vite — port 10301
 │   └── backend/                    Ktor — port 10401 + PostgreSQL 10501
 ├── ai-session-manager/
-│   ├── frontend/                   React + Vite — port 10302
+│   ├── frontend/                   React + Vite — port 10302 (includes AI Memory UI)
 │   └── backend/                    Ktor — port 10402 (reads ~/.claude + opencode.db)
 ├── json-tools/
-│   ├── frontend/                   React + Vite — port 10306
-│   └── backend/                    Ktor — port 10406 (stateless)
+│   └── backend/                    Ktor — port 10406 (stateless, UI merged into Dev Utils)
 ├── mock-data-generator/
 │   ├── frontend/                   React + Vite — port 10308
 │   └── backend/                    Ktor — port 10408 + PostgreSQL 10508
@@ -103,8 +103,7 @@ dev-hub/
 │   ├── frontend/                   React + Vite — port 10309
 │   └── backend/                    Ktor — port 10409 + PostgreSQL 10509
 ├── infra-monitor/
-│   ├── frontend/                   React + Vite — port 10310
-│   └── backend/                    Ktor — port 10410 (reads host /proc/net + proxies health checks)
+│   └── backend/                    Ktor — port 10410 (stateless, UI merged into Dev Utils)
 ├── todo/
 │   ├── frontend/                   React + Vite — port 10312
 │   └── backend/                    Ktor — port 10412 + PostgreSQL 10512
@@ -115,14 +114,12 @@ dev-hub/
 │   ├── frontend/                   React + Vite — port 10314
 │   └── backend/                    Ktor — port 10414 + PostgreSQL 10514
 ├── git-history/
-│   ├── frontend/                   React + Vite — port 10315
-│   └── backend/                    Ktor — port 10415 (stateless, shells out to git)
+│   └── backend/                    Ktor — port 10415 (stateless, UI merged into Dev Utils)
 ├── utils/
-│   ├── frontend/                   React + Vite — port 10316
+│   ├── frontend/                   React + Vite — port 10316 (includes JSON Tools + Infra Monitor + Git History UI)
 │   └── backend/                    Ktor — port 10416 (stateless)
 ├── ai-memory/
-│   ├── frontend/                   React + Vite — port 10317
-│   ├── backend/                    Ktor — port 10417 + PostgreSQL 10517
+│   ├── backend/                    Ktor — port 10417 + PostgreSQL 10517 (UI merged into AI Sessions)
 │   └── mcp-server/                 MCP server for Claude Code / OpenCode integration
 ├── ttyd-manager/                   Ktor — port 10600 (runs on host, not Docker)
 └── backend-template/               Ktor starter to copy for new modules
@@ -396,7 +393,7 @@ All configurable in **Settings → Keyboard Shortcuts**. Supports modifiers (`ct
 
 ## Themes
 
-Settings → Appearance: 5 presets (Midnight, Ocean, Forest, Ember, Mono) + Custom with color pickers. Stored in DB, included in config exports.
+Settings → Appearance: 5 presets (Midnight, Ocean, Forest, Ember, Mono) + Custom with color pickers. Default is **Mono** (neutral dark gray). Stored in DB, included in config exports.
 
 ---
 
@@ -428,8 +425,9 @@ Every module exposes `GET /config` and `POST /config`.
 3. Assign next free `xx` suffix (frontend `103xx`, backend `104xx`, DB `105xx`)
 4. Add `includeBuild("../../dev-hub-core")` to `settings.gradle.kts`, use `implementation("pt.cunha:dev-hub-core")` in `build.gradle.kts`
 5. Extend `BaseDatabase` for schema, `BaseConfigService` for config CRUD, call `installStandardPlugins()` + `healthRoutes()` + `configDbRoutes()` in Application.kt
-6. Add to `docker-compose.yml`
-7. Add seed entry in `hub/backend/.../Database.kt`
+6. In frontend `package.json` add `"@dev-hub/ui": "file:../../frontend-lib"`, then `@import '@dev-hub/ui/styles'` at the top of `index.css`. Update `Dockerfile` to copy `frontend-lib/` alongside the module frontend (see any existing module Dockerfile for the pattern)
+7. Add to `docker-compose.yml`
+8. Add seed entry in `hub/backend/.../Database.kt`
 
 ---
 
@@ -472,7 +470,7 @@ cd <module>/backend && ./gradlew shadowJar
 - [x] Custom context menus — right-click on entries, snippets, flows for quick actions
 - [x] Full backup/restore — export/import all module data in one JSON file
 - [x] dev-hub-core — shared Kotlin library (BaseDatabase, BaseConfigService, standard plugins/routes)
-- [x] Entry emojis — per-entry emoji icons in sidebar and home screen
+- [x] frontend-lib — shared CSS design system (@dev-hub/ui) with canonical tokens, components, layout helpers used by all frontends
 - [x] JSON diff synced scrolling — left/right panes scroll together, changed values on same line
 - [x] Git History Explorer — visual repo history browser with commit/file/line-trace modes
 - [x] Dev Utils — regex, cron, UUID, hash, URL parser, JWT decoder in one tabbed page

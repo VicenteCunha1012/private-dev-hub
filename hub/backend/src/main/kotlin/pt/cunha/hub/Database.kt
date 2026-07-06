@@ -67,6 +67,11 @@ class Database(private val config: ApplicationConfig) {
             stmt.executeUpdate("DELETE FROM entries WHERE label='JSON Tools'")
             stmt.executeUpdate("DELETE FROM entries WHERE label='AI Memory'")
             stmt.executeUpdate("DELETE FROM entries WHERE label='Git History'")
+            // clear emojis from all entries (favicons replace them)
+            stmt.executeUpdate("UPDATE entries SET emoji = NULL")
+            // reset palette to neutral mono
+            stmt.executeUpdate("INSERT INTO hub_config (key, value) VALUES ('palette', '{\"preset\":\"mono\"}') ON CONFLICT (key) DO UPDATE SET value = '{\"preset\":\"mono\"}'")
+
         }
     }
 
@@ -108,19 +113,19 @@ class Database(private val config: ApplicationConfig) {
 
         val toolsId = insertFolder("Tools", 3)
 
-        insertEntry("Portainer", "https://localhost:9443", "redirect", infraId, 0, "🐳")
-        insertEntry("GitLab", "https://gitlab.example.com", "redirect", devId, 0, "🦊")
-        insertEntry("Confluence", "https://example.atlassian.net/wiki", "redirect", devId, 1, "📖")
-        insertEntry("Jira", "https://example.atlassian.net", "redirect", devId, 2, "📋")
-        insertEntry("Grafana", "https://grafana.example.com", "redirect", obsId, 0, "📊")
+        insertEntry("Portainer", "https://localhost:9443", "redirect", infraId, 0)
+        insertEntry("GitLab", "https://gitlab.example.com", "redirect", devId, 0)
+        insertEntry("Confluence", "https://example.atlassian.net/wiki", "redirect", devId, 1)
+        insertEntry("Jira", "https://example.atlassian.net", "redirect", devId, 2)
+        insertEntry("Grafana", "https://grafana.example.com", "redirect", obsId, 0)
 
-        insertEntry("Kafbat+", "http://localhost:10301", "tool", toolsId, 0, "📨")
-        insertEntry("AI Sessions", "http://localhost:10302", "tool", toolsId, 1, "🤖")
-        insertEntry("Mock Generator", "http://localhost:10308", "tool", toolsId, 2, "🎲")
-        insertEntry("Command Vault", "http://localhost:10309", "tool", toolsId, 3, "💻")
-        insertEntry("Todo", "http://localhost:10312", "tool", toolsId, 4, "✅")
-        insertEntry("Secrets Vault", "http://localhost:10314", "tool", toolsId, 5, "🔐")
-        insertEntry("Dev Utils", "http://localhost:10316", "tool", toolsId, 6, "🧰")
+        insertEntry("Kafbat+", "http://localhost:10301", "tool", toolsId, 0)
+        insertEntry("AI Sessions", "http://localhost:10302", "tool", toolsId, 1)
+        insertEntry("Mock Generator", "http://localhost:10308", "tool", toolsId, 2)
+        insertEntry("Command Vault", "http://localhost:10309", "tool", toolsId, 3)
+        insertEntry("Todo", "http://localhost:10312", "tool", toolsId, 4)
+        insertEntry("Secrets Vault", "http://localhost:10314", "tool", toolsId, 5)
+        insertEntry("Dev Utils", "http://localhost:10316", "tool", toolsId, 6)
 
         val configStmt = connection.prepareStatement(
             "INSERT INTO hub_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"

@@ -13,33 +13,33 @@ const SECTIONS = [
   {
     key: 'utils', label: 'Dev Utils',
     items: [
-      { key: 'regex' as Page, label: 'Regex Workbench', icon: '.*' },
-      { key: 'cron' as Page, label: 'Cron / systemd', icon: '⏱' },
-      { key: 'uuid' as Page, label: 'UUID / ULID', icon: '#' },
-      { key: 'hash' as Page, label: 'Hash & Checksum', icon: '∑' },
-      { key: 'url' as Page, label: 'URL Parser', icon: '🔗' },
-      { key: 'jwt' as Page, label: 'JWT Decoder', icon: '🔑' },
+      { key: 'regex' as Page, label: 'Regex Workbench' },
+      { key: 'cron' as Page, label: 'Cron / systemd' },
+      { key: 'uuid' as Page, label: 'UUID / ULID' },
+      { key: 'hash' as Page, label: 'Hash & Checksum' },
+      { key: 'url' as Page, label: 'URL Parser' },
+      { key: 'jwt' as Page, label: 'JWT Decoder' },
     ],
   },
   {
     key: 'json', label: 'JSON Tools',
     items: [
-      { key: 'format' as Page, label: 'Format', icon: '{ }' },
-      { key: 'compact' as Page, label: 'Compact', icon: '▸' },
-      { key: 'diff' as Page, label: 'Diff', icon: '⇄' },
+      { key: 'format' as Page, label: 'Format' },
+      { key: 'compact' as Page, label: 'Compact' },
+      { key: 'diff' as Page, label: 'Diff' },
     ],
   },
   {
     key: 'infra', label: 'Infra Monitor',
     items: [
-      { key: 'ports' as Page, label: 'Port Radar', icon: '📡' },
-      { key: 'services' as Page, label: 'Health Dashboard', icon: '💚' },
+      { key: 'ports' as Page, label: 'Port Radar' },
+      { key: 'services' as Page, label: 'Health Dashboard' },
     ],
   },
   {
     key: 'git', label: 'Git History',
     items: [
-      { key: 'git' as Page, label: 'Git History', icon: '📜' },
+      { key: 'git' as Page, label: 'Git History' },
     ],
   },
 ]
@@ -81,12 +81,6 @@ const S = {
     transition: 'all 0.12s',
     userSelect: 'none' as const,
   }) as CSSProperties,
-
-  navIcon: {
-    width: 20, textAlign: 'center' as const,
-    fontSize: 11, fontFamily: 'var(--mono)',
-    color: 'inherit', opacity: 0.7, flexShrink: 0,
-  } as CSSProperties,
 
   content: {
     flex: 1, display: 'flex', flexDirection: 'column',
@@ -222,7 +216,9 @@ export default function App() {
                 onClick={() => toggle(sec.key)}
               >
                 <span>{sec.label}</span>
-                <span style={{ fontSize: 9, opacity: 0.6 }}>{collapsed[sec.key] ? '▸' : '▾'}</span>
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ opacity: 0.5, transition: 'transform 0.15s', transform: collapsed[sec.key] ? 'rotate(-90deg)' : '' }}>
+                  <path d="M1.5 3L4.5 6L7.5 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                </svg>
               </div>
               {!collapsed[sec.key] && sec.items.map(item => (
                 <div
@@ -232,7 +228,6 @@ export default function App() {
                   onMouseEnter={e => { if (page !== item.key) (e.currentTarget as HTMLElement).style.background = 'var(--s2)' }}
                   onMouseLeave={e => { if (page !== item.key) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                 >
-                  <span style={S.navIcon}>{item.icon}</span>
                   <span>{item.label}</span>
                 </div>
               ))}

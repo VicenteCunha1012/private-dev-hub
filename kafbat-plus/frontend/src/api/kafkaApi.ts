@@ -57,7 +57,7 @@ export interface KafkaMessage {
   value: string | null
   valuePreview: string | null
   valueSize: number
-  headers: Record<string, string>
+  headers?: Record<string, string>
 }
 
 export interface ProduceResult {

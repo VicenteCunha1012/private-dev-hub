@@ -97,7 +97,14 @@
       "Bash(docker stop *)",
       "Bash(rtk npm *)",
       "Bash(bash sync-ai-config.sh)",
-      "Bash(sudo chown cunvic:cunvic ~/.claude/CLAUDE.md ~/.claude/RTK.md ~/.claude/settings.json ~/.config/opencode/AGENTS.md ~/.config/opencode/opencode.json ~/ai-config/claude/CLAUDE.md ~/ai-config/claude/RTK.md ~/ai-config/claude/settings.json)"
+      "Bash(sudo chown cunvic:cunvic ~/.claude/CLAUDE.md ~/.claude/RTK.md ~/.claude/settings.json ~/.config/opencode/AGENTS.md ~/.config/opencode/opencode.json ~/ai-config/claude/CLAUDE.md ~/ai-config/claude/RTK.md ~/ai-config/claude/settings.json)",
+      "Bash(sed -i 's|build: \\\\./hub/frontend|build:\\\\n      context: .\\\\n      dockerfile: hub/frontend/Dockerfile|' /home/cunvic/private-dev-hub/docker-compose.yml)",
+      "Bash(sed -i 's|build: \\\\./kafbat-plus/frontend|build:\\\\n      context: .\\\\n      dockerfile: kafbat-plus/frontend/Dockerfile|' /home/cunvic/private-dev-hub/docker-compose.yml)",
+      "Bash(sed -i 's|build: \\\\./ai-session-manager/frontend|build:\\\\n      context: .\\\\n      dockerfile: ai-session-manager/frontend/Dockerfile|' /home/cunvic/private-dev-hub/docker-compose.yml)",
+      "Bash(sed -i 's|build: \\\\./mock-data-generator/frontend|build:\\\\n      context: .\\\\n      dockerfile: mock-data-generator/frontend/Dockerfile|' /home/cunvic/private-dev-hub/docker-compose.yml)",
+      "Bash(sed -i 's|build: \\\\./command-vault/frontend|build:\\\\n      context: .\\\\n      dockerfile: command-vault/frontend/Dockerfile|' /home/cunvic/private-dev-hub/docker-compose.yml)",
+      "Bash(wait)",
+      "Bash(nc -zv localhost 29092)"
     ]
   }
 }

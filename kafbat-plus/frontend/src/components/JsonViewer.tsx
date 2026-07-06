@@ -73,7 +73,7 @@ export default function JsonViewer({ data, maxHeight = 400, collapseThreshold = 
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-all',
       }}>
-        <JsonHighlight json={formatted} />
+        <JsonHighlight json={isLarge && !expanded ? formatted.slice(0, collapseThreshold) : formatted} />
       </pre>
     </div>
   )

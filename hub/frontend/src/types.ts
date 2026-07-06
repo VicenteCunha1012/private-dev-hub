@@ -51,7 +51,7 @@ export interface PaletteConfig {
   customBg?: string
 }
 
-export const DEFAULT_PALETTE: PaletteConfig = { preset: 'midnight' }
+export const DEFAULT_PALETTE: PaletteConfig = { preset: 'mono' }
 
 export interface HubConfig {
   pgDumpPath: string

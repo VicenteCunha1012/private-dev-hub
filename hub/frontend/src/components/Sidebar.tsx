@@ -69,11 +69,18 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
         }}>
           <div style={{
             width: 26, height: 26, borderRadius: 7,
-            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+            background: 'var(--s4)',
+            border: '1px solid var(--bd-s)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, flexShrink: 0,
-            boxShadow: '0 2px 8px rgba(124,58,237,0.4)',
-          }}>⬡</div>
+            flexShrink: 0,
+          }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect x="1" y="1" width="4.5" height="4.5" rx="1" fill="var(--tx-2)"/>
+              <rect x="7.5" y="1" width="4.5" height="4.5" rx="1" fill="var(--tx-2)"/>
+              <rect x="1" y="7.5" width="4.5" height="4.5" rx="1" fill="var(--tx-2)"/>
+              <rect x="7.5" y="7.5" width="4.5" height="4.5" rx="1" fill="var(--ac)"/>
+            </svg>
+          </div>
           <span style={{ fontWeight: 700, fontSize: 14.5, color: 'var(--text)', letterSpacing: -0.2 }}>
             Dev Hub
           </span>
@@ -165,7 +172,7 @@ function SidebarFolder({
   return (
     <div
       onDragOver={e => { e.preventDefault(); e.stopPropagation(); onDragOverFolder(folder.id) }}
-      onDragLeave={() => onDragOverFolder(-1)}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) onDragOverFolder(-1) }}
       onDrop={e => { e.preventDefault(); e.stopPropagation(); onDropEntry(folder.id, folder.entries.length) }}
       style={{
         borderRadius: 6,

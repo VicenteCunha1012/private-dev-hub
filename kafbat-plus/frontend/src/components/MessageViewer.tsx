@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { KafkaMessage, TopicDetails } from '../api/kafkaApi'
 import { kafkaApi } from '../api/kafkaApi'
 import JsonViewer from './JsonViewer'
@@ -334,12 +334,85 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
   )
 }
 
+function CopyIconButton({ text, size = 13, style }: { text: string | null | undefined; size?: number; style?: React.CSSProperties }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation()
+        if (!text) return
+        navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1200)
+      }}
+      onMouseDown={e => e.stopPropagation()}
+      title={copied ? 'Copied!' : 'Copy'}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: size + 10, height: size + 10, flexShrink: 0,
+        padding: 0, border: 'none', background: 'transparent', borderRadius: 4,
+        color: copied ? 'var(--ok)' : 'var(--text-dim)',
+        ...style,
+      }}
+    >
+      {copied ? (
+        <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
+          <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
+          <rect x="5" y="5" width="7" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M3.5 9V3.3A1.3 1.3 0 014.8 2h5.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
+function HighlightedText({ text, matches, matchLength, activeMatch, matchRefs }: {
+  text: string
+  matches: number[]
+  matchLength: number
+  activeMatch: number
+  matchRefs: React.MutableRefObject<(HTMLElement | null)[]>
+}) {
+  if (matches.length === 0) return <>{text}</>
+  const nodes: ReactNode[] = []
+  let cursor = 0
+  matches.forEach((start, i) => {
+    if (start > cursor) nodes.push(text.slice(cursor, start))
+    const isActive = i === activeMatch
+    nodes.push(
+      <mark
+        key={i}
+        ref={el => { matchRefs.current[i] = el }}
+        style={{
+          background: isActive ? 'var(--warn)' : 'var(--ac-dim)',
+          color: isActive ? '#000' : 'inherit',
+          borderRadius: 2,
+        }}
+      >
+        {text.slice(start, start + matchLength)}
+      </mark>
+    )
+    cursor = start + matchLength
+  })
+  if (cursor < text.length) nodes.push(text.slice(cursor))
+  return <>{nodes}</>
+}
+
 function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
   msg: KafkaMessage; topic: string; clusterId?: number | null; expanded: boolean; onToggle: () => void
 }) {
   const ts = new Date(msg.timestamp)
   const [fullValue, setFullValue] = useState<string | null>(null)
   const [loadingValue, setLoadingValue] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [activeMatch, setActiveMatch] = useState(0)
+  const findInputRef = useRef<HTMLInputElement>(null)
+  const matchRefs = useRef<(HTMLElement | null)[]>([])
 
   useEffect(() => {
     if (expanded && fullValue === null && !loadingValue) {
@@ -351,8 +424,47 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
     }
   }, [expanded, fullValue, loadingValue, topic, msg.partition, msg.offset, clusterId, msg.valuePreview])
 
+  useEffect(() => {
+    if (!expanded) { setFindOpen(false); setFindQuery('') }
+  }, [expanded])
+
+  useEffect(() => { setActiveMatch(0) }, [findQuery])
+
+  useEffect(() => {
+    matchRefs.current[activeMatch]?.scrollIntoView({ block: 'center' })
+  }, [activeMatch, findQuery])
+
   const preview = msg.valuePreview ?? msg.value?.slice(0, 200)
   const sizeLabel = msg.valueSize > 1024 ? `${(msg.valueSize / 1024).toFixed(0)}KB` : `${msg.valueSize}B`
+  const copyPreviewText = msg.value ?? msg.valuePreview ?? ''
+
+  const displayText = fullValue == null ? '' : (() => {
+    try { return JSON.stringify(JSON.parse(fullValue), null, 2) } catch { return fullValue }
+  })()
+
+  const matches: number[] = []
+  if (findQuery) {
+    const hay = displayText.toLowerCase()
+    const needle = findQuery.toLowerCase()
+    let idx = hay.indexOf(needle)
+    while (idx !== -1) {
+      matches.push(idx)
+      idx = hay.indexOf(needle, idx + needle.length)
+    }
+  }
+
+  const handleValueKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault()
+      e.stopPropagation()
+      setFindOpen(true)
+      requestAnimationFrame(() => findInputRef.current?.focus())
+    } else if (e.key === 'Escape' && findOpen) {
+      e.preventDefault()
+      setFindOpen(false)
+      setFindQuery('')
+    }
+  }
 
   return (
     <div style={{
@@ -361,11 +473,17 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
       background: expanded ? 'var(--card-hover)' : 'var(--card-bg)',
       transition: 'background 0.1s',
     }}>
-      <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left',
-        padding: '10px 14px',
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
+        style={{
+          width: '100%', textAlign: 'left', cursor: 'pointer',
+          padding: '10px 14px',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}
+      >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{
           transition: 'transform 0.15s',
           transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
@@ -396,6 +514,8 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
           </span>
         )}
 
+        <CopyIconButton text={copyPreviewText} size={11} />
+
         <span style={{
           flex: 1, fontSize: 11.5, color: 'var(--text)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -414,7 +534,7 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
         <span style={{ fontSize: 10, color: 'var(--text-dim)', flexShrink: 0, whiteSpace: 'nowrap' }}>
           {ts.toLocaleTimeString()} {ts.toLocaleDateString()}
         </span>
-      </button>
+      </div>
 
       {expanded && (
         <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border)' }}>
@@ -425,7 +545,7 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
             <Detail label="Timestamp" value={ts.toISOString()} />
             <Detail label="Size" value={sizeLabel} />
           </div>
-          {Object.keys(msg.headers).length > 0 && (
+          {msg.headers && Object.keys(msg.headers).length > 0 && (
             <div style={{ marginBottom: 10 }}>
               <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Headers</span>
               <div style={{
@@ -439,14 +559,77 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
             </div>
           )}
           <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Value</span>
-          <div style={{
-            marginTop: 4, padding: '10px 12px',
-            background: 'rgba(0,0,0,0.2)', borderRadius: 6,
-          }}>
+          <div
+            tabIndex={0}
+            onKeyDown={handleValueKeyDown}
+            style={{
+              marginTop: 4, padding: '10px 12px', position: 'relative',
+              background: 'rgba(0,0,0,0.2)', borderRadius: 6, outline: 'none',
+            }}
+          >
             {loadingValue ? (
               <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading value...</span>
             ) : (
-              <JsonViewer data={fullValue} />
+              <>
+                {fullValue != null && !findOpen && (
+                  <div style={{ position: 'absolute', top: 6, right: 6 }}>
+                    <CopyIconButton text={fullValue} />
+                  </div>
+                )}
+                {findOpen && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <input
+                      ref={findInputRef}
+                      value={findQuery}
+                      onChange={e => setFindQuery(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (matches.length) {
+                            setActiveMatch(m => e.shiftKey ? (m - 1 + matches.length) % matches.length : (m + 1) % matches.length)
+                          }
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setFindOpen(false)
+                          setFindQuery('')
+                        }
+                      }}
+                      placeholder="Find in message..."
+                      style={{ flex: 1, fontSize: 11, padding: '4px 8px' }}
+                    />
+                    <span style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {matches.length ? `${activeMatch + 1}/${matches.length}` : '0/0'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { setFindOpen(false); setFindQuery('') }}
+                      style={{ padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      title="Close find"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {findOpen ? (
+                  <pre style={{
+                    margin: 0, maxHeight: 400, overflow: 'auto',
+                    fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                    color: 'var(--text)',
+                  }}>
+                    <HighlightedText
+                      text={displayText}
+                      matches={matches}
+                      matchLength={findQuery.length}
+                      activeMatch={activeMatch}
+                      matchRefs={matchRefs}
+                    />
+                  </pre>
+                ) : (
+                  <JsonViewer data={fullValue} />
+                )}
+              </>
             )}
           </div>
         </div>

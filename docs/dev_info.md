@@ -37,17 +37,17 @@ Each module is fully self-contained: its own Dockerfile, its own Postgres DB (if
 |---|---|---|---|---|
 | Hub | 10300 | 10303 | 10403 | Shell with sidebar + iframes + backup scheduler + PWA |
 | Kafbat+ | 10301 | 10401 | 10501 | Kafka UI |
-| AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` + `~/.local/share/opencode/opencode.db` from host |
-| JSON Tools | 10306 | 10406 | — | Stateless, synced diff scrolling |
+| AI Session Manager | 10302 | 10402 | — | Reads `~/.claude` + opencode.db from host; includes AI Memory UI |
+| JSON Tools | — | 10406 | — | Stateless; frontend merged into Dev Utils |
 | Mock Data Generator | 10308 | 10408 | 10508 | AI-inferred specs + Python generator |
 | Command Vault | 10309 | 10409 | 10509 | Snippets + Flows (React Flow node editor) |
-| Infra Monitor | 10310 | 10410 | — | Port scanner (host /proc/1/net, SYS_PTRACE+DAC_READ_SEARCH) + health checks, stateless |
+| Infra Monitor | — | 10410 | — | Port scanner + health checks, stateless; frontend merged into Dev Utils |
 | Todo | 10312 | 10412 | 10512 | Lists, subtasks, priorities, tags |
 | Arcade | 10313 | 10413 | 10513 | 15 browser games, coin system |
 | Secrets Vault | 10314 | 10414 | 10514 | Zero-knowledge encrypted credentials (AES-256-GCM) |
-| Git History | 10315 | 10415 | — | Stateless, shells out to git |
-| Dev Utils | 10316 | 10416 | — | Stateless utility aggregator |
-| AI Memory | 10317 | 10417 | 10517 | Handoffs + decisions + MCP server |
+| Git History | — | 10415 | — | Stateless, shells out to git; frontend merged into Dev Utils |
+| Dev Utils | 10316 | 10416 | — | Aggregator: own utils + JSON Tools + Infra Monitor + Git History UI |
+| AI Memory | — | 10417 | 10517 | Handoffs + decisions + MCP server; frontend merged into AI Session Manager |
 | ttyd Manager | — | 10600 | — | Runs on host, SSE streaming, TUI dedup |
 | ttyd TUI sessions | — | — | — | 10604–10620 dynamic |
 
@@ -67,6 +67,11 @@ dev-hub/
 ├── docs/
 │   └── dev_info.md                 # This file
 ├── initial_prompt.md               # Original design spec (Portuguese)
+│
+├── frontend-lib/                   # Shared CSS design system (npm package @dev-hub/ui)
+│   ├── src/styles.css             # Canonical design tokens + base styles (imported by all frontends)
+│   ├── src/index.ts               # Empty TS entrypoint (reserved for future shared components)
+│   └── package.json               # name: "@dev-hub/ui", exports: { "./styles": "./src/styles.css" }
 │
 ├── dev-hub-core/                   # Shared Kotlin library (JAR, not a server)
 │   ├── src/main/kotlin/pt/cunha/core/
@@ -170,14 +175,7 @@ dev-hub/
 │       └── Dockerfile
 │
 ├── json-tools/
-│   ├── frontend/
-│   │   ├── src/
-│   │   │   ├── App.tsx             # Three tabs: Format, Compact, Diff (LCS inline highlighting, Ctrl+Enter) — all in one file
-│   │   │   └── api/jsonApi.ts
-│   │   ├── Dockerfile
-│   │   └── nginx.conf
-│   │
-│   └── backend/
+│   └── backend/                   # API only — frontend merged into utils
 │       ├── src/main/kotlin/pt/cunha/jsontools/
 │       │   └── Application.kt     # All routes + diff algorithm inline, stateless
 │       ├── build.gradle.kts       # No DB
@@ -230,14 +228,7 @@ dev-hub/
 │       └── Dockerfile
 │
 ├── infra-monitor/
-│   ├── frontend/
-│   │   ├── src/
-│   │   │   ├── App.tsx             # Tabbed: Ports (collapsible Dev Hub section) + Services (health grid)
-│   │   │   └── api/infraApi.ts
-│   │   ├── Dockerfile
-│   │   └── nginx.conf
-│   │
-│   └── backend/
+│   └── backend/                   # API only — frontend merged into utils
 │       ├── src/main/kotlin/pt/cunha/inframonitor/
 │       │   └── Application.kt     # Reads /host/proc/1/net/tcp (root ns), inode→PID map via /host/proc/<pid>/fd, parallel health checks
 │       ├── src/main/resources/application.yaml
@@ -257,16 +248,14 @@ dev-hub/
 │   └── backend/                    # Ktor — port 10414 + PostgreSQL 10514
 │
 ├── git-history/
-│   ├── frontend/                   # React + Vite — port 10315
-│   └── backend/                    # Ktor — port 10415 (stateless, git shell-out)
+│   └── backend/                    # Ktor — port 10415 (stateless, git shell-out; frontend merged into utils)
 │
 ├── utils/
-│   ├── frontend/                   # React + Vite — port 10316
+│   ├── frontend/                   # React + Vite — port 10316 (own utils + JSON Tools + Infra Monitor + Git History UI)
 │   └── backend/                    # Ktor — port 10416 (stateless)
 │
 ├── ai-memory/
-│   ├── frontend/                   # React + Vite — port 10317
-│   ├── backend/                    # Ktor — port 10417 + PostgreSQL 10517
+│   ├── backend/                    # Ktor — port 10417 + PostgreSQL 10517 (frontend merged into ai-session-manager)
 │   └── mcp-server/                # Node.js MCP server for Claude Code / OpenCode
 │
 ├── ttyd-manager/                  # Runs NATIVELY on host, not in Docker
@@ -643,21 +632,19 @@ Dependencies between modules are unidirectional and optional:
 ## Frontend Patterns
 
 ### Styling
-All frontends share a unified CSS design system defined in each module's `index.css`. No CSS-in-JS library, no CSS modules. The system uses a consistent neutral-dark base scale (`--bg`, `--s1`–`--s4`, `--bd`, `--tx`) with per-module accent colors and a full set of component classes (`.badge-ok/warn/err/info`, `.loading`, `.spinner`, `.layout-split`, `.layout-sidebar`). Backwards-compat aliases map old variable names (`--border`, `--card-bg`, `--accent`, etc.) so existing TSX inline styles keep working.
+All frontends share a unified CSS design system via `@dev-hub/ui` (`frontend-lib/`). Each module's `index.css` starts with `@import '@dev-hub/ui/styles'` then overrides per-module tokens. No CSS-in-JS library, no CSS modules. The system uses a consistent neutral-dark base scale (`--bg`, `--s1`–`--s4`, `--bd`, `--tx`) with per-module accent colors and a full set of component classes (`.badge-ok/warn/err/info`, `.loading`, `.spinner`, `.layout-split`, `.layout-sidebar`). Backwards-compat aliases map old variable names (`--border`, `--card-bg`, `--accent`, etc.) so existing TSX inline styles keep working.
 
 Per-module accent (`--ac`):
-- Hub: violet (`#a78bfa` / overridden by palette system)
+- Hub: neutral gray (overridden by palette system; default preset: **mono**)
 - Kafbat+: blue (`#3b82f6`)
-- AI Sessions: violet (`#a78bfa`)
-- JSON Tools: emerald (`#10b981`)
+- AI Sessions: sky blue (`#38bdf8`)
 - Mock Generator: rose (`#f43f5e`)
 - Command Vault: orange (`#fb923c`)
-- Infra Monitor: cyan (`#06b6d4`)
 - Todo: indigo (`#818cf8`)
 - Arcade: pink (`#ec4899`)
 - Secrets Vault: red (`#f87171`)
-- Git History: amber (`#f59e0b`)
-- Dev Utils / AI Memory: purple (`#a78bfa`)
+- Dev Utils: sky blue (`#38bdf8`)
+- Shared lib default (`@dev-hub/ui`): sky blue (`#38bdf8`)
 
 ### Common UI Components
 Each module defines its own components (no shared component library). Common patterns:
@@ -714,15 +701,23 @@ StatusPages catches:
 ## Build & Deploy
 
 ### Frontend Build
+
+All frontends use `@dev-hub/ui` via a `file:../../frontend-lib` npm dependency. Because Docker build contexts are scoped, the Dockerfile uses the repo root as context so both `frontend-lib/` and the module are available at the expected relative path:
+
 ```dockerfile
 FROM node:22-alpine AS build
-COPY . .
+WORKDIR /build
+COPY frontend-lib/ frontend-lib/
+COPY <module>/frontend/ <module>/frontend/
+WORKDIR /build/<module>/frontend
 RUN npm ci && npm run build
 
 FROM nginx:alpine
-COPY dist/ /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /build/<module>/frontend/dist/ /usr/share/nginx/html
+COPY <module>/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 ```
+
+docker-compose.yml sets `context: .` (repo root) and `dockerfile: <module>/frontend/Dockerfile` for all frontends.
 
 ### Backend Build
 ```dockerfile
@@ -761,10 +756,11 @@ cd <module>/backend && ./gradlew shadowJar
 6. Update `gradle/libs.versions.toml`: remove unused versions
 7. Update `application.yaml`: set port and module class
 8. Implement mandatory endpoints: `GET /health`, `GET/POST /config`, `GET/POST /config/export`, `GET/POST /config/import`, `GET/POST /db/export` (if DB)
-9. Add to `docker-compose.yml` (frontend + backend + db if needed)
-10. Add seed entry in `hub/backend/.../Database.kt` → `seedIfEmpty()` with type `tool`
-11. Clean frontend: remove `App.css`, `assets/`, update `main.tsx`, `index.css`, `App.tsx`
-12. Create `Dockerfile` and `nginx.conf` for frontend
+9. In frontend `package.json` add `"@dev-hub/ui": "file:../../frontend-lib"`. In `index.css` start with `@import '@dev-hub/ui/styles'` then add `:root { --ac: <module-accent>; }` override
+10. Clean frontend: remove `App.css`, `assets/`, update `main.tsx`, `index.css`, `App.tsx`
+11. Create `Dockerfile` (WORKDIR /build pattern, copies `frontend-lib/` + `<module>/frontend/`) and `nginx.conf`
+12. Add to `docker-compose.yml` with `context: .` + `dockerfile: <module>/frontend/Dockerfile` (backend can use `build: ./<module>/backend`)
+13. Add seed entry in `hub/backend/.../Database.kt` → `seedIfEmpty()` with type `tool`
 
 Port convention: assign next free `xx` suffix → frontend `103xx`, backend `104xx`, DB `105xx`.
 

@@ -84,7 +84,7 @@ data class KeybindsConfig(
 
 @Serializable
 data class PaletteConfig(
-    val preset: String = "midnight",
+    val preset: String = "mono",
     val customAccent: String? = null,
     val customAccent2: String? = null,
     val customBg: String? = null
