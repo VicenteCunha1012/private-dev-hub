@@ -70,20 +70,21 @@ export default function App() {
     <div style={{ display: 'flex', height: '100%', width: '100%' }}>
       {/* Sidebar */}
       <nav style={{
-        width: 280, minWidth: 280, background: 'var(--sidebar-bg)',
+        width: 280, minWidth: 280, background: 'var(--glass)',
+        backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))',
         display: 'flex', flexDirection: 'column',
-        borderRight: '1px solid var(--border)', height: '100%', overflow: 'hidden',
+        borderRight: '1px solid var(--glass-bd)', height: '100%', overflow: 'hidden',
       }}>
         <div style={{
-          padding: '16px 14px 12px', borderBottom: '1px solid var(--border)',
+          padding: '16px 14px 12px', borderBottom: '1px solid var(--bd)',
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <div style={{
             width: 28, height: 28, borderRadius: 7,
-            background: 'linear-gradient(135deg, #10b981, #059669)',
+            background: 'linear-gradient(135deg, var(--ac), color-mix(in srgb, var(--ac) 70%, black 15%))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, flexShrink: 0, fontWeight: 700, color: '#fff',
-            boxShadow: '0 2px 8px rgba(16,185,129,0.4)',
+            fontSize: 13, flexShrink: 0, fontWeight: 700, color: '#0a0a0f',
+            boxShadow: '0 2px 8px var(--ac-glow)',
           }}>
             M
           </div>
@@ -91,9 +92,8 @@ export default function App() {
         </div>
 
         <div style={{ padding: '10px 14px' }}>
-          <button onClick={() => { setShowUpload(true); setSelectedId(null) }} style={{
-            width: '100%', padding: '8px 12px', fontSize: 12, fontWeight: 600,
-            background: 'var(--accent)', color: '#fff', borderRadius: 6,
+          <button className="btn-primary" onClick={() => { setShowUpload(true); setSelectedId(null) }} style={{
+            width: '100%', padding: '8px 12px', fontSize: 12,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           }}>
             <span style={{ fontSize: 16 }}>+</span> New Spec<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>n</kbd>
@@ -103,8 +103,8 @@ export default function App() {
         {error && (
           <div style={{
             margin: '0 14px 8px', padding: '8px 10px',
-            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: 6, fontSize: 11, color: 'var(--danger)',
+            background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 35%, transparent)',
+            borderRadius: 6, fontSize: 11, color: 'var(--err)',
           }}>{error}</div>
         )}
 
@@ -173,14 +173,14 @@ function HomeScreen() {
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '60px 40px',
-      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, rgba(16,185,129,0.08) 0%, transparent 70%)',
+      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, var(--ac-dim) 0%, transparent 70%)',
     }}>
       <div style={{
         width: 56, height: 56, borderRadius: 16,
-        background: 'linear-gradient(135deg, #10b981, #059669)',
+        background: 'linear-gradient(135deg, var(--ac), color-mix(in srgb, var(--ac) 70%, black 15%))',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 24, fontWeight: 700, color: '#fff', marginBottom: 20,
-        boxShadow: '0 4px 24px rgba(16,185,129,0.4)',
+        fontSize: 24, fontWeight: 700, color: '#0a0a0f', marginBottom: 20,
+        boxShadow: '0 4px 24px var(--ac-glow)',
       }}>M</div>
       <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: -0.5, marginBottom: 8 }}>Mock Data Generator</h1>
       <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>

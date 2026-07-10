@@ -89,9 +89,11 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
       {/* Topic header */}
       <div style={{
         padding: '14px 20px',
-        borderBottom: '1px solid var(--border)',
+        borderBottom: '1px solid var(--glass-bd)',
         display: 'flex', alignItems: 'center', gap: 12,
-        background: 'var(--bg-secondary)',
+        background: 'var(--glass)',
+        backdropFilter: 'blur(var(--blur))',
+        WebkitBackdropFilter: 'blur(var(--blur))',
       }}>
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.3 }}>{topic}</h2>
@@ -103,27 +105,21 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
             </div>
           )}
         </div>
-        <button onClick={onProduce} style={{
-          padding: '7px 14px', fontSize: 12, fontWeight: 500,
-          background: 'var(--accent)', color: '#fff', borderRadius: 6,
-          display: 'flex', alignItems: 'center', gap: 5,
-          transition: 'background 0.15s',
-        }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent)')}
-        >
+        <button className="btn-primary" onClick={onProduce} style={{
+          padding: '7px 14px', fontSize: 12,
+        }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
           </svg>
-          Produce<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>p</kbd>
+          Produce<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(0,0,0,0.4)', background: 'rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>p</kbd>
         </button>
         <button onClick={onDeleteTopic} style={{
           padding: '7px 10px', fontSize: 12,
-          color: 'var(--danger)', borderRadius: 6,
-          border: '1px solid rgba(239,68,68,0.2)',
+          color: 'var(--err)', borderRadius: 6,
+          border: '1px solid color-mix(in srgb, var(--err) 25%, transparent)',
           transition: 'background 0.15s',
         }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--err-dim)')}
           onMouseLeave={e => (e.currentTarget.style.background = '')}
         >
           Delete
@@ -132,8 +128,10 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
 
       {/* Tabs */}
       <div style={{
-        display: 'flex', borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
+        display: 'flex', borderBottom: '1px solid var(--glass-bd)',
+        background: 'var(--glass)',
+        backdropFilter: 'blur(var(--blur))',
+        WebkitBackdropFilter: 'blur(var(--blur))',
       }}>
         {(['messages', 'partitions', 'config'] as const).map(t => (
           <button
@@ -195,17 +193,13 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
-            <button onClick={applyFilters} style={{
-              padding: '7px 12px', fontSize: 12, fontWeight: 500,
-              background: 'var(--accent)', color: '#fff', borderRadius: 6,
+            <button className="btn-primary" onClick={applyFilters} style={{
+              padding: '7px 12px', fontSize: 12,
             }}>
               Search
             </button>
             {hasFilters && (
-              <button onClick={clearFilters} style={{
-                padding: '7px 12px', fontSize: 12, color: 'var(--text-muted)',
-                border: '1px solid var(--border)', borderRadius: 6,
-              }}>
+              <button onClick={clearFilters} style={{ padding: '7px 12px', fontSize: 12 }}>
                 Clear
               </button>
             )}
@@ -225,14 +219,14 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
             {error && (
               <div style={{
                 margin: '8px 20px', padding: '12px 14px',
-                background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)',
-                borderRadius: 8, fontSize: 12, color: 'var(--danger)',
+                background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 20%, transparent)',
+                borderRadius: 8, fontSize: 12, color: 'var(--err)',
                 display: 'flex', alignItems: 'flex-start', gap: 10,
               }}>
                 <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>⚠</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, marginBottom: 2 }}>Connection Error</div>
-                  <div style={{ color: 'rgba(248,113,113,0.8)', fontSize: 11, lineHeight: 1.5 }}>{error}</div>
+                  <div style={{ color: 'var(--err)', opacity: 0.8, fontSize: 11, lineHeight: 1.5 }}>{error}</div>
                 </div>
               </div>
             )}
@@ -266,68 +260,58 @@ export default function MessageViewer({ topic, onProduce, onDeleteTopic, cluster
       {/* Partitions tab */}
       {tab === 'partitions' && details && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Partition', 'Leader', 'Replicas', 'ISR', 'Begin Offset', 'End Offset', 'Messages'].map(h => (
-                  <th key={h} style={{
-                    textAlign: 'left', padding: '8px 12px', fontWeight: 600,
-                    color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5,
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {details.partitions.map(p => (
-                <tr key={p.partition} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 500 }}>{p.partition}</td>
-                  <td style={{ padding: '10px 12px' }}>
-                    <span style={{
-                      padding: '2px 6px', borderRadius: 4, fontSize: 11,
-                      background: 'rgba(99,102,241,0.1)', color: 'var(--accent)',
-                    }}>Broker {p.leader}</span>
-                  </td>
-                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{p.replicas.join(', ')}</td>
-                  <td style={{ padding: '10px 12px' }}>
-                    <span style={{
-                      color: p.isr.length === p.replicas.length ? 'var(--success)' : 'var(--warning)',
-                    }}>{p.isr.join(', ')}</span>
-                  </td>
-                  <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 11.5 }}>{p.beginOffset}</td>
-                  <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 11.5 }}>{p.endOffset}</td>
-                  <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 11.5 }}>{p.endOffset - p.beginOffset}</td>
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <thead>
+                <tr>
+                  {['Partition', 'Leader', 'Replicas', 'ISR', 'Begin Offset', 'End Offset', 'Messages'].map(h => (
+                    <th key={h}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {details.partitions.map(p => (
+                  <tr key={p.partition}>
+                    <td style={{ fontWeight: 500 }}>{p.partition}</td>
+                    <td>
+                      <span className="badge badge-accent">Broker {p.leader}</span>
+                    </td>
+                    <td style={{ color: 'var(--text-muted)' }}>{p.replicas.join(', ')}</td>
+                    <td>
+                      <span className={p.isr.length === p.replicas.length ? 'badge badge-ok' : 'badge badge-warn'}>{p.isr.join(', ')}</span>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{p.beginOffset}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{p.endOffset}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{p.endOffset - p.beginOffset}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* Config tab */}
       {tab === 'config' && details && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th style={{
-                  textAlign: 'left', padding: '8px 12px', fontWeight: 600,
-                  color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5,
-                }}>Key</th>
-                <th style={{
-                  textAlign: 'left', padding: '8px 12px', fontWeight: 600,
-                  color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5,
-                }}>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(details.configs).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => (
-                <tr key={k} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11.5, color: 'var(--json-key)' }}>{k}</td>
-                  <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11.5 }}>{v}</td>
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Value</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {Object.entries(details.configs).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => (
+                  <tr key={k}>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--json-key)' }}>{k}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -467,11 +451,10 @@ function MessageRow({ msg, topic, clusterId, expanded, onToggle }: {
   }
 
   return (
-    <div style={{
-      margin: '0 12px 4px', borderRadius: 8,
-      border: '1px solid var(--border)',
-      background: expanded ? 'var(--card-hover)' : 'var(--card-bg)',
-      transition: 'background 0.1s',
+    <div className="card" style={{
+      margin: '0 12px 4px',
+      background: expanded ? 'var(--glass-2)' : undefined,
+      transition: 'background 0.1s, box-shadow 0.18s, border-color 0.18s',
     }}>
       <div
         role="button"

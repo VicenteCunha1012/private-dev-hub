@@ -39,8 +39,8 @@ export default function SessionDetailView({ sessionId }: SessionDetailViewProps)
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
-        padding: '16px 24px', borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
+        padding: '16px 24px', borderBottom: '1px solid var(--glass-bd)',
+        background: 'var(--glass)', backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))',
       }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, letterSpacing: -0.3 }}>{detail.title}</h2>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -54,7 +54,7 @@ export default function SessionDetailView({ sessionId }: SessionDetailViewProps)
 
       {/* Token summary cards */}
       <div style={{
-        padding: '12px 24px', borderBottom: '1px solid var(--border)',
+        padding: '12px 24px', borderBottom: '1px solid var(--glass-bd)',
         display: 'flex', gap: 12,
       }}>
         <TokenCard label="Input" tokens={detail.totalInputTokens} color="#6366f1" />
@@ -64,12 +64,12 @@ export default function SessionDetailView({ sessionId }: SessionDetailViewProps)
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-bd)', background: 'var(--glass)', backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))' }}>
         {(['overview', 'turns', 'mcp'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '10px 20px', fontSize: 12.5, fontWeight: 500,
-            color: tab === t ? 'var(--accent)' : 'var(--text-muted)',
-            borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
+            color: tab === t ? 'var(--ac)' : 'var(--text-muted)',
+            borderBottom: tab === t ? '2px solid var(--ac)' : '2px solid transparent',
             textTransform: 'capitalize',
           }}>
             {t === 'mcp' ? `MCP Tools (${detail.mcpTools.length})` : t}
@@ -95,10 +95,7 @@ function OverviewTab({ detail }: { detail: SessionDetail }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{
-        padding: '20px', background: 'var(--card-bg)', border: '1px solid var(--border)',
-        borderRadius: 10,
-      }}>
+      <div className="card" style={{ padding: '20px' }}>
         <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
           Summary
         </h3>
@@ -125,10 +122,7 @@ function OverviewTab({ detail }: { detail: SessionDetail }) {
       </div>
 
       {/* Token distribution bar */}
-      <div style={{
-        padding: '16px 20px', background: 'var(--card-bg)', border: '1px solid var(--border)',
-        borderRadius: 10,
-      }}>
+      <div className="card" style={{ padding: '16px 20px' }}>
         <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
           Token Distribution
         </h3>
@@ -157,10 +151,9 @@ function TurnsTab({ detail }: { detail: SessionDetail }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {detail.turns.map((turn, i) => (
-        <div key={i} style={{
-          padding: '10px 14px', borderRadius: 8,
-          background: turn.role === 'user' ? 'rgba(99,102,241,0.05)' : 'var(--card-bg)',
-          border: '1px solid var(--border)',
+        <div key={i} className="card" style={{
+          padding: '10px 14px',
+          background: turn.role === 'user' ? 'color-mix(in srgb, var(--ac) 6%, var(--glass))' : undefined,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{
@@ -213,9 +206,8 @@ function McpTab({ detail }: { detail: SessionDetail }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {detail.mcpTools.map(tool => (
-        <div key={tool} style={{
-          padding: '10px 14px', borderRadius: 8,
-          background: 'var(--card-bg)', border: '1px solid var(--border)',
+        <div key={tool} className="card" style={{
+          padding: '10px 14px',
           fontFamily: 'monospace', fontSize: 12,
         }}>
           {tool}
@@ -236,13 +228,9 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
 
 function TokenCard({ label, tokens, color }: { label: string; tokens: number; color: string }) {
   return (
-    <div style={{
-      flex: 1, padding: '10px 14px', borderRadius: 8,
-      background: 'var(--card-bg)', border: '1px solid var(--border)',
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color, letterSpacing: -0.5 }}>{formatTokens(tokens)}</div>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
+    <div className="stat" style={{ flex: 1, padding: '10px 14px', textAlign: 'center' }}>
+      <div className="stat-value" style={{ fontSize: 16, color }}>{formatTokens(tokens)}</div>
+      <div className="stat-label" style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>{label}</div>
     </div>
   )
 }

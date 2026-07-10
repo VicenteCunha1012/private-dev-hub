@@ -51,13 +51,14 @@ const S = {
 
   sidebar: {
     width: 220, flexShrink: 0,
-    background: 'var(--s1)', borderRight: '1px solid var(--bd)',
+    background: 'var(--glass)', backdropFilter: 'blur(var(--blur))',
+    borderRight: '1px solid var(--glass-bd)',
     display: 'flex', flexDirection: 'column', overflow: 'hidden',
   } as CSSProperties,
 
   sidebarHead: {
     padding: '18px 16px 14px',
-    borderBottom: '1px solid var(--bd)',
+    borderBottom: '1px solid var(--glass-bd)',
     display: 'flex', alignItems: 'center', gap: 10,
   } as CSSProperties,
 
@@ -92,10 +93,9 @@ const S = {
     padding: 24,
   } as CSSProperties,
 
-  // ── shared component styles ──
+  // ── shared component styles ── (background/border/radius/shadow now come from .card className)
   card: {
-    background: 'var(--s2)', border: '1px solid var(--bd)',
-    borderRadius: 'var(--r-lg)', padding: 20, marginBottom: 16,
+    padding: 20, marginBottom: 16,
   } as CSSProperties,
 
   label: {
@@ -105,11 +105,11 @@ const S = {
 
   row: { display: 'flex', gap: 12, marginBottom: 14, alignItems: 'flex-end' } as CSSProperties,
 
+  // background/color/border now come from the .btn-primary className
   btn: {
     padding: '8px 18px', borderRadius: 'var(--r)',
-    background: 'var(--ac)', color: '#fff',
     fontSize: 13, fontWeight: 600, cursor: 'pointer',
-    whiteSpace: 'nowrap' as const, flexShrink: 0, border: 'none',
+    whiteSpace: 'nowrap' as const, flexShrink: 0,
   } as CSSProperties,
 
   btnOutline: {
@@ -283,7 +283,7 @@ function RegexTool() {
   return (
     <div>
       <h2 style={S.pageTitle}>Regex Workbench</h2>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <div style={S.row}>
           <div style={{ flex: 1 }}>
             <label style={S.label}>Pattern</label>
@@ -293,13 +293,13 @@ function RegexTool() {
             <label style={S.label}>Flags</label>
             <input value={flags} onChange={e => setFlags(e.target.value)} placeholder="gim" style={S.mono} />
           </div>
-          <button style={S.btn} onClick={test}>Test</button>
+          <button className="btn-primary" style={S.btn} onClick={test}>Test</button>
         </div>
         <label style={S.label}>Test text</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={6} style={S.mono} placeholder="Paste text to test against..." />
       </div>
       {result && (
-        <div style={S.card}>
+        <div className="card" style={S.card}>
           {result.error
             ? <p style={S.errTxt}>{result.error}</p>
             : <>
@@ -359,7 +359,7 @@ function CronTool() {
   return (
     <div>
       <h2 style={S.pageTitle}>Cron / systemd-timer Translator</h2>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <div style={S.row}>
           <div style={{ flex: 1 }}>
             <label style={S.label}>Expression</label>
@@ -369,11 +369,11 @@ function CronTool() {
             <label style={S.label}>Next N</label>
             <input type="number" value={count} onChange={e => setCount(Number(e.target.value))} min={1} max={20} style={S.mono} />
           </div>
-          <button style={S.btn} onClick={parse}>Parse</button>
+          <button className="btn-primary" style={S.btn} onClick={parse}>Parse</button>
         </div>
       </div>
       {result && (
-        <div style={S.card}>
+        <div className="card" style={S.card}>
           {result.error
             ? <p style={S.errTxt}>{result.error}</p>
             : <>
@@ -413,7 +413,7 @@ function UuidTool() {
   return (
     <div>
       <h2 style={S.pageTitle}>UUID / ULID Generator</h2>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <div style={S.row}>
           <div style={{ width: 140 }}>
             <label style={S.label}>Format</label>
@@ -428,12 +428,12 @@ function UuidTool() {
             <label style={S.label}>Count</label>
             <input type="number" value={count} onChange={e => setCount(Number(e.target.value))} min={1} max={1000} style={S.mono} />
           </div>
-          <button style={S.btn} onClick={generate}>Generate</button>
+          <button className="btn-primary" style={S.btn} onClick={generate}>Generate</button>
           {values.length > 0 && <button style={S.btnOutline} onClick={copyAll}>{copied === -2 ? 'Copied!' : 'Copy all'}</button>}
         </div>
       </div>
       {values.length > 0 && (
-        <div style={S.card}>
+        <div className="card" style={S.card}>
           {values.map((v, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '5px 0', borderBottom: i < values.length - 1 ? '1px solid var(--bd)' : 'none' }}>
               <code style={{ ...S.mono, flex: 1 }}>{v}</code>
@@ -467,7 +467,7 @@ function HashTool() {
   return (
     <div>
       <h2 style={S.pageTitle}>Hash & Checksum</h2>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <div style={S.row}>
           <div style={{ width: 140 }}>
             <label style={S.label}>Algorithm</label>
@@ -479,7 +479,7 @@ function HashTool() {
               <option value="sha512">SHA-512</option>
             </select>
           </div>
-          <button style={{ ...S.btn, alignSelf: 'flex-end' }} onClick={compute}>Compute</button>
+          <button className="btn-primary" style={{ ...S.btn, alignSelf: 'flex-end' }} onClick={compute}>Compute</button>
         </div>
         <label style={S.label}>Input text</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={4} style={S.mono} placeholder="Enter text to hash..." />
@@ -493,7 +493,7 @@ function HashTool() {
           </div>
         )}
       </div>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <h3 style={{ fontSize: 13, marginBottom: 12, fontWeight: 600, color: 'var(--tx-2)' }}>Compare checksums</h3>
         <div style={S.row}>
           <div style={{ flex: 1 }}>
@@ -504,7 +504,7 @@ function HashTool() {
             <label style={S.label}>Hash 2</label>
             <input value={c2} onChange={e => { setC2(e.target.value); setMatch(null) }} style={S.mono} />
           </div>
-          <button style={S.btn} onClick={compare}>Compare</button>
+          <button className="btn-primary" style={S.btn} onClick={compare}>Compare</button>
         </div>
         {match !== null && <p style={match ? S.okTxt : S.errTxt}>{match ? '✓ Match' : '✗ No match'}</p>}
       </div>
@@ -532,17 +532,17 @@ function UrlTool() {
   return (
     <div>
       <h2 style={S.pageTitle}>URL / Query Parser</h2>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <div style={S.row}>
           <div style={{ flex: 1 }}>
             <label style={S.label}>URL</label>
             <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/path?key=value#section" style={S.mono} onKeyDown={e => e.key === 'Enter' && parse()} />
           </div>
-          <button style={S.btn} onClick={parse}>Parse</button>
+          <button className="btn-primary" style={S.btn} onClick={parse}>Parse</button>
         </div>
       </div>
       {result?.valid && (
-        <div style={S.card}>
+        <div className="card" style={S.card}>
           <table style={S.table}>
             <tbody>
               {result.scheme && <tr><td style={{ ...S.td, color: 'var(--tx-3)', width: 100 }}>Scheme</td><td style={S.td}>{result.scheme}</td></tr>}
@@ -565,7 +565,7 @@ function UrlTool() {
       )}
       {result && !result.valid && <p style={S.errTxt}>{result.error}</p>}
 
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <h3 style={{ fontSize: 13, marginBottom: 12, fontWeight: 600, color: 'var(--tx-2)' }}>URL Encode / Decode</h3>
         <div style={S.row}>
           <div style={{ flex: 1 }}>
@@ -575,7 +575,7 @@ function UrlTool() {
             <option value="encode">Encode</option>
             <option value="decode">Decode</option>
           </select>
-          <button style={S.btn} onClick={encode}>Go</button>
+          <button className="btn-primary" style={S.btn} onClick={encode}>Go</button>
         </div>
         {encResult && (
           <div style={{ ...S.result, marginTop: 8, display: 'flex', alignItems: 'center' }}>
@@ -629,15 +629,15 @@ function JwtTool() {
   return (
     <div>
       <h2 style={S.pageTitle}>JWT Decoder</h2>
-      <div style={S.card}>
+      <div className="card" style={S.card}>
         <label style={S.label}>JWT Token</label>
         <textarea value={token} onChange={e => setToken(e.target.value)} rows={4} style={S.mono} placeholder="eyJhbGciOiJSUzI1NiIsInR5..." />
         <div style={{ marginTop: 12 }}>
-          <button style={S.btn} onClick={decode}>Decode</button>
+          <button className="btn-primary" style={S.btn} onClick={decode}>Decode</button>
         </div>
       </div>
       {result && (
-        <div style={S.card}>
+        <div className="card" style={S.card}>
           {result.error
             ? <p style={S.errTxt}>{result.error}</p>
             : <>
@@ -682,7 +682,7 @@ function JToolBar({ children }: { children: React.ReactNode }) {
 
 function JActionBtn({ onClick, loading, children }: { onClick: () => void; loading: boolean; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} disabled={loading} style={{ padding: '6px 16px', fontSize: 12, fontWeight: 600, background: 'var(--ac)', color: '#fff', borderRadius: 6, opacity: loading ? 0.6 : 1, border: 'none', cursor: 'pointer' }}>
+    <button className="btn-primary" onClick={onClick} disabled={loading} style={{ padding: '6px 16px', fontSize: 12, fontWeight: 600, borderRadius: 6, opacity: loading ? 0.6 : 1, cursor: 'pointer' }}>
       {loading ? 'Processing...' : children}
     </button>
   )
@@ -1043,7 +1043,7 @@ function PortsTool() {
         </div>
       </div>
       {error && <div style={{ padding: '12px 16px', background: 'var(--err-dim)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 6, color: 'var(--err)', marginBottom: 14, fontSize: 13 }}>{error}</div>}
-      <div style={{ background: 'var(--s2)', border: '1px solid var(--bd)', borderRadius: 10, overflow: 'hidden' }}>
+      <div className="card" style={{ overflow: 'hidden' }}>
         <table style={tblStyle}>
           <thead><tr><th style={thS}>Port</th><th style={thS}>Protocol</th><th style={thS}>State</th><th style={thS}>PID</th><th style={thS}>Process</th><th style={thS}>Module</th><th style={thS}></th></tr></thead>
           <tbody>
@@ -1102,7 +1102,7 @@ function ServicesTool() {
       <h2 style={S.pageTitle}>Health Dashboard — Edit Services</h2>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14 }}>
         <button onClick={() => setEditMode(false)} style={{ ...S.btnOutline }}>Cancel</button>
-        <button onClick={saveEdit} style={{ ...S.btn }}>Save</button>
+        <button className="btn-primary" onClick={saveEdit} style={{ ...S.btn }}>Save</button>
       </div>
       {editedServices.map((svc, i) => (
         <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
@@ -1141,8 +1141,8 @@ function ServicesTool() {
           const c = svc.status === 'up' ? 'var(--ok)' : svc.status === 'degraded' ? 'var(--warn)' : 'var(--err)'
           const bg = svc.status === 'up' ? 'rgba(52,211,153,0.06)' : svc.status === 'degraded' ? 'rgba(251,191,36,0.06)' : 'rgba(248,113,113,0.06)'
           return (
-            <div key={svc.name} style={{ background: 'var(--s2)', border: `1px solid var(--bd)`, borderRadius: 8, padding: '14px 16px', borderLeft: `3px solid ${c}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div key={svc.name} className="stat" style={{ borderLeft: `3px solid ${c}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: c, flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{svc.name}</span>
               </div>
@@ -1346,7 +1346,7 @@ function GitHistoryTool() {
 
   if (showConfig) return (
     <div className="gh-root" style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ background: 'var(--s2)', border: '1px solid var(--bd)', borderRadius: 10, padding: 20, margin: 16, width: 500, maxWidth: '90%' }}>
+      <div className="card" style={{ padding: 20, margin: 16, width: 500, maxWidth: '90%' }}>
         <h2 style={{ marginBottom: 14, fontSize: 16, fontWeight: 700 }}>Git History Config</h2>
         <label style={{ fontSize: 11, color: 'var(--tx-3)', marginBottom: 6, display: 'block', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Repository directories (one per line)</label>
         <textarea value={configDirs.join('\n')} onChange={e => setConfigDirs(e.target.value.split('\n'))} rows={6}
@@ -1354,7 +1354,7 @@ function GitHistoryTool() {
           placeholder="/home/user/projects/repo1&#10;/home/user/projects/repo2" />
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button style={S.btnOutline} onClick={() => setShowConfig(false)}>Cancel</button>
-          <button style={S.btn} onClick={saveConfig}>Save</button>
+          <button className="btn-primary" style={S.btn} onClick={saveConfig}>Save</button>
         </div>
       </div>
     </div>
@@ -1362,11 +1362,11 @@ function GitHistoryTool() {
 
   if (repos.length === 0) return (
     <div className="gh-root" style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ background: 'var(--s2)', border: '1px solid var(--bd)', borderRadius: 10, padding: 20, margin: 16, width: 500, textAlign: 'center' }}>
+      <div className="card" style={{ padding: 20, margin: 16, width: 500, textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>📜</div>
         <h2 style={{ marginBottom: 8, fontSize: 16 }}>No repositories configured</h2>
         <p style={{ color: 'var(--tx-2)', marginBottom: 16, fontSize: 13 }}>Add repository directories to get started.</p>
-        <button style={S.btn} onClick={() => setShowConfig(true)}>Configure Repos</button>
+        <button className="btn-primary" style={S.btn} onClick={() => setShowConfig(true)}>Configure Repos</button>
         {error && <p style={{ color: 'var(--err)', marginTop: 12, fontSize: 12 }}>{error}</p>}
       </div>
     </div>
@@ -1435,7 +1435,7 @@ function GitHistoryTool() {
               <button style={{ padding: '3px 8px', fontSize: 11, ...S.btnOutline, marginRight: 8 }} onClick={() => { setFileContent(null); setSelectedLines(new Set()); setBlameData([]) }}>Back</button>
               <button style={{ padding: '3px 8px', fontSize: 11, ...S.btnOutline, marginRight: 8 }} onClick={loadFileHistory}>History</button>
               {selectedLines.size > 0 && (
-                <button style={{ padding: '3px 8px', fontSize: 11, ...S.btn }} onClick={loadBlame}>
+                <button className="btn-primary" style={{ padding: '3px 8px', fontSize: 11, ...S.btn }} onClick={loadBlame}>
                   Blame L{Math.min(...selectedLines)}{selectedLines.size > 1 ? `-L${Math.max(...selectedLines)}` : ''}
                 </button>
               )}
@@ -1449,7 +1449,7 @@ function GitHistoryTool() {
                 </div>
               )}
               {blameData.length > 0 && !showLineHistory && (
-                <button style={{ width: '100%', marginBottom: 8, fontSize: 12, ...S.btn }} onClick={loadLineHistory} disabled={lineHistoryLoading}>
+                <button className="btn-primary" style={{ width: '100%', marginBottom: 8, fontSize: 12, ...S.btn }} onClick={loadLineHistory} disabled={lineHistoryLoading}>
                   {lineHistoryLoading ? 'Loading…' : 'Full line history'}
                 </button>
               )}
@@ -1501,7 +1501,7 @@ function GitHistoryTool() {
                   {showLineHistory && lineHistory.map((lh, i) => <GLineHistoryCard key={i} entry={lh} />)}
                   {showLineHistory && lineHistory.length >= traceLimit && (
                     <div style={{ padding: 12, textAlign: 'center' }}>
-                      <button style={S.btn} onClick={() => { setTraceLimit(p => p + 20); loadLineHistory() }}>Go deeper</button>
+                      <button className="btn-primary" style={S.btn} onClick={() => { setTraceLimit(p => p + 20); loadLineHistory() }}>Go deeper</button>
                     </div>
                   )}
                 </div>
@@ -1540,8 +1540,8 @@ function GDiffFileView({ file }: { file: GDiffFile }) {
   const bg = statusBg[file.status as keyof typeof statusBg] ?? 'var(--ac-dim)'
   const color = statusColor[file.status as keyof typeof statusColor] ?? 'var(--ac)'
   return (
-    <div style={{ background: 'var(--s2)', border: '1px solid var(--bd)', borderRadius: 8, marginBottom: 10 }}>
-      <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="card" style={{ marginBottom: 10 }}>
+      <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--glass-bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ display: 'inline-block', padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: bg, color }}>{file.status}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>{file.path}</span>

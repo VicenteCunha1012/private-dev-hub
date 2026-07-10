@@ -62,19 +62,17 @@ export default function SpecEditor({ specId, onBack }: SpecEditorProps) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {toast && (
-        <div style={{
+        <div className="card" style={{
           position: 'fixed', top: 20, right: 20, zIndex: 2000,
-          background: '#0f2e1a', border: '1px solid #2a6a3a', borderRadius: 8,
-          padding: '10px 16px', color: '#6ee89a', fontSize: 13, fontWeight: 500,
+          padding: '10px 16px', color: 'var(--ok)', fontSize: 13, fontWeight: 500,
         }}>
           {toast}
         </div>
       )}
 
       {/* Header */}
-      <div style={{
-        padding: '14px 20px', borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 12,
+      <div className="card" style={{
+        margin: '16px 20px 0', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12,
       }}>
         <button onClick={onBack} style={{ color: 'var(--text-muted)', fontSize: 18 }}>←</button>
         <div style={{ flex: 1 }}>
@@ -86,23 +84,19 @@ export default function SpecEditor({ specId, onBack }: SpecEditorProps) {
             <span>Fields: {spec.spec.entities.reduce((s, e) => s + e.fields.length, 0)}</span>
           </div>
         </div>
-        <button onClick={saveSpec} disabled={saving} style={{
-          padding: '7px 16px', fontSize: 12, fontWeight: 600,
-          background: 'var(--accent)', color: '#fff', borderRadius: 6,
-          opacity: saving ? 0.6 : 1,
+        <button className="btn-primary" onClick={saveSpec} disabled={saving} style={{
+          padding: '7px 16px', fontSize: 12,
         }}>
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+      <div style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
         {(['fields', 'generate', 'history'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '10px 20px', fontSize: 12.5, fontWeight: 500,
-            color: tab === t ? 'var(--accent)' : 'var(--text-muted)',
-            borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
-            textTransform: 'capitalize',
+          <button key={t} className={tab === t ? 'chip chip-accent' : 'chip'} onClick={() => setTab(t)} style={{
+            padding: '6px 16px', fontSize: 12.5, fontWeight: 500,
+            textTransform: 'capitalize', cursor: 'pointer',
           }}>
             {t}
           </button>
@@ -122,8 +116,8 @@ function FieldsTab({ spec, updateField }: { spec: SpecRecord; updateField: (eIdx
   return (
     <div style={{ padding: '16px 20px' }}>
       {spec.spec.entities.map((entity, eIdx) => (
-        <div key={entity.name} style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+        <div key={entity.name} className="card" style={{ marginBottom: 24, padding: 16 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ac)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
             {entity.name}
           </h3>
           <div style={{ overflowX: 'auto' }}>
@@ -290,20 +284,17 @@ function GenerateTab({ specId, spec }: { specId: number; spec: SpecRecord }) {
           <label style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 3 }}>Seed</label>
           <input value={seed} onChange={e => setSeed(e.target.value)} placeholder="optional" style={{ width: 90, fontSize: 12 }} />
         </div>
-        <button onClick={generate} disabled={loading} style={{
-          padding: '8px 16px', fontSize: 12, fontWeight: 600,
-          background: 'var(--accent)', color: '#fff', borderRadius: 6,
+        <button className="btn-primary" onClick={generate} disabled={loading} style={{
+          padding: '8px 16px', fontSize: 12,
         }}>
           {loading ? 'Generating...' : 'Generate & Preview'}
         </button>
-        <a href={mockgenApi.getExportUrl(specId, 'generate')} download style={{
-          padding: '8px 12px', fontSize: 11, border: '1px solid var(--border)',
-          borderRadius: 6, color: 'var(--text-muted)', textDecoration: 'none',
+        <a href={mockgenApi.getExportUrl(specId, 'generate')} download className="chip" style={{
+          padding: '8px 12px', fontSize: 11, textDecoration: 'none',
         }}>Export generate.py</a>
         {spec.mode === 'api' && (
-          <a href={mockgenApi.getExportUrl(specId, 'call_api')} download style={{
-            padding: '8px 12px', fontSize: 11, border: '1px solid var(--border)',
-            borderRadius: 6, color: 'var(--text-muted)', textDecoration: 'none',
+          <a href={mockgenApi.getExportUrl(specId, 'call_api')} download className="chip" style={{
+            padding: '8px 12px', fontSize: 11, textDecoration: 'none',
           }}>Export call_api.py</a>
         )}
       </div>
@@ -311,13 +302,13 @@ function GenerateTab({ specId, spec }: { specId: number; spec: SpecRecord }) {
       {error && (
         <div style={{
           padding: '10px 14px', borderRadius: 6, fontSize: 12, marginBottom: 12,
-          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-          color: 'var(--danger)', whiteSpace: 'pre-wrap',
+          background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 35%, transparent)',
+          color: 'var(--err)', whiteSpace: 'pre-wrap',
         }}>{error}</div>
       )}
 
       {result && (
-        <div>
+        <div className="card" style={{ padding: 16 }}>
           <div style={{ display: 'flex', gap: 12, marginBottom: 10, fontSize: 12, color: 'var(--text-muted)' }}>
             <span>Entity: <strong style={{ color: 'var(--text)' }}>{result.entityName}</strong></span>
             <span>Profile: <strong style={{ color: 'var(--text)' }}>{result.profile}</strong></span>
@@ -358,10 +349,10 @@ function HistoryTab({ history, currentVersion, onRollback }: {
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No version history</div>
       )}
       {history.map(v => (
-        <div key={v.id} style={{
-          padding: '12px 16px', marginBottom: 6, borderRadius: 8,
-          background: v.version === currentVersion ? 'var(--accent-glow)' : 'var(--card-bg)',
-          border: `1px solid ${v.version === currentVersion ? 'var(--accent)' : 'var(--border)'}`,
+        <div key={v.id} className="card" style={{
+          padding: '12px 16px', marginBottom: 6,
+          background: v.version === currentVersion ? 'var(--ac-dim)' : undefined,
+          borderColor: v.version === currentVersion ? 'color-mix(in srgb, var(--ac) 35%, var(--glass-bd))' : undefined,
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--accent)', minWidth: 40 }}>v{v.version}</span>

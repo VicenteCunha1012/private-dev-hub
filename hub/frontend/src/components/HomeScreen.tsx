@@ -24,7 +24,7 @@ export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onA
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '56px 32px 40px', overflowY: 'auto',
-      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, rgba(124,58,237,0.12) 0%, transparent 70%)',
+      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, var(--ac-glow) 0%, transparent 70%)',
     }}>
 
       {/* Header */}
@@ -59,10 +59,8 @@ export default function HomeScreen({ folders, keybinds, searchRef, onSelect, onA
 
       {/* Add button */}
       <div style={{ width: '100%', maxWidth: 860, display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button onClick={onAddEntry} style={{
-          padding: '7px 16px', fontSize: 12.5, fontWeight: 600, borderRadius: 7,
-          background: 'linear-gradient(135deg, var(--accent-solid), var(--accent-2))',
-          color: '#fff', display: 'flex', alignItems: 'center', gap: 5,
+        <button className="btn-primary" onClick={onAddEntry} style={{
+          padding: '7px 16px', fontSize: 12.5,
         }}>
           <span style={{ fontSize: 16 }}>+</span> Add entry
         </button>
@@ -111,6 +109,7 @@ function EntryCard({ entry, onSelect, onContextMenu }: { entry: Entry; onSelect:
 
   return (
     <button
+      className="tile"
       draggable
       onDragStart={e => e.dataTransfer.setData('text/entry-id', String(entry.id))}
       onClick={() => onSelect(entry, true)}
@@ -118,20 +117,14 @@ function EntryCard({ entry, onSelect, onContextMenu }: { entry: Entry; onSelect:
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        flexDirection: 'column', alignItems: 'center',
         gap: 10, padding: '22px 12px 16px',
-        background: hovered ? 'var(--card-hover)' : 'var(--card-bg)',
-        border: `1px solid ${hovered ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 12,
-        cursor: 'pointer',
         color: 'var(--text)',
-        transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
-        boxShadow: hovered ? '0 0 0 3px var(--accent-glow)' : 'none',
       }}
     >
       <div style={{
         width: 48, height: 48,
-        background: hovered ? 'rgba(167,139,250,0.1)' : 'rgba(255,255,255,0.04)',
+        background: hovered ? 'var(--ac-dim)' : 'rgba(255,255,255,0.04)',
         borderRadius: 12,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 0.15s',

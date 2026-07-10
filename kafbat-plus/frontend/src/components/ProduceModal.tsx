@@ -138,30 +138,29 @@ export default function ProduceModal({ topic, onClose, onProduced, initialValue,
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 100,
       }}
     >
       <div
+        className="card"
         onClick={e => e.stopPropagation()}
         onDragOver={e => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         style={{
           width: 600, maxHeight: '80vh',
-          background: 'var(--bg-secondary)',
-          border: `1px solid ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
-          borderRadius: 12,
+          borderColor: dragOver ? 'var(--ac)' : undefined,
           display: 'flex', flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-          transition: 'border-color 0.15s',
+          boxShadow: 'var(--sh-lg), 0 0 0 1px color-mix(in srgb, var(--ac) 10%, transparent)',
+          transition: 'border-color 0.15s, box-shadow 0.18s, transform 0.18s',
         }}
       >
         {/* Header */}
         <div style={{
           padding: '16px 20px',
-          borderBottom: '1px solid var(--border)',
+          borderBottom: '1px solid var(--glass-bd)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
@@ -252,8 +251,8 @@ export default function ProduceModal({ topic, onClose, onProduced, initialValue,
           {error && (
             <div style={{
               padding: '8px 12px', borderRadius: 6, fontSize: 12,
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-              color: 'var(--danger)',
+              background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 25%, transparent)',
+              color: 'var(--err)',
             }}>
               {error}
             </div>
@@ -261,8 +260,8 @@ export default function ProduceModal({ topic, onClose, onProduced, initialValue,
           {result && (
             <div style={{
               padding: '8px 12px', borderRadius: 6, fontSize: 12,
-              background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
-              color: 'var(--success)',
+              background: 'var(--ok-dim)', border: '1px solid color-mix(in srgb, var(--ok) 25%, transparent)',
+              color: 'var(--ok)',
             }}>
               Sent to partition {result.partition}, offset {result.offset}
             </div>
@@ -272,19 +271,12 @@ export default function ProduceModal({ topic, onClose, onProduced, initialValue,
         {/* Footer */}
         <div style={{
           padding: '12px 20px',
-          borderTop: '1px solid var(--border)',
+          borderTop: '1px solid var(--glass-bd)',
           display: 'flex', justifyContent: 'flex-end', gap: 8,
         }}>
-          <button onClick={onClose} style={{
-            padding: '8px 16px', fontSize: 12.5,
-            border: '1px solid var(--border)', borderRadius: 6,
-            color: 'var(--text-muted)',
-          }}>Cancel</button>
-          <button onClick={handleSend} disabled={sending || !value.trim()} style={{
-            padding: '8px 20px', fontSize: 12.5, fontWeight: 500,
-            background: sending ? 'var(--text-dim)' : 'var(--accent)',
-            color: '#fff', borderRadius: 6,
-            opacity: sending || !value.trim() ? 0.6 : 1,
+          <button onClick={onClose} style={{ padding: '8px 16px', fontSize: 12.5 }}>Cancel</button>
+          <button className="btn-primary" onClick={handleSend} disabled={sending || !value.trim()} style={{
+            padding: '8px 20px', fontSize: 12.5,
           }}>
             {sending ? 'Sending...' : 'Send'}
           </button>

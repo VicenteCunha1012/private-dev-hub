@@ -771,7 +771,7 @@ function FlowEditorInner({ flowId, initialCommand, allFlows, onNavigateFlow }: {
         <Controls showInteractive={false} />
 
         <Panel position="top-left">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto' }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto', padding: 6 }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: '#7a7395', textTransform: 'uppercase', letterSpacing: 1, padding: '2px 4px' }}>Built-in</div>
             <button onClick={() => addNode('constant')} style={paletteBtnStyle}>
               <span style={{ color: '#4ade80' }}>■</span> Constant
@@ -812,13 +812,13 @@ function FlowEditorInner({ flowId, initialCommand, allFlows, onNavigateFlow }: {
             </button>
             {flowError && (
               <div style={{
-                background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)',
-                borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#f87171',
+                background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 30%, transparent)',
+                borderRadius: 6, padding: '6px 10px', fontSize: 11, color: 'var(--err)',
                 display: 'flex', alignItems: 'center', gap: 6, maxWidth: 280,
               }}>
                 <span>⚠</span>
                 <span>{flowError}</span>
-                <button onClick={() => setFlowError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 13, padding: 0, marginLeft: 4 }}>×</button>
+                <button onClick={() => setFlowError(null)} style={{ background: 'none', border: 'none', color: 'var(--err)', cursor: 'pointer', fontSize: 13, padding: 0, marginLeft: 4 }}>×</button>
               </div>
             )}
           </div>
@@ -829,8 +829,8 @@ function FlowEditorInner({ flowId, initialCommand, allFlows, onNavigateFlow }: {
 }
 
 const paletteBtnStyle: React.CSSProperties = {
-  background: '#171425', border: '1px solid #2a2440', borderRadius: 6,
-  padding: '6px 12px', fontSize: 12, color: '#e8e3f5', cursor: 'pointer',
+  background: 'var(--s3)', border: '1px solid var(--bd)', borderRadius: 6,
+  padding: '6px 12px', fontSize: 12, color: 'var(--tx)', cursor: 'pointer',
   fontFamily: 'var(--mono, monospace)', display: 'flex', alignItems: 'center', gap: 6,
 }
 

@@ -116,7 +116,7 @@ const GAME_REGISTRY: Record<string, GameRegistryEntry> = {
 
 const V = {
   bg: "var(--bg)",
-  bgSecondary: "var(--bg-secondary)",
+  bgSecondary: "var(--s1)",
   cardBg: "var(--card-bg)",
   cardHover: "var(--card-hover)",
   border: "var(--border)",
@@ -128,7 +128,7 @@ const V = {
   success: "var(--success)",
   danger: "var(--danger)",
   warning: "var(--warning)",
-  gold: "var(--gold)",
+  gold: "var(--warn)",
   mono: "var(--mono)",
   radius: "var(--radius)",
 } as const;
@@ -270,8 +270,10 @@ export default function App() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "20px 32px",
-          borderBottom: `1px solid ${V.border}`,
-          background: V.bgSecondary,
+          borderBottom: "1px solid var(--glass-bd)",
+          background: "var(--glass)",
+          backdropFilter: "blur(var(--blur))",
+          WebkitBackdropFilter: "blur(var(--blur))",
         }}
       >
         <h1
@@ -310,7 +312,7 @@ export default function App() {
         <div
           style={{
             padding: "10px 32px",
-            background: "rgba(239, 68, 68, 0.15)",
+            background: "var(--err-dim)",
             color: V.danger,
             fontSize: 14,
             borderBottom: `1px solid ${V.border}`,
@@ -476,18 +478,13 @@ function GameStatCard(props: {
   played: boolean;
 }) {
   const { icon, name, highScore, lastScore, timesPlayed, played } = props;
-  const [hovered, setHovered] = useState(false);
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="card card-hover"
       style={{
-        background: hovered ? V.cardHover : V.cardBg,
-        border: `1px solid ${V.border}`,
-        borderRadius: V.radius,
         padding: 20,
-        transition: "background 0.15s ease, opacity 0.15s ease",
+        transition: "opacity 0.15s ease",
         opacity: played ? 1 : 0.45,
       }}
     >
@@ -626,29 +623,19 @@ function SelectionCard(props: {
   onClick: () => void;
 }) {
   const { icon, name, type, description, disabled, onClick } = props;
-  const [hovered, setHovered] = useState(false);
 
-  const typeBg =
-    type === "timed"
-      ? "rgba(245, 158, 11, 0.15)"
-      : "rgba(34, 197, 94, 0.15)";
+  const typeBg = type === "timed" ? "var(--warn-dim)" : "var(--ok-dim)";
   const typeColor = type === "timed" ? V.warning : V.success;
 
   return (
     <button
+      className="tile"
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
-        background: hovered ? V.cardHover : V.cardBg,
-        border: `1px solid ${hovered ? V.accent : V.border}`,
-        borderRadius: V.radius,
         padding: 28,
         cursor: disabled ? "wait" : "pointer",
         textAlign: "center",
-        transition: "all 0.2s ease",
-        transform: hovered ? "translateY(-2px)" : "none",
         color: V.text,
         width: "100%",
       }}
@@ -748,7 +735,9 @@ function GameOverOverlay(props: {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(10, 10, 26, 0.92)",
+        background: "rgba(10, 10, 26, 0.6)",
+        backdropFilter: "blur(var(--blur))",
+        WebkitBackdropFilter: "blur(var(--blur))",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -756,10 +745,8 @@ function GameOverOverlay(props: {
       }}
     >
       <div
+        className="card"
         style={{
-          background: V.cardBg,
-          border: `1px solid ${V.border}`,
-          borderRadius: V.radius,
           padding: "48px 56px",
           textAlign: "center",
           maxWidth: 420,

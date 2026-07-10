@@ -94,12 +94,12 @@ export default function App() {
           <SessionDetailView key={selectedId} sessionId={selectedId} />
         ) : (
           <>
-            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#161922' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-bd)', background: 'var(--glass)', backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))' }}>
               {(['overview', 'costs', 'config', 'apply', 'memory'] as const).map((t, i) => (
                 <button key={t} onClick={() => setHomeTab(t)} style={{
                   padding: '10px 20px', fontSize: 12.5, fontWeight: 500,
-                  color: homeTab === t ? '#8b5cf6' : '#64748b',
-                  borderBottom: homeTab === t ? '2px solid #8b5cf6' : '2px solid transparent',
+                  color: homeTab === t ? 'var(--ac)' : 'var(--tx-2)',
+                  borderBottom: homeTab === t ? '2px solid var(--ac)' : '2px solid transparent',
                   textTransform: 'capitalize',
                 }}>
                   {t === 'costs' ? 'Cost Tracker' : t === 'config' ? 'AI Config' : t === 'apply' ? 'Apply Config' : t === 'memory' ? 'Memory' : 'Overview'}<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>{i + 1}</kbd>

@@ -45,13 +45,13 @@ export default function AiConfigView() {
   }
 
   if (loading) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
       Loading configuration...
     </div>
   )
 
   if (error) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171' }}>
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--err)' }}>
       {error}
     </div>
   )
@@ -62,8 +62,8 @@ export default function AiConfigView() {
     <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>AI Configuration</h2>
-          <p style={{ fontSize: 12, color: '#64748b' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>AI Configuration</h2>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             Read-only view of Claude Code & OpenCode configs
           </p>
         </div>
@@ -75,7 +75,7 @@ export default function AiConfigView() {
         </div>
 
         {config.categories.length === 0 && (
-          <div style={{ padding: 32, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
             No configuration found in scanned paths.
           </div>
         )}
@@ -97,11 +97,7 @@ export default function AiConfigView() {
 
 function ScanPathBadge({ label, path }: { label: string; path: string }) {
   return (
-    <span style={{
-      padding: '4px 10px', borderRadius: 6, fontSize: 11,
-      background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
-      color: '#a78bfa', fontFamily: 'monospace',
-    }}>
+    <span className="chip chip-accent" style={{ fontFamily: 'monospace' }}>
       {label}: {path}
     </span>
   )
@@ -109,7 +105,7 @@ function ScanPathBadge({ label, path }: { label: string; path: string }) {
 
 function SyncIndicator({ sync }: { sync: { claudeCode: boolean; openCode: boolean } }) {
   const both = sync.claudeCode && sync.openCode
-  const color = both ? '#22c55e' : (sync.claudeCode || sync.openCode) ? '#94a3b8' : '#475569'
+  const color = both ? 'var(--ok)' : (sync.claudeCode || sync.openCode) ? 'var(--text-muted)' : 'var(--text-dim)'
   const label = both ? 'Shared' : sync.claudeCode ? 'Claude Code only' : sync.openCode ? 'OpenCode only' : 'None'
 
   return (
@@ -129,12 +125,7 @@ function SyncIndicator({ sync }: { sync: { claudeCode: boolean; openCode: boolea
 function ToolBadge({ tool }: { tool: string }) {
   const isCC = tool === 'claude-code'
   return (
-    <span style={{
-      padding: '2px 7px', borderRadius: 4, fontSize: 10, fontWeight: 600,
-      background: isCC ? 'rgba(139,92,246,0.15)' : 'rgba(34,197,94,0.15)',
-      color: isCC ? '#a78bfa' : '#4ade80',
-      textTransform: 'uppercase', letterSpacing: 0.5,
-    }}>
+    <span className={isCC ? 'badge badge-accent' : 'badge badge-ok'}>
       {isCC ? 'CC' : 'OC'}
     </span>
   )
@@ -152,10 +143,7 @@ function CategorySection({ category, expandedFile, fileContent, loadingFile, onT
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div style={{
-      marginBottom: 16, borderRadius: 10,
-      background: '#1a1d2e', border: '1px solid rgba(255,255,255,0.06)',
-    }}>
+    <div className="card" style={{ marginBottom: 16 }}>
       <button
         onClick={() => setCollapsed(!collapsed)}
         style={{
@@ -169,12 +157,12 @@ function CategorySection({ category, expandedFile, fileContent, loadingFile, onT
           width="10" height="10" viewBox="0 0 10 10"
           style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', flexShrink: 0 }}
         >
-          <path d="M2 3.5L5 6.5L8 3.5" stroke="#64748b" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+          <path d="M2 3.5L5 6.5L8 3.5" stroke="var(--text-muted)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
         </svg>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', flex: 1 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>
           {category.name}
         </span>
-        <span style={{ fontSize: 11, color: '#64748b', marginRight: 8 }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 8 }}>
           {category.items.length}
         </span>
         <SyncIndicator sync={category.sync} />
@@ -189,17 +177,17 @@ function CategorySection({ category, expandedFile, fileContent, loadingFile, onT
                 style={{
                   width: '100%', padding: '8px 10px',
                   display: 'flex', alignItems: 'center', gap: 8,
-                  background: expandedFile === item.filePath ? 'rgba(139,92,246,0.08)' : 'transparent',
+                  background: expandedFile === item.filePath ? 'var(--ac-dim)' : 'transparent',
                   border: 'none', cursor: 'pointer', borderRadius: 6,
                   textAlign: 'left',
                 }}
               >
                 <ToolBadge tool={item.tool} />
-                <span style={{ fontSize: 12.5, color: '#e2e8f0', flex: 1, fontWeight: 500 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--text)', flex: 1, fontWeight: 500 }}>
                   {item.name}
                 </span>
                 <span style={{
-                  fontSize: 10, color: '#475569', fontFamily: 'monospace',
+                  fontSize: 10, color: 'var(--text-dim)', fontFamily: 'monospace',
                   maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {item.source}
@@ -209,8 +197,8 @@ function CategorySection({ category, expandedFile, fileContent, loadingFile, onT
               {expandedFile === item.filePath && (
                 <div style={{
                   margin: '0 10px 8px', padding: 12, borderRadius: 6,
-                  background: '#0f1219', border: '1px solid rgba(255,255,255,0.06)',
-                  fontSize: 11, fontFamily: 'monospace', color: '#94a3b8',
+                  background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-bd)',
+                  fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   maxHeight: 300, overflow: 'auto',
                 }}>

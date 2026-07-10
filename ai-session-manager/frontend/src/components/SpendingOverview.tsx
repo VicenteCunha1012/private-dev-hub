@@ -21,10 +21,10 @@ export default function SpendingOverview({ tool }: { tool: string }) {
       }}>
         <div style={{
           width: 64, height: 64, borderRadius: 16,
-          background: 'rgba(239,68,68,0.1)',
+          background: 'var(--err-dim)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" strokeLinecap="round">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--err)" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
@@ -50,7 +50,7 @@ export default function SpendingOverview({ tool }: { tool: string }) {
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '50px 40px', overflowY: 'auto',
-      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, rgba(139,92,246,0.08) 0%, transparent 70%)',
+      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, var(--ac-glow) 0%, transparent 70%)',
     }}>
       {/* Logo */}
       <div style={{
@@ -71,10 +71,10 @@ export default function SpendingOverview({ tool }: { tool: string }) {
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, width: '100%', maxWidth: 700, marginBottom: 40 }}>
-        <StatCard label="Sessions" value={spending.totalSessions} color="#8b5cf6" />
-        <StatCard label="Total Cost" value={`$${spending.estimatedCostUsd.toFixed(2)}`} color="#f59e0b" />
-        <StatCard label="Input Tokens" value={formatTokens(spending.totalInputTokens)} color="#6366f1" />
-        <StatCard label="Output Tokens" value={formatTokens(spending.totalOutputTokens)} color="#22c55e" />
+        <StatCard label="Sessions" value={spending.totalSessions} />
+        <StatCard label="Total Cost" value={`$${spending.estimatedCostUsd.toFixed(2)}`} />
+        <StatCard label="Input Tokens" value={formatTokens(spending.totalInputTokens)} />
+        <StatCard label="Output Tokens" value={formatTokens(spending.totalOutputTokens)} />
       </div>
 
       {/* By model */}
@@ -85,16 +85,15 @@ export default function SpendingOverview({ tool }: { tool: string }) {
         }}>By Model</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {Object.entries(spending.byModel).sort(([, a], [, b]) => b.estimatedCostUsd - a.estimatedCostUsd).map(([model, data]) => (
-            <div key={model} style={{
-              padding: '14px 18px', background: 'var(--card-bg)',
-              border: '1px solid var(--border)', borderRadius: 10,
+            <div key={model} className="card" style={{
+              padding: '14px 18px',
               display: 'flex', alignItems: 'center', gap: 12,
             }}>
               <span style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace', flex: 1 }}>{model}</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {formatTokens(data.inputTokens)} in / {formatTokens(data.outputTokens)} out
               </span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--warning)' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--warn)' }}>
                 ${data.estimatedCostUsd.toFixed(2)}
               </span>
             </div>
@@ -112,19 +111,18 @@ export default function SpendingOverview({ tool }: { tool: string }) {
           {sortedProjects.map(([project, cost]) => {
             const maxCost = sortedProjects[0]?.[1] ?? 1
             return (
-              <div key={project} style={{
-                padding: '10px 14px', background: 'var(--card-bg)',
-                border: '1px solid var(--border)', borderRadius: 8,
+              <div key={project} className="card" style={{
+                padding: '10px 14px',
                 position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{
                   position: 'absolute', left: 0, top: 0, bottom: 0,
                   width: `${(cost / maxCost) * 100}%`,
-                  background: 'rgba(139,92,246,0.06)',
+                  background: 'var(--ac-dim)',
                 }} />
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <span style={{ fontSize: 12, flex: 1 }}>{project.split('/').pop()}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--warning)' }}>${cost.toFixed(2)}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--warn)' }}>${cost.toFixed(2)}</span>
                 </div>
               </div>
             )
@@ -135,14 +133,11 @@ export default function SpendingOverview({ tool }: { tool: string }) {
   )
 }
 
-function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div style={{
-      padding: '20px 16px', background: 'var(--card-bg)',
-      border: '1px solid var(--border)', borderRadius: 10, textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color, letterSpacing: -0.5 }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontWeight: 500 }}>{label}</div>
+    <div className="stat" style={{ alignItems: 'center', textAlign: 'center' }}>
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
     </div>
   )
 }

@@ -60,7 +60,7 @@ export default function ClusterOverview({ clusterId }: ClusterOverviewProps) {
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '60px 40px', overflowY: 'auto',
-      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, rgba(99,102,241,0.08) 0%, transparent 70%)',
+      background: 'radial-gradient(ellipse 70% 40% at 50% -10%, var(--ac-glow) 0%, transparent 70%)',
     }}>
       {/* Logo */}
       <div style={{
@@ -82,9 +82,9 @@ export default function ClusterOverview({ clusterId }: ClusterOverviewProps) {
 
       {/* Stats cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, width: '100%', maxWidth: 600, marginBottom: 40 }}>
-        <StatCard label="Brokers" value={cluster.brokers.length} color="#6366f1" />
-        <StatCard label="Topics" value={cluster.topicCount} color="#8b5cf6" />
-        <StatCard label="Partitions" value={cluster.totalPartitions} color="#a78bfa" />
+        <StatCard label="Brokers" value={cluster.brokers.length} />
+        <StatCard label="Topics" value={cluster.topicCount} />
+        <StatCard label="Partitions" value={cluster.totalPartitions} />
       </div>
 
       {/* Broker list */}
@@ -93,32 +93,23 @@ export default function ClusterOverview({ clusterId }: ClusterOverviewProps) {
           fontSize: 11, fontWeight: 700, color: 'var(--text-muted)',
           textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12,
         }}>Brokers</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
           {cluster.brokers.map(b => (
-            <div key={b.id} style={{
-              padding: '14px 18px',
-              background: 'var(--card-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 10,
-              display: 'flex', alignItems: 'center', gap: 12,
+            <div key={b.id} className="tile" style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              padding: '14px 18px', cursor: 'default',
             }}>
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
-                background: 'var(--success)',
-                boxShadow: '0 0 8px rgba(34,197,94,0.5)',
+                background: 'var(--ok)',
+                boxShadow: '0 0 8px var(--ok-dim)',
               }} />
               <span style={{ fontWeight: 500, fontSize: 13 }}>Broker {b.id}</span>
               <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>
                 {b.host}:{b.port}
               </span>
               {b.isController && (
-                <span style={{
-                  marginLeft: 'auto',
-                  fontSize: 10, fontWeight: 600,
-                  padding: '2px 8px', borderRadius: 4,
-                  background: 'rgba(99,102,241,0.1)', color: 'var(--accent)',
-                  textTransform: 'uppercase', letterSpacing: 0.5,
-                }}>Controller</span>
+                <span className="badge badge-accent" style={{ marginLeft: 'auto' }}>Controller</span>
               )}
             </div>
           ))}
@@ -128,17 +119,11 @@ export default function ClusterOverview({ clusterId }: ClusterOverviewProps) {
   )
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div style={{
-      padding: '20px 18px',
-      background: 'var(--card-bg)',
-      border: '1px solid var(--border)',
-      borderRadius: 10,
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color, letterSpacing: -1 }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontWeight: 500 }}>{label}</div>
+    <div className="stat" style={{ alignItems: 'center', textAlign: 'center' }}>
+      <div className="stat-value" style={{ fontSize: 28 }}>{value}</div>
+      <div className="stat-label">{label}</div>
     </div>
   )
 }

@@ -178,14 +178,14 @@ export default function IframeArea({ entries, layout, reloadKey, onLayoutChange,
             onClick={() => window.open(normalizeUrl(entry.url!), '_blank', 'width=800,height=600')}
             style={{
               position: 'absolute', top: 6, right: 6, zIndex: 10,
-              width: 28, height: 28, borderRadius: 6,
-              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#94a3b8', cursor: 'pointer',
+              width: 28, height: 28, borderRadius: 8,
+              background: 'var(--glass)', backdropFilter: 'blur(var(--blur))', border: '1px solid var(--glass-bd)',
+              color: 'var(--tx-2)', cursor: 'pointer', boxShadow: 'var(--sh-1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 14, fontFamily: 'monospace',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.3)'; e.currentTarget.style.color = '#c4b5fd' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94a3b8' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--ac-dim)'; e.currentTarget.style.color = 'var(--ac)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--glass)'; e.currentTarget.style.color = 'var(--tx-2)' }}
           >
             {'↗'}
           </button>
@@ -231,8 +231,8 @@ export default function IframeArea({ entries, layout, reloadKey, onLayoutChange,
             <div key={`empty-${idx}`} style={{
               position: 'absolute', left: rect.left, top: rect.top, width: rect.width, height: rect.height,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: '#0d0f17', border: '1px solid rgba(255,255,255,0.06)',
-              color: '#475569', fontSize: 12, borderRadius: 4, zIndex: 2,
+              background: 'var(--glass)', backdropFilter: 'blur(var(--blur))', border: '1px solid var(--glass-bd)',
+              color: 'var(--tx-3)', fontSize: 12, borderRadius: 'var(--r-lg)', zIndex: 2,
             }}>
               Drop entry here
             </div>
@@ -242,27 +242,28 @@ export default function IframeArea({ entries, layout, reloadKey, onLayoutChange,
         const entry = entries.find(e => e.id === entryId)
         return (
           <div key={`header-${idx}`} onMouseDown={() => onFocusPane(idx)} style={{
-            position: 'absolute', left: rect.left, top: rect.top, width: rect.width, height: 22,
-            background: 'linear-gradient(180deg, rgba(13,15,23,0.95) 0%, transparent 100%)',
+            position: 'absolute', left: rect.left, top: rect.top, width: rect.width, height: 24,
+            background: 'linear-gradient(180deg, var(--glass) 0%, transparent 100%)',
+            backdropFilter: 'blur(var(--blur))',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 6px', zIndex: 5,
+            padding: '0 8px', zIndex: 5,
           }}>
-            <span style={{ fontSize: 10, color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10, color: 'var(--tx-2)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {entry?.label}
             </span>
-            <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               {entry?.url && isLocalHttps(entry.url) && (
                 <button
                   title="Open in new window (accept certificate)"
                   onClick={() => window.open(normalizeUrl(entry.url!), '_blank', 'width=800,height=600')}
                   style={{
-                    width: 16, height: 16, borderRadius: 3,
+                    width: 16, height: 16, borderRadius: 4,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 9, color: '#64748b', background: 'rgba(255,255,255,0.06)',
+                    fontSize: 9, color: 'var(--tx-3)', background: 'rgba(255,255,255,0.06)',
                     cursor: 'pointer', flexShrink: 0, fontFamily: 'monospace',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#c4b5fd')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--ac)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--tx-3)')}
                 >
                   {'↗'}
                 </button>
@@ -270,13 +271,13 @@ export default function IframeArea({ entries, layout, reloadKey, onLayoutChange,
               <button
                 onClick={() => closePane(idx)}
                 style={{
-                  width: 16, height: 16, borderRadius: 3,
+                  width: 16, height: 16, borderRadius: 4,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, color: '#64748b', background: 'rgba(255,255,255,0.06)',
+                  fontSize: 10, color: 'var(--tx-3)', background: 'rgba(255,255,255,0.06)',
                   cursor: 'pointer', flexShrink: 0,
                 }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--err)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--tx-3)')}
               >
                 x
               </button>
@@ -322,8 +323,8 @@ function DropOverlay({ zone, layout }: { zone: DropZone; layout: Layout }) {
       <div style={{
         position: 'absolute', left: rect.left, top: rect.top, width: rect.width, height: rect.height,
         zIndex: 20, pointerEvents: 'none',
-        background: 'rgba(139,92,246,0.2)', border: '2px solid rgba(139,92,246,0.5)',
-        borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--ac-dim)', border: '2px solid var(--ac)',
+        borderRadius: 'var(--r-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <ZoneLabel text="Replace" />
       </div>
@@ -337,15 +338,15 @@ function DropOverlay({ zone, layout }: { zone: DropZone; layout: Layout }) {
       <div style={{ position: 'absolute', inset: 0, zIndex: 20, pointerEvents: 'none', display: 'flex' }}>
         <div style={{
           flex: 1,
-          background: zone === 'left' ? 'rgba(139,92,246,0.15)' : 'transparent',
-          borderRight: '2px solid rgba(139,92,246,0.4)',
+          background: zone === 'left' ? 'var(--ac-dim)' : 'transparent',
+          borderRight: '2px solid var(--ac)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {zone === 'left' && <ZoneLabel text="Left" />}
         </div>
         <div style={{
           flex: 1,
-          background: zone === 'right' ? 'rgba(139,92,246,0.15)' : 'transparent',
+          background: zone === 'right' ? 'var(--ac-dim)' : 'transparent',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {zone === 'right' && <ZoneLabel text="Right" />}
@@ -362,9 +363,9 @@ function DropOverlay({ zone, layout }: { zone: DropZone; layout: Layout }) {
     }}>
       {quadrants.map(q => (
         <div key={q} style={{
-          background: q === zone ? 'rgba(139,92,246,0.15)' : 'transparent',
-          border: q === zone ? '2px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.04)',
-          borderRadius: 4,
+          background: q === zone ? 'var(--ac-dim)' : 'transparent',
+          border: q === zone ? '2px solid var(--ac)' : '1px solid rgba(255,255,255,0.04)',
+          borderRadius: 'var(--r-lg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {q === zone && <ZoneLabel text="2x2" />}
@@ -377,9 +378,10 @@ function DropOverlay({ zone, layout }: { zone: DropZone; layout: Layout }) {
 function ZoneLabel({ text }: { text: string }) {
   return (
     <span style={{
-      padding: '6px 16px', borderRadius: 8,
-      background: 'rgba(139,92,246,0.3)', color: '#c4b5fd',
-      fontSize: 14, fontWeight: 600, backdropFilter: 'blur(4px)',
+      padding: '6px 16px', borderRadius: 999,
+      background: 'var(--ac-dim)', color: 'var(--ac)',
+      fontSize: 14, fontWeight: 600, backdropFilter: 'blur(var(--blur))',
+      border: '1px solid var(--glass-bd)', boxShadow: 'var(--sh-1)',
     }}>
       {text}
     </span>

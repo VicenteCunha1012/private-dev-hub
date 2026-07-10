@@ -187,9 +187,9 @@ export default function ConfigPage({ folders, keybinds, onKeybindsChange, palett
             <div key={folder.id} style={{ marginBottom: 10 }}>
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '6px 12px', background: 'rgba(255,255,255,0.03)',
+                padding: '6px 12px', background: 'var(--glass)',
                 borderRadius: folder.entries.length > 0 ? '8px 8px 0 0' : 8,
-                border: '1px solid var(--border)',
+                border: '1px solid var(--glass-bd)',
                 borderBottom: folder.entries.length > 0 ? 'none' : undefined,
               }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>
@@ -504,7 +504,7 @@ function Section({ title, action, children }: { title: string; action?: React.Re
         <h2 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.7 }}>{title}</h2>
         {action}
       </div>
-      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+      <div className="card" style={{ padding: 16 }}>
         {children}
       </div>
     </section>
@@ -548,17 +548,9 @@ function Mono({ children }: { children: React.ReactNode }) {
 
 function PrimaryBtn({ onClick, children, type = 'button' }: { onClick?: () => void; children: React.ReactNode; type?: 'button' | 'submit' }) {
   return (
-    <button type={type} onClick={onClick} style={{
-      padding: '7px 16px',
-      background: 'linear-gradient(135deg, var(--accent-solid), var(--accent-2))',
-      border: 'none', borderRadius: 7,
-      fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-      transition: 'opacity 0.15s',
-    }}
-      onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-    >
+    <button type={type} className="btn-primary" onClick={onClick} style={{
+      padding: '7px 16px', fontSize: 13,
+    }}>
       {children}
     </button>
   )
@@ -567,14 +559,14 @@ function PrimaryBtn({ onClick, children, type = 'button' }: { onClick?: () => vo
 function GhostBtn({ onClick, children, as: Tag = 'button' }: { onClick?: () => void; children: React.ReactNode; as?: 'button' | 'span' }) {
   const style: React.CSSProperties = {
     padding: '7px 16px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid var(--border-light)', borderRadius: 7,
+    background: 'var(--glass)', backdropFilter: 'blur(var(--blur))',
+    border: '1px solid var(--glass-bd)', borderRadius: 7,
     fontSize: 13, color: 'var(--text)', cursor: 'pointer', display: 'inline-block',
-    transition: 'background 0.15s',
+    transition: 'background 0.15s, border-color 0.15s',
   }
   const handlers = {
-    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.09)'),
-    onMouseLeave: (e: React.MouseEvent<HTMLElement>) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'),
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => { (e.currentTarget as HTMLElement).style.background = 'var(--glass-2)'; (e.currentTarget as HTMLElement).style.borderColor = 'color-mix(in srgb, var(--ac) 30%, var(--glass-bd))' },
+    onMouseLeave: (e: React.MouseEvent<HTMLElement>) => { (e.currentTarget as HTMLElement).style.background = 'var(--glass)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--glass-bd)' },
   }
   if (Tag === 'span') {
     return <span onClick={onClick} style={style} {...handlers}>{children}</span>

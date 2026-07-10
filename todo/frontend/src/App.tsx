@@ -165,8 +165,9 @@ export default function App() {
     <div style={{ display: 'flex', height: '100%' }}>
       {/* ── Sidebar ── */}
       <aside style={{
-        width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)', background: 'var(--sidebar-bg)',
-        borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '16px 0',
+        width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)', background: 'var(--glass)',
+        backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))',
+        borderRight: '1px solid var(--glass-bd)', display: 'flex', flexDirection: 'column', padding: '16px 0',
       }}>
         <div style={{ padding: '0 16px 16px', fontSize: '18px', fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px' }}>
           Todo
@@ -188,7 +189,7 @@ export default function App() {
           onClick={() => setSelectedListId(null)}
           style={{
             padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px',
-            background: selectedListId === null ? 'rgba(139,92,246,0.1)' : 'transparent',
+            background: selectedListId === null ? 'var(--ac-dim)' : 'transparent',
             borderLeft: selectedListId === null ? '3px solid var(--accent)' : '3px solid transparent',
             color: selectedListId === null ? 'var(--accent)' : 'var(--text)',
             fontSize: '14px',
@@ -246,14 +247,12 @@ export default function App() {
               value={quickAdd}
               onChange={e => setQuickAdd(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(); }}
-              style={{ flex: 1, fontSize: '14px', padding: '10px 14px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+              style={{ flex: 1, fontSize: '14px', padding: '10px 14px' }}
             />
             <button
+              className="btn-primary"
               onClick={handleQuickAdd}
-              style={{
-                padding: '10px 20px', background: 'var(--accent)', borderRadius: 'var(--radius)',
-                fontWeight: 600, fontSize: '13px', color: '#fff',
-              }}
+              style={{ padding: '10px 20px', fontSize: '13px' }}
             >
               Add
             </button>
@@ -336,7 +335,7 @@ function ListItem({ list, selectedListId, onSelect, onDelete, depth }: {
         style={{
           padding: '8px 16px', paddingLeft: `${16 + depth * 20}px`, cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: '10px',
-          background: isSelected ? 'rgba(139,92,246,0.1)' : 'transparent',
+          background: isSelected ? 'var(--ac-dim)' : 'transparent',
           borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
           color: isSelected ? 'var(--accent)' : 'var(--text)',
           fontSize: '14px', position: 'relative',
@@ -387,10 +386,11 @@ function TaskRow({ task, isSelected, onToggle, onClick, onDelete, onDragStart, o
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       onClick={onClick}
+      className="card card-hover"
       style={{
         display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px',
-        background: isSelected ? 'var(--card-hover)' : hovering ? 'rgba(255,255,255,0.02)' : 'transparent',
-        borderRadius: 'var(--radius)', cursor: 'pointer', marginBottom: '2px',
+        background: isSelected ? 'var(--ac-dim)' : undefined,
+        cursor: 'pointer', marginBottom: '8px',
         opacity: task.completed ? 0.5 : 1, transition: 'opacity 0.2s, background 0.15s',
         borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
       }}
@@ -434,10 +434,7 @@ function TaskRow({ task, isSelected, onToggle, onClick, onDelete, onDragStart, o
               </span>
             )}
             {tags.map(tag => (
-              <span key={tag} style={{
-                fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
-                background: 'rgba(139,92,246,0.15)', color: 'var(--accent)',
-              }}>
+              <span key={tag} className="chip chip-accent" style={{ fontSize: '10px', padding: '1px 8px' }}>
                 {tag}
               </span>
             ))}
@@ -482,8 +479,9 @@ function DetailPanel({ task, lists, onUpdate, onClose, onToggle, onDelete, onAdd
 
   return (
     <aside style={{
-      width: '360px', minWidth: '360px', background: 'var(--sidebar-bg)',
-      borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
+      width: '360px', minWidth: '360px', background: 'var(--glass)',
+      backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))',
+      borderLeft: '1px solid var(--glass-bd)', display: 'flex', flexDirection: 'column',
       overflowY: 'auto', padding: '20px',
     }}>
       {/* Header */}
@@ -491,13 +489,13 @@ function DetailPanel({ task, lists, onUpdate, onClose, onToggle, onDelete, onAdd
         <button onClick={onClose} style={{ color: 'var(--text-muted)', fontSize: '20px' }}>x</button>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={onToggle} style={{
-            padding: '4px 12px', borderRadius: 'var(--radius)', fontSize: '12px',
-            background: task.completed ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+            padding: '4px 12px', fontSize: '12px',
+            background: task.completed ? 'var(--ok-dim)' : 'rgba(255,255,255,0.05)',
             color: task.completed ? 'var(--success)' : 'var(--text-muted)',
           }}>
             {task.completed ? 'Completed' : 'Mark done'}
           </button>
-          <button onClick={onDelete} style={{ padding: '4px 12px', borderRadius: 'var(--radius)', fontSize: '12px', color: 'var(--danger)', background: 'rgba(239,68,68,0.1)' }}>
+          <button onClick={onDelete} style={{ padding: '4px 12px', fontSize: '12px', color: 'var(--danger)', background: 'var(--err-dim)' }}>
             Delete
           </button>
         </div>

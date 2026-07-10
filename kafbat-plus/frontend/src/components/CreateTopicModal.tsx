@@ -34,24 +34,22 @@ export default function CreateTopicModal({ onClose, onCreated, clusterId }: Crea
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 100,
       }}
     >
       <div
+        className="card"
         onClick={e => e.stopPropagation()}
         style={{
           width: 420,
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border)',
-          borderRadius: 12,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          boxShadow: 'var(--sh-lg), 0 0 0 1px color-mix(in srgb, var(--ac) 10%, transparent)',
         }}
       >
         <div style={{
           padding: '16px 20px',
-          borderBottom: '1px solid var(--border)',
+          borderBottom: '1px solid var(--glass-bd)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <h3 style={{ fontSize: 15, fontWeight: 600 }}>Create Topic</h3>
@@ -100,8 +98,8 @@ export default function CreateTopicModal({ onClose, onCreated, clusterId }: Crea
           {error && (
             <div style={{
               padding: '8px 12px', borderRadius: 6, fontSize: 12,
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-              color: 'var(--danger)',
+              background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 25%, transparent)',
+              color: 'var(--err)',
             }}>
               {error}
             </div>
@@ -110,19 +108,12 @@ export default function CreateTopicModal({ onClose, onCreated, clusterId }: Crea
 
         <div style={{
           padding: '12px 20px',
-          borderTop: '1px solid var(--border)',
+          borderTop: '1px solid var(--glass-bd)',
           display: 'flex', justifyContent: 'flex-end', gap: 8,
         }}>
-          <button onClick={onClose} style={{
-            padding: '8px 16px', fontSize: 12.5,
-            border: '1px solid var(--border)', borderRadius: 6,
-            color: 'var(--text-muted)',
-          }}>Cancel</button>
-          <button onClick={handleCreate} disabled={creating || !name.trim()} style={{
-            padding: '8px 20px', fontSize: 12.5, fontWeight: 500,
-            background: creating ? 'var(--text-dim)' : 'var(--accent)',
-            color: '#fff', borderRadius: 6,
-            opacity: creating || !name.trim() ? 0.6 : 1,
+          <button onClick={onClose} style={{ padding: '8px 16px', fontSize: 12.5 }}>Cancel</button>
+          <button className="btn-primary" onClick={handleCreate} disabled={creating || !name.trim()} style={{
+            padding: '8px 20px', fontSize: 12.5,
           }}>
             {creating ? 'Creating...' : 'Create'}
           </button>

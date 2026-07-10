@@ -50,9 +50,10 @@ export default function SessionList({
 
   return (
     <nav style={{
-      width: 320, minWidth: 320, background: 'var(--sidebar-bg)',
+      width: 320, minWidth: 320, background: 'var(--glass)',
+      backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))',
       display: 'flex', flexDirection: 'column',
-      borderRight: '1px solid var(--border)', height: '100%', overflow: 'hidden',
+      borderRight: '1px solid var(--glass-bd)', height: '100%', overflow: 'hidden',
     }}>
       {/* Header */}
       <div style={{
@@ -116,8 +117,8 @@ export default function SessionList({
       {error && (
         <div style={{
           margin: '0 14px 8px', padding: '8px 10px',
-          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-          borderRadius: 6, fontSize: 11, color: 'var(--danger)',
+          background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 25%, transparent)',
+          borderRadius: 6, fontSize: 11, color: 'var(--err)',
         }}>
           {error}
         </div>

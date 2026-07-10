@@ -202,7 +202,8 @@ export default function App() {
       {/* Sidebar */}
       <aside style={{
         width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)',
-        background: 'var(--sidebar-bg)', borderRight: `1px solid ${V.border}`,
+        background: 'var(--glass)', backdropFilter: 'blur(var(--blur))', WebkitBackdropFilter: 'blur(var(--blur))',
+        borderRight: `1px solid var(--glass-bd)`,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         <div style={{
@@ -245,12 +246,12 @@ export default function App() {
             </div>
           )}
           {secrets.map(s => (
-            <button key={s.id} onClick={() => { setSelectedId(s.id); setShowCreate(false); setShowEdit(false); setChangingPw(false) }}
+            <button key={s.id} className="card" onClick={() => { setSelectedId(s.id); setShowCreate(false); setShowEdit(false); setChangingPw(false) }}
               style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px',
-                background: s.id === selectedId ? V.cardHover : 'transparent',
-                borderRadius: V.radius, color: V.text, fontSize: 13, marginBottom: 2,
-                border: s.id === selectedId ? `1px solid ${V.accent}` : '1px solid transparent',
+                background: s.id === selectedId ? 'var(--ac-dim)' : undefined,
+                color: V.text, fontSize: 13, marginBottom: 6,
+                borderColor: s.id === selectedId ? 'color-mix(in srgb, var(--ac) 40%, var(--glass-bd))' : undefined,
               }}>
               <div style={{ fontWeight: 600, marginBottom: 2 }}>{s.label}</div>
               {s.category && <div style={{ fontSize: 11, color: V.textMuted }}>{s.category}</div>}
@@ -269,10 +270,10 @@ export default function App() {
         {error && <div style={errorBannerStyle}>{error}</div>}
 
         {copyFeedback && (
-          <div style={{
+          <div className="card" style={{
             position: 'fixed', top: 16, right: 16, zIndex: 100,
-            background: V.accent, color: '#fff', padding: '8px 16px',
-            borderRadius: V.radius, fontSize: 13, fontWeight: 600,
+            background: 'var(--ac)', color: '#0a0a0f', padding: '8px 16px',
+            fontSize: 13, fontWeight: 600,
           }}>
             Copied {copyFeedback}
           </div>
@@ -323,7 +324,7 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ background: V.cardBg, borderRadius: V.radius, padding: 20, border: `1px solid ${V.border}` }}>
+            <div className="card" style={{ padding: 20 }}>
               {/* Value */}
               <FieldRow label="Value">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -402,18 +403,18 @@ const actionBtnStyle: React.CSSProperties = {
 }
 
 const smallBtnStyle: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)', color: V.textMuted, border: 'none',
+  background: 'var(--s4)', color: V.textMuted, border: 'none',
   padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600, flexShrink: 0,
 }
 
 const tagStyle: React.CSSProperties = {
-  display: 'inline-block', background: 'rgba(20,184,166,0.12)', color: V.accent,
+  display: 'inline-block', background: 'var(--ac-dim)', color: V.accent,
   fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, marginRight: 4,
 }
 
 const errorBannerStyle: React.CSSProperties = {
-  padding: '10px 16px', marginBottom: 16, background: '#2a0f0f',
-  border: '1px solid rgba(248,113,113,0.2)', borderRadius: V.radius,
+  padding: '10px 16px', marginBottom: 16, background: 'var(--err-dim)',
+  border: '1px solid color-mix(in srgb, var(--err) 35%, transparent)', borderRadius: V.radius,
   color: V.danger, fontSize: 13,
 }
 
@@ -454,7 +455,7 @@ function SetupScreen({ onSetup }: { onSetup: (pw: string) => void }) {
 
   return (
     <CenterBox>
-      <div style={{ maxWidth: 380, width: '100%', padding: 32 }}>
+      <div className="card" style={{ maxWidth: 380, width: '100%', padding: 32 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🔐</div>
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Secrets Vault Setup</h1>
@@ -476,12 +477,8 @@ function SetupScreen({ onSetup }: { onSetup: (pw: string) => void }) {
             onKeyDown={e => e.key === 'Enter' && submit()} />
         </div>
         {err && <div style={{ color: V.danger, fontSize: 12, marginBottom: 12 }}>{err}</div>}
-        <button onClick={submit} disabled={loading}
-          style={{
-            width: '100%', padding: '12px', fontSize: 15, fontWeight: 700,
-            background: V.accent, color: '#fff', borderRadius: V.radius,
-            opacity: loading ? 0.6 : 1,
-          }}>
+        <button className="btn-primary" onClick={submit} disabled={loading}
+          style={{ width: '100%', padding: '12px', fontSize: 15 }}>
           {loading ? 'Setting up...' : 'Create Vault'}
         </button>
       </div>
@@ -507,7 +504,7 @@ function LockScreen({ onUnlock, error }: { onUnlock: (pw: string) => void; error
 
   return (
     <CenterBox>
-      <div style={{ maxWidth: 340, width: '100%', padding: 32 }}>
+      <div className="card" style={{ maxWidth: 340, width: '100%', padding: 32 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🔒</div>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>Vault Locked</h1>
@@ -519,12 +516,8 @@ function LockScreen({ onUnlock, error }: { onUnlock: (pw: string) => void; error
             onKeyDown={e => e.key === 'Enter' && submit()} />
         </div>
         {error && <div style={{ color: V.danger, fontSize: 12, marginBottom: 12 }}>{error}</div>}
-        <button onClick={submit} disabled={loading}
-          style={{
-            width: '100%', padding: '12px', fontSize: 15, fontWeight: 700,
-            background: V.accent, color: '#fff', borderRadius: V.radius,
-            opacity: loading ? 0.6 : 1,
-          }}>
+        <button className="btn-primary" onClick={submit} disabled={loading}
+          style={{ width: '100%', padding: '12px', fontSize: 15 }}>
           {loading ? 'Unlocking...' : 'Unlock'}
         </button>
       </div>
@@ -571,7 +564,7 @@ function SecretForm({ title, initial, onSubmit, onCancel }: SecretFormProps) {
   const fieldStyle: React.CSSProperties = { width: '100%', marginBottom: 12 }
 
   return (
-    <div style={{ maxWidth: 500 }}>
+    <div className="card" style={{ maxWidth: 500, padding: 24 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>{title}</h2>
       <div style={{ marginBottom: 4, fontSize: 12, color: V.textMuted }}>Label *</div>
       <input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. GitHub Token" style={fieldStyle} />
@@ -591,12 +584,12 @@ function SecretForm({ title, initial, onSubmit, onCancel }: SecretFormProps) {
         rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
       {err && <div style={{ color: V.danger, fontSize: 12, marginBottom: 12 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={submit} disabled={loading}
-          style={{ padding: '10px 24px', fontSize: 14, fontWeight: 700, background: V.accent, color: '#fff', borderRadius: V.radius }}>
+        <button className="btn-primary" onClick={submit} disabled={loading}
+          style={{ padding: '10px 24px', fontSize: 14 }}>
           {loading ? 'Saving...' : 'Save'}
         </button>
         <button onClick={onCancel}
-          style={{ padding: '10px 24px', fontSize: 14, background: 'transparent', color: V.textMuted, border: `1px solid ${V.border}`, borderRadius: V.radius }}>
+          style={{ padding: '10px 24px', fontSize: 14, background: 'transparent', color: V.textMuted, border: `1px solid ${V.border}` }}>
           Cancel
         </button>
       </div>
@@ -624,7 +617,7 @@ function ChangePasswordForm({ onSubmit, onCancel, error }: {
   }
 
   return (
-    <div style={{ maxWidth: 380 }}>
+    <div className="card" style={{ maxWidth: 380, padding: 24 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Change Master Password</h2>
       <p style={{ color: V.danger, fontSize: 12, marginBottom: 16, fontWeight: 600 }}>
         All secrets will be re-encrypted with the new password.
@@ -637,12 +630,12 @@ function ChangePasswordForm({ onSubmit, onCancel, error }: {
         onChange={e => setConfirmPw(e.target.value)} style={{ width: '100%', marginBottom: 12 }} />
       {(err || error) && <div style={{ color: V.danger, fontSize: 12, marginBottom: 12 }}>{err || error}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={submit} disabled={loading}
-          style={{ padding: '10px 24px', fontSize: 14, fontWeight: 700, background: V.accent, color: '#fff', borderRadius: V.radius }}>
+        <button className="btn-primary" onClick={submit} disabled={loading}
+          style={{ padding: '10px 24px', fontSize: 14 }}>
           {loading ? 'Changing...' : 'Change Password'}
         </button>
         <button onClick={onCancel}
-          style={{ padding: '10px 24px', fontSize: 14, background: 'transparent', color: V.textMuted, border: `1px solid ${V.border}`, borderRadius: V.radius }}>
+          style={{ padding: '10px 24px', fontSize: 14, background: 'transparent', color: V.textMuted, border: `1px solid ${V.border}` }}>
           Cancel
         </button>
       </div>

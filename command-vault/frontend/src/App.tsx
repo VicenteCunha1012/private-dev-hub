@@ -69,10 +69,7 @@ function CommandPreview({ command, variables, varValues }: {
     }
   }
   return (
-    <div style={{
-      background: '#0a0914', border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)', padding: '12px 16px', marginTop: 12,
-    }}>
+    <div className="card" style={{ padding: '12px 16px', marginTop: 12 }}>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
         Preview
       </div>
@@ -124,13 +121,12 @@ function FilePickerModal({ initialPath, onSelect, onClose }: {
 
   return (
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--card-bg)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', width: 520, maxHeight: '70vh',
-        display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+      <div className="card" onClick={e => e.stopPropagation()} style={{
+        width: 520, maxHeight: '70vh',
+        display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -267,11 +263,10 @@ function FilePathInput({ value, onChange, placeholder }: {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex',
       alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }} onClick={onClose}>
-      <div style={{
-        background: 'var(--card-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)',
+      <div className="card" style={{
         padding: 24, minWidth: 480, maxWidth: 600, maxHeight: '80vh', overflow: 'auto',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -335,14 +330,8 @@ function SnippetForm({ initial, onSubmit, onCancel, submitLabel }: {
         <input value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g. docker, devops" />
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-        <button onClick={onCancel} style={{
-          padding: '8px 16px', borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)', color: 'var(--text-muted)',
-        }}>Cancel</button>
-        <button onClick={() => onSubmit({ title, command, description: description || undefined, tags: tags || undefined })} style={{
-          padding: '8px 16px', borderRadius: 'var(--radius)',
-          background: 'var(--accent-solid)', color: '#fff', fontWeight: 500,
-        }}>
+        <button onClick={onCancel} style={{ padding: '8px 16px' }}>Cancel</button>
+        <button className="btn-primary" onClick={() => onSubmit({ title, command, description: description || undefined, tags: tags || undefined })} style={{ padding: '8px 16px' }}>
           {submitLabel}
         </button>
       </div>
@@ -584,7 +573,8 @@ export default function App() {
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside style={{
         width: 'var(--sidebar-width)', minWidth: 'var(--sidebar-width)',
-        background: 'var(--sidebar-bg)', borderRight: '1px solid var(--border)',
+        background: 'var(--glass)', backdropFilter: 'blur(var(--blur))',
+        borderRight: '1px solid var(--glass-bd)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Logo */}
@@ -593,9 +583,9 @@ export default function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)' }}>Command Vault</span>
-          <button onClick={() => setShowCreate(true)} style={{
-            width: 28, height: 28, borderRadius: 6, background: 'var(--accent-solid)',
-            color: '#fff', fontWeight: 700, fontSize: 16, display: 'flex',
+          <button className="btn-primary" onClick={() => setShowCreate(true)} style={{
+            width: 28, height: 28, padding: 0, borderRadius: 6,
+            fontWeight: 700, fontSize: 16, display: 'flex',
             alignItems: 'center', justifyContent: 'center',
           }} title="New snippet (n)">+</button>
         </div>
@@ -727,8 +717,8 @@ export default function App() {
             <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
               ⚡ Flows
             </span>
-            <button onClick={() => vaultApi.createFlow({ name: 'New Flow' }).then(() => loadFlows())}
-              style={{ width: 18, height: 18, borderRadius: 4, background: 'var(--accent-solid)', color: '#fff', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+            <button className="btn-primary" onClick={() => vaultApi.createFlow({ name: 'New Flow' }).then(() => loadFlows())}
+              style={{ width: 18, height: 18, padding: 0, borderRadius: 4, fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
           </div>
           <div style={{ maxHeight: 300, overflowY: 'auto', padding: '0 8px 8px' }}>
             {flows.map(f => {
@@ -759,7 +749,7 @@ export default function App() {
                   {/* Mini thumbnail */}
                   <div style={{
                     width: 56, height: 40, flexShrink: 0, borderRadius: 5,
-                    background: '#0a0914', border: '1px solid var(--border)',
+                    background: 'var(--bg)', border: '1px solid var(--border)',
                     position: 'relative', overflow: 'hidden',
                   }}>
                     {thumb.map((dot, i) => (
@@ -820,8 +810,8 @@ export default function App() {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {error && (
           <div style={{
-            padding: '10px 18px', background: '#2a0f0f', borderBottom: '1px solid #5a2020',
-            color: '#f87171', fontSize: 13,
+            padding: '10px 18px', background: 'var(--err-dim)', borderBottom: '1px solid color-mix(in srgb, var(--err) 30%, transparent)',
+            color: 'var(--err)', fontSize: 13,
           }}>
             {error}
           </div>
@@ -858,13 +848,10 @@ export default function App() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setShowEdit(true)} style={{
-                  padding: '6px 14px', borderRadius: 'var(--radius)',
-                  border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12.5,
-                }}>Edit</button>
+                <button onClick={() => setShowEdit(true)} style={{ padding: '6px 14px', fontSize: 12.5 }}>Edit</button>
                 <button onClick={handleDelete} style={{
-                  padding: '6px 14px', borderRadius: 'var(--radius)',
-                  border: '1px solid #5a2020', color: 'var(--danger)', fontSize: 12.5,
+                  padding: '6px 14px', fontSize: 12.5,
+                  border: '1px solid color-mix(in srgb, var(--danger) 35%, transparent)', color: 'var(--danger)',
                 }}>Delete</button>
               </div>
             </div>
@@ -877,21 +864,13 @@ export default function App() {
             )}
 
             {/* Command block */}
-            <div style={{
-              background: '#0a0914', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)', overflow: 'hidden',
-            }}>
+            <div className="card" style={{ overflow: 'hidden' }}>
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '8px 14px', borderBottom: '1px solid var(--border)',
-                background: 'var(--card-bg)',
+                padding: '8px 14px', borderBottom: '1px solid var(--glass-bd)',
               }}>
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Command</span>
-                <button onClick={handleExpand} style={{
-                  padding: '4px 12px', borderRadius: 6,
-                  background: showVarForm ? 'var(--text-dim)' : 'var(--accent-solid)',
-                  color: '#fff', fontSize: 12, fontWeight: 500,
-                }}>
+                <button className={showVarForm ? '' : 'btn-primary'} onClick={handleExpand} style={{ padding: '4px 12px', fontSize: 12 }}>
                   {showVarForm ? 'Expanded' : 'Expand'}<kbd style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, padding: '1px 4px', marginLeft: 4, lineHeight: 1.5 }}>e</kbd>
                 </button>
               </div>
@@ -908,10 +887,7 @@ export default function App() {
             {showVarForm && (() => {
               const history = loadVarHistory()
               return (
-                <div style={{
-                  marginTop: 12, padding: 16, background: 'var(--card-bg)',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                }}>
+                <div className="card" style={{ marginTop: 12, padding: 16 }}>
                   {variables.length > 0 && (
                     <>
                       <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
@@ -960,26 +936,20 @@ export default function App() {
                     />
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
-                    <button onClick={() => setShowVarForm(false)} style={{
-                      padding: '6px 14px', borderRadius: 6,
-                      border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12,
-                    }}>Collapse</button>
+                    <button onClick={() => setShowVarForm(false)} style={{ padding: '6px 14px', fontSize: 12 }}>Collapse</button>
                     <button onClick={handleQuickRun} disabled={execRunning} style={{
-                      padding: '6px 14px', borderRadius: 6,
-                      background: execRunning ? 'var(--text-dim)' : '#0ea5e9',
-                      color: '#fff', fontSize: 12, fontWeight: 500,
-                      opacity: execRunning ? 0.6 : 1,
+                      padding: '6px 14px', fontSize: 12,
+                      color: execRunning ? undefined : 'var(--info)',
+                      borderColor: execRunning ? undefined : 'color-mix(in srgb, var(--info) 35%, transparent)',
                     }} title="Run and capture output (30s timeout)">{execRunning ? 'Running...' : 'Quick Run'}</button>
                     <button onClick={handleRun} disabled={execRunning} style={{
-                      padding: '6px 14px', borderRadius: 6,
-                      background: execRunning ? 'var(--text-dim)' : '#22c55e',
-                      color: '#fff', fontSize: 12, fontWeight: 500,
-                      opacity: execRunning ? 0.6 : 1,
+                      padding: '6px 14px', fontSize: 12,
+                      color: execRunning ? undefined : 'var(--success)',
+                      borderColor: execRunning ? undefined : 'color-mix(in srgb, var(--success) 35%, transparent)',
                     }} title="Run in interactive terminal">Terminal</button>
-                    <button onClick={handleCopy} style={{
-                      padding: '6px 14px', borderRadius: 6,
-                      background: copyFeedback ? 'var(--success)' : 'var(--accent-solid)',
-                      color: '#fff', fontSize: 12, fontWeight: 500,
+                    <button className="btn-primary" onClick={handleCopy} style={{
+                      padding: '6px 14px', fontSize: 12,
+                      ...(copyFeedback ? { background: 'var(--success)', boxShadow: 'none' } : {}),
                     }}>{copyFeedback ? 'Copied!' : 'Copy Command'}</button>
                   </div>
                 </div>
@@ -988,14 +958,10 @@ export default function App() {
 
             {/* Terminal output */}
             {terminalUrl && (
-              <div style={{
-                marginTop: 12, background: '#0a0914', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)', overflow: 'hidden',
-              }}>
+              <div className="card" style={{ marginTop: 12, overflow: 'hidden' }}>
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '8px 14px', borderBottom: '1px solid var(--border)',
-                  background: 'var(--card-bg)',
+                  padding: '8px 14px', borderBottom: '1px solid var(--glass-bd)',
                 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
                     Terminal
@@ -1014,14 +980,10 @@ export default function App() {
 
             {/* Execution error output */}
             {execResult && (
-              <div style={{
-                marginTop: 12, background: '#0a0914', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)', overflow: 'hidden',
-              }}>
+              <div className="card" style={{ marginTop: 12, overflow: 'hidden' }}>
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '8px 14px', borderBottom: '1px solid var(--border)',
-                  background: 'var(--card-bg)',
+                  padding: '8px 14px', borderBottom: '1px solid var(--glass-bd)',
                 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
                     Output
@@ -1121,24 +1083,22 @@ function ContextMenu({ menu, onClose }: {
   }, [onClose])
 
   return (
-    <div ref={ref} style={{
+    <div ref={ref} className="card" style={{
       position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999,
-      background: '#1a1730', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8,
-      boxShadow: '0 8px 30px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)',
-      backdropFilter: 'blur(12px)', padding: '4px 0', minWidth: 180,
+      padding: '4px 0', minWidth: 180,
       transform: visible ? 'scale(1)' : 'scale(0.95)',
       opacity: visible ? 1 : 0,
       transition: 'transform 120ms ease-out, opacity 120ms ease-out',
       transformOrigin: 'top left',
     }}>
       {menu.items.map((item, i) => {
-        if (item.divider) return <div key={i} style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
+        if (item.divider) return <div key={i} style={{ height: 1, background: 'var(--glass-bd)', margin: '4px 0' }} />
         return (
           <div key={i}
             onClick={(e) => { e.stopPropagation(); if (!item.disabled) { item.onClick(); onClose() } }}
             style={{
               padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: item.disabled ? 'default' : 'pointer',
-              fontSize: 12.5, color: item.danger ? '#f87171' : item.disabled ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.85)',
+              fontSize: 12.5, color: item.danger ? 'var(--danger)' : item.disabled ? 'var(--text-dim)' : 'var(--text)',
               opacity: item.disabled ? 0.5 : 1,
             }}
             onMouseEnter={e => { if (!item.disabled) (e.currentTarget.style.background = 'rgba(255,255,255,0.06)') }}
@@ -1146,7 +1106,7 @@ function ContextMenu({ menu, onClose }: {
           >
             {item.icon && <span style={{ fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>}
             <span style={{ flex: 1 }}>{item.label}</span>
-            {item.shortcut && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginLeft: 16 }}>{item.shortcut}</span>}
+            {item.shortcut && <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 16 }}>{item.shortcut}</span>}
           </div>
         )
       })}

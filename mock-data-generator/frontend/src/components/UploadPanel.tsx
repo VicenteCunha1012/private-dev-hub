@@ -60,7 +60,7 @@ export default function UploadPanel({ onSpecCreated }: UploadPanelProps) {
   }
 
   return (
-    <div style={{ padding: 24, overflowY: 'auto', height: '100%' }}>
+    <div className="card" style={{ margin: 20, padding: 24, overflowY: 'auto', flex: 1, minHeight: 0 }}>
       <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 20, letterSpacing: -0.3 }}>New Spec — Infer from Samples</h2>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
@@ -131,18 +131,15 @@ export default function UploadPanel({ onSpecCreated }: UploadPanelProps) {
       {error && (
         <div style={{
           padding: '10px 14px', borderRadius: 6, fontSize: 12, marginBottom: 16,
-          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-          color: 'var(--danger)', whiteSpace: 'pre-wrap',
+          background: 'var(--err-dim)', border: '1px solid color-mix(in srgb, var(--err) 35%, transparent)',
+          color: 'var(--err)', whiteSpace: 'pre-wrap',
         }}>
           {error}
         </div>
       )}
 
-      <button onClick={infer} disabled={loading || !name.trim() || samples.every(s => !s.trim())} style={{
-        padding: '10px 24px', fontSize: 13, fontWeight: 600,
-        background: loading ? 'var(--text-dim)' : 'var(--accent)',
-        color: '#fff', borderRadius: 8,
-        opacity: loading || !name.trim() || samples.every(s => !s.trim()) ? 0.6 : 1,
+      <button className="btn-primary" onClick={infer} disabled={loading || !name.trim() || samples.every(s => !s.trim())} style={{
+        padding: '10px 24px', fontSize: 13,
         display: 'flex', alignItems: 'center', gap: 8,
       }}>
         {loading ? (

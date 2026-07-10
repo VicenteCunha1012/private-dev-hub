@@ -481,12 +481,11 @@ function AddEntryModal({ folders, onClose, onSaved }: { folders: Folder[]; onClo
 
   return (
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--card-bg)', border: '1px solid var(--border)',
-        borderRadius: 10, padding: 24, width: 440,
+      <div className="card" onClick={e => e.stopPropagation()} style={{
+        padding: 24, width: 440, boxShadow: 'var(--sh-lg)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Add Entry</h2>
@@ -540,10 +539,8 @@ function AddEntryModal({ folders, onClose, onSaved }: { folders: Folder[]; onClo
               padding: '7px 16px', border: '1px solid var(--border)', borderRadius: 7,
               color: 'var(--text)', fontSize: 13,
             }}>Cancel</button>
-            <button type="submit" disabled={saving} style={{
-              padding: '7px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600,
-              background: 'linear-gradient(135deg, var(--accent-solid), var(--accent-2))',
-              color: '#fff', opacity: saving ? 0.6 : 1,
+            <button type="submit" className="btn-primary" disabled={saving} style={{
+              padding: '7px 16px', fontSize: 13, opacity: saving ? 0.6 : 1,
             }}>{saving ? 'Adding...' : 'Add entry'}</button>
           </div>
         </form>

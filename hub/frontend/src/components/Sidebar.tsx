@@ -47,10 +47,12 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       }}
       style={{
         width: 'var(--sidebar-width)',
-        background: 'var(--sidebar-bg)',
+        background: 'var(--glass)',
+        backdropFilter: 'blur(var(--blur)) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(var(--blur)) saturate(1.4)',
         display: 'flex',
         flexDirection: 'column',
-        borderRight: '1px solid var(--border)',
+        borderRight: '1px solid var(--glass-bd)',
         flexShrink: 0,
         height: '100%',
         overflow: 'hidden',
@@ -60,7 +62,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       {/* Logo + Add button */}
       <div style={{
         padding: '12px 10px 10px 16px',
-        borderBottom: '1px solid var(--border)',
+        borderBottom: '1px solid var(--glass-bd)',
         display: 'flex', alignItems: 'center', gap: 9,
       }}>
         <button onClick={onGoHome} style={{
@@ -120,7 +122,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       </div>
 
       {/* Config */}
-      <div style={{ padding: '6px 8px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ padding: '6px 8px', borderTop: '1px solid var(--glass-bd)' }}>
         <button
           onClick={onConfigClick}
           style={{

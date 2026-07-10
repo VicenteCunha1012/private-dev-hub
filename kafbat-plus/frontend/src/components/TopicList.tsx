@@ -28,9 +28,11 @@ export default function TopicList({
   return (
     <nav style={{
       width: 280, minWidth: 280,
-      background: 'var(--sidebar-bg)',
+      background: 'var(--glass)',
+      backdropFilter: 'blur(var(--blur))',
+      WebkitBackdropFilter: 'blur(var(--blur))',
       display: 'flex', flexDirection: 'column',
-      borderRight: '1px solid var(--border)',
+      borderRight: '1px solid var(--glass-bd)',
       height: '100%', overflow: 'hidden',
     }}>
       {/* Header */}

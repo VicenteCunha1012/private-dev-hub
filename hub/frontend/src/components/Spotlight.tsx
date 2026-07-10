@@ -258,24 +258,25 @@ export default function Spotlight({ entries, onSelect, onClose }: SpotlightProps
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        paddingTop: '15vh', zIndex: 2000, backdropFilter: 'blur(4px)',
+        paddingTop: '15vh', zIndex: 2000, backdropFilter: 'blur(6px)',
       }}
     >
       <div
+        className="card"
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
         style={{
-          width: 560, background: '#1a1d2e',
-          border: '1px solid rgba(139,92,246,0.3)',
-          borderRadius: 14, overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.1)',
+          width: 560, background: 'var(--glass-2)',
+          border: '1px solid var(--glass-bd)',
+          borderRadius: 'var(--r-lg)', overflow: 'hidden',
+          boxShadow: 'var(--sh-lg), 0 0 0 1px color-mix(in srgb, var(--ac) 12%, transparent)',
         }}
       >
         {/* Search input */}
-        <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="16" height="16" viewBox="0 0 15 15" fill="none" style={{ color: '#8b5cf6', flexShrink: 0 }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--glass-bd)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="16" height="16" viewBox="0 0 15 15" fill="none" style={{ color: 'var(--ac)', flexShrink: 0 }}>
             <path d="M6.5 11a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM13 13l-3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
           </svg>
           <input
@@ -285,12 +286,12 @@ export default function Spotlight({ entries, onSelect, onClose }: SpotlightProps
             placeholder="Search services, topics, commands..."
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
-              color: '#e2e8f0', fontSize: 15, fontWeight: 400,
+              color: 'var(--tx)', fontSize: 15, fontWeight: 400,
             }}
           />
           <kbd style={{
-            fontSize: 10, color: '#475569', background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4,
+            fontSize: 10, color: 'var(--tx-3)', background: 'rgba(255,255,255,0.05)',
+            border: '1px solid var(--glass-bd)', borderRadius: 4,
             padding: '2px 6px', fontFamily: 'monospace',
           }}>
             Esc
@@ -308,22 +309,22 @@ export default function Spotlight({ entries, onSelect, onClose }: SpotlightProps
                 width: '100%', textAlign: 'left',
                 padding: '10px 16px',
                 display: 'flex', alignItems: 'center', gap: 10,
-                background: selected === -1 ? 'rgba(34,197,94,0.12)' : 'transparent',
-                cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                background: selected === -1 ? 'var(--ok-dim)' : 'transparent',
+                cursor: 'pointer', borderBottom: '1px solid var(--glass-bd)',
               }}
             >
               <span style={{
                 width: 22, height: 22, borderRadius: 5,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, fontWeight: 700, flexShrink: 0,
-                background: 'rgba(34,197,94,0.15)', color: '#22c55e',
+                background: 'var(--ok-dim)', color: 'var(--ok)',
               }}>
                 =
               </span>
-              <span style={{ flex: 1, fontSize: 18, fontWeight: 600, color: '#e2e8f0', fontFamily: 'monospace' }}>
+              <span style={{ flex: 1, fontSize: 18, fontWeight: 600, color: 'var(--tx)', fontFamily: 'monospace' }}>
                 {calcResult}
               </span>
-              <span style={{ fontSize: 10, color: '#475569' }}>
+              <span style={{ fontSize: 10, color: 'var(--tx-3)' }}>
                 Enter to copy
               </span>
             </button>
@@ -337,29 +338,29 @@ export default function Spotlight({ entries, onSelect, onClose }: SpotlightProps
                 width: '100%', textAlign: 'left',
                 padding: '10px 16px',
                 display: 'flex', alignItems: 'center', gap: 10,
-                background: selected === -1 ? 'rgba(59,130,246,0.12)' : 'transparent',
-                cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                background: selected === -1 ? 'var(--info-dim)' : 'transparent',
+                cursor: 'pointer', borderBottom: '1px solid var(--glass-bd)',
               }}
             >
               <span style={{
                 width: 22, height: 22, borderRadius: 5,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 12, fontWeight: 700, flexShrink: 0,
-                background: 'rgba(59,130,246,0.15)', color: '#3b82f6',
+                background: 'var(--info-dim)', color: 'var(--info)',
               }}>
                 T
               </span>
-              <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#e2e8f0', fontFamily: 'monospace' }}>
+              <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--tx)', fontFamily: 'monospace' }}>
                 {dateResult}
               </span>
-              <span style={{ fontSize: 10, color: '#475569' }}>
+              <span style={{ fontSize: 10, color: 'var(--tx-3)' }}>
                 Enter to copy
               </span>
             </button>
           )}
 
           {results.length === 0 && !calcResult && !dateResult && (
-            <div style={{ padding: '20px 16px', textAlign: 'center', color: '#475569', fontSize: 13 }}>
+            <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--tx-3)', fontSize: 13 }}>
               No results for "{query}"
             </div>
           )}
@@ -372,8 +373,8 @@ export default function Spotlight({ entries, onSelect, onClose }: SpotlightProps
                 width: '100%', textAlign: 'left',
                 padding: '8px 16px',
                 display: 'flex', alignItems: 'center', gap: 10,
-                background: idx === selected ? 'rgba(139,92,246,0.12)' : 'transparent',
-                color: idx === selected ? '#e2e8f0' : '#94a3b8',
+                background: idx === selected ? 'var(--ac-dim)' : 'transparent',
+                color: idx === selected ? 'var(--tx)' : 'var(--tx-2)',
                 cursor: 'pointer', transition: 'background 0.05s',
               }}
             >
