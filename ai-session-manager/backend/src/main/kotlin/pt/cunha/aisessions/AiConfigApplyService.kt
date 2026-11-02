@@ -31,12 +31,17 @@ data class ApplyConfigResult(
     val changed: List<String> = emptyList()
 )
 
+private const val HOME_TOKEN = "__HOME__"
+
 class AiConfigApplyService(
     private val aiConfigPath: String,
     private val claudeDir: String,
     private val openCodeConfigDir: String,
     private val homeMcpJson: String,
-    private val rtkConfigDir: String
+    private val rtkConfigDir: String,
+    private val ccstatuslineDir: String = "/home/user/.config/ccstatusline",
+    // Real home of the host user (the container's own home is /home/user). Used to make paths portable.
+    private val hostHome: String? = System.getenv("HOST_HOME")?.trimEnd('/')?.ifBlank { null }
 ) {
     private val aiConfigDir get() = File(aiConfigPath)
 
@@ -57,10 +62,15 @@ class AiConfigApplyService(
                 val src = File(claudeDir, dir)
                 if (src.exists()) copyDir(src, File(aiConfigPath, "claude/$dir"), log, changed)
             }
+            // skills/synced is account-synced by Claude, not personal config
+            File(aiConfigPath, "claude/skills/synced").deleteRecursively()
             copyFile(File(claudeDir, "CLAUDE.md"), File(aiConfigPath, "claude/CLAUDE.md"), log, changed)
             copyFile(File(claudeDir, "RTK.md"), File(aiConfigPath, "claude/RTK.md"), log, changed)
-            copyFile(File(claudeDir, "settings.json"), File(aiConfigPath, "claude/settings.json"), log, changed)
+            copyFile(File(claudeDir, "ai-memory.md"), File(aiConfigPath, "claude/ai-memory.md"), log, changed)
+            // Home path becomes __HOME__ so the config works for any username
+            copyFile(File(claudeDir, "settings.json"), File(aiConfigPath, "claude/settings.json"), log, changed) { it.replaceHome(hostHome, HOME_TOKEN) }
             extractMcpServers(log, changed)
+            copyFile(File(ccstatuslineDir, "settings.json"), File(aiConfigPath, "claude/ccstatusline/settings.json"), log, changed)
 
             // OpenCode
             copyFile(File(openCodeConfigDir, "opencode.json"), File(aiConfigPath, "opencode/opencode.json"), log, changed)
@@ -94,8 +104,12 @@ class AiConfigApplyService(
             }
             copyFile(File(aiConfigPath, "claude/CLAUDE.md"), File(claudeDir, "CLAUDE.md"), log, changed)
             copyFile(File(aiConfigPath, "claude/RTK.md"), File(claudeDir, "RTK.md"), log, changed)
-            copyFile(File(aiConfigPath, "claude/settings.json"), File(claudeDir, "settings.json"), log, changed)
+            copyFile(File(aiConfigPath, "claude/ai-memory.md"), File(claudeDir, "ai-memory.md"), log, changed)
+            copyFile(File(aiConfigPath, "claude/settings.json"), File(claudeDir, "settings.json"), log, changed) { it.replaceHome(HOME_TOKEN, hostHome) }
             mergeMcpServers(log, changed)
+            File(ccstatuslineDir).mkdirs()
+            copyFile(File(aiConfigPath, "claude/ccstatusline/settings.json"), File(ccstatuslineDir, "settings.json"), log, changed)
+            log.appendLine("  [note] plugins/mods are not installed here: run restore-plugins.sh on the host")
 
             // OpenCode
             File(openCodeConfigDir).mkdirs()
@@ -206,11 +220,19 @@ class AiConfigApplyService(
             .sortedBy { it.path }
             .toList()
 
-    private fun copyFile(src: File, dst: File, log: StringBuilder, changed: MutableList<String>): Boolean {
+    // Replaces [from] with [to] in a text file's contents; a no-op when either side is unknown.
+    private fun String.replaceHome(from: String?, to: String?): String =
+        if (from.isNullOrBlank() || to.isNullOrBlank()) this else replace(from, to)
+
+    private fun copyFile(
+        src: File, dst: File, log: StringBuilder, changed: MutableList<String>,
+        transform: ((String) -> String)? = null
+    ): Boolean {
         if (!src.exists()) return false
         dst.parentFile?.mkdirs()
         val before = if (dst.exists()) dst.readBytes().contentHashCode() else 0
-        Files.copy(src.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        if (transform != null) dst.writeText(transform(src.readText()))
+        else Files.copy(src.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING)
         val after = dst.readBytes().contentHashCode()
         if (before != after) {
             changed.add(dst.absolutePath)
@@ -232,9 +254,11 @@ class AiConfigApplyService(
         if (!srcFile.exists()) return
         try {
             val root = Json.parseToJsonElement(srcFile.readText()) as? JsonObject ?: return
-            val mcpServers = root["mcpServers"] ?: return
+            val mcpServers = root["mcpServers"] as? JsonObject ?: return
+            // postgres embeds local credentials: never sync it
+            val safeServers = JsonObject(mcpServers.filterKeys { it != "postgres" })
             val out = buildJsonObject {
-                put("mcpServers", mcpServers)
+                put("mcpServers", safeServers)
                 val projects = root["projects"] as? JsonObject
                 if (projects != null) {
                     val filtered = projects.entries.filter { (_, v) ->
@@ -254,6 +278,7 @@ class AiConfigApplyService(
             val dst = File(aiConfigPath, "claude/mcpServers.json")
             dst.parentFile?.mkdirs()
             val serialized = Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), out)
+                .replaceHome(hostHome, HOME_TOKEN)
             val before = if (dst.exists()) dst.readText() else ""
             dst.writeText(serialized)
             if (before != serialized) {
@@ -270,13 +295,18 @@ class AiConfigApplyService(
         val dstFile = File(homeMcpJson)
         if (!srcFile.exists()) return
         try {
-            val src = Json.parseToJsonElement(srcFile.readText()) as? JsonObject ?: return
+            val src = Json.parseToJsonElement(srcFile.readText().replaceHome(HOME_TOKEN, hostHome)) as? JsonObject ?: return
             val existing = if (dstFile.exists()) {
                 try { (Json.parseToJsonElement(dstFile.readText()) as? JsonObject)?.toMutableMap() ?: mutableMapOf() }
                 catch (e: Exception) { mutableMapOf() }
             } else mutableMapOf()
 
-            src["mcpServers"]?.let { existing["mcpServers"] = it }
+            // Merge (don't replace) so local-only servers such as postgres survive an apply
+            (src["mcpServers"] as? JsonObject)?.let { incoming ->
+                val current = (existing["mcpServers"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+                current.putAll(incoming)
+                existing["mcpServers"] = JsonObject(current)
+            }
 
             val srcProjects = src["projects"] as? JsonObject
             if (srcProjects != null) {

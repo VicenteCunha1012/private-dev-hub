@@ -23,10 +23,11 @@ fun Application.module() {
     val homeMcpJson = environment.config.propertyOrNull("sessions.homeMcpJson")?.getString() ?: "/home/user/.claude.json"
     val aiConfigPath = environment.config.propertyOrNull("sessions.aiConfigPath")?.getString() ?: "/home/user/ai-config"
     val rtkConfigDir = environment.config.propertyOrNull("sessions.rtkConfigDir")?.getString() ?: "/home/user/.config/rtk"
+    val ccstatuslineDir = environment.config.propertyOrNull("sessions.ccstatuslineDir")?.getString() ?: "/home/user/.config/ccstatusline"
     val sessionScanner = SessionScanner(claudeDir)
     val openCodeScanner = OpenCodeScanner(openCodeDb)
     val aiConfigScanner = AiConfigScanner(claudeDir, openCodeDir, homeMcpJson)
-    val aiConfigApplyService = AiConfigApplyService(aiConfigPath, claudeDir, openCodeDir, homeMcpJson, rtkConfigDir)
+    val aiConfigApplyService = AiConfigApplyService(aiConfigPath, claudeDir, openCodeDir, homeMcpJson, rtkConfigDir, ccstatuslineDir)
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true })

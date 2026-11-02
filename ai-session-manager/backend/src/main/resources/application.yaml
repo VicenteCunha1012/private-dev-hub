@@ -12,3 +12,4 @@ sessions:
   homeMcpJson: "/home/user/.claude.json"
   aiConfigPath: "/home/user/ai-config"
   rtkConfigDir: "/home/user/.config/rtk"
+  ccstatuslineDir: "/home/user/.config/ccstatusline"

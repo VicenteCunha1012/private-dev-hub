@@ -95,7 +95,11 @@ services:
       - ${HOME}/.claude.json:/home/user/.claude.json
       - ${HOME}/ai-config:/home/user/ai-config
       - ${HOME}/.config/rtk:/home/user/.config/rtk
+      - ${HOME}/.config/ccstatusline:/home/user/.config/ccstatusline
       - ${HOME}/.gitconfig:/home/user/.gitconfig:ro
+    environment:
+      # Host home path, so synced configs can use a portable __HOME__ token
+      HOST_HOME: ${HOME}
 
   json-tools-backend:
     build: ./json-tools/backend
