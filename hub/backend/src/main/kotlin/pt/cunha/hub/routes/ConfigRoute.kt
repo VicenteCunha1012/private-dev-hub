@@ -9,6 +9,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import pt.cunha.hub.models.ExportedConfig
 import pt.cunha.hub.models.UpdateConfigRequest
 import pt.cunha.hub.services.ConfigService
@@ -146,7 +148,10 @@ fun Routing.configRoutes(configService: ConfigService, folderService: FolderServ
             }
 
             client.close()
-            call.respond(mapOf("status" to "imported", "results" to results))
+            call.respond(buildJsonObject {
+                put("status", "imported")
+                put("results", buildJsonObject { results.forEach { (k, v) -> put(k, v) } })
+            })
         }
     }
 }
